@@ -28,3 +28,6 @@ pnpm-debug.log*
 # Misc
 *.tsbuildinfo
 .cache/
+
+# Local business storage (dev bind mount)
+.data/

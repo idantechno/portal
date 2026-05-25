@@ -20,6 +20,21 @@ services:
       retries: 10
     networks: [portal]
 
+  redis:
+    image: redis:7-alpine
+    container_name: portal-redis-dev
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data_dev:/data
+    ports:
+      - "${REDIS_HOST_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [portal]
+
   backend:
     build:
       context: ./backend
@@ -38,6 +53,9 @@ services:
       DB_NAME: ${DB_NAME:-portal}
       DB_SYNCHRONIZE: "true"
       DB_LOGGING: "true"
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      BUSINESSES_DIR: /data/businesses
     ports:
       - "${BACKEND_HOST_PORT:-3000}:3000"
       - "${BACKEND_DEBUG_HOST_PORT:-9229}:9229"
@@ -48,8 +66,11 @@ services:
       - ./backend/tsconfig.build.json:/app/tsconfig.build.json
       - ./backend/nest-cli.json:/app/nest-cli.json
       - ./backend/package.json:/app/package.json
+      - ${BUSINESSES_HOST_DIR:-./.data/businesses}:/data/businesses
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks: [portal]
 
@@ -78,6 +99,7 @@ services:
 
 volumes:
   postgres_data_dev:
+  redis_data_dev:
 
 networks:
   portal:

@@ -4,7 +4,9 @@ import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // rawBody: true exposes req.rawBody to controllers — needed for the
+  // WhatsApp webhook (Meta signs the raw bytes with X-Hub-Signature-256).
+  const app = await NestFactory.create(AppModule, { rawBody: true });
   const config = app.get(ConfigService);
 
   app.setGlobalPrefix(config.get<string>('API_PREFIX', 'api'));

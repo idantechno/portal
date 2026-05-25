@@ -17,12 +17,14 @@ help:
 
 ## --- Dev ---
 .PHONY: dev dev-build dev-down dev-logs dev-restart
-dev: ## Start dev stack (vite + nest watch + postgres)
+dev: ## Start dev stack (vite + nest watch + postgres + redis)
+	@mkdir -p $(or $(BUSINESSES_HOST_DIR),./.data/businesses)
 	$(COMPOSE_DEV) up -d --build
 	@echo "Frontend: http://localhost:$(or $(FRONTEND_HOST_PORT),5173)"
 	@echo "Backend:  http://localhost:$(or $(BACKEND_HOST_PORT),3000)/api"
 	@echo "Debug:    localhost:$(or $(BACKEND_DEBUG_HOST_PORT),9229)"
 	@echo "Postgres: localhost:$(or $(DB_HOST_PORT),5432) (use DBeaver)"
+	@echo "Redis:    localhost:$(or $(REDIS_HOST_PORT),6379)"
 
 dev-build: ## Rebuild dev images
 	$(COMPOSE_DEV) build

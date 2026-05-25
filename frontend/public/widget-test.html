@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Portal widget test</title>
+    <style>
+      :root {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Heebo",
+          sans-serif;
+        color: #0f172a;
+        background: #f8fafc;
+      }
+      body {
+        margin: 0;
+        padding: 40px 32px;
+        max-width: 860px;
+        margin: 0 auto;
+      }
+      h1 {
+        font-size: 28px;
+        margin: 0 0 12px;
+      }
+      p {
+        line-height: 1.55;
+        color: #334155;
+      }
+      .card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 20px 24px;
+        margin-top: 24px;
+      }
+      label {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        color: #475569;
+        margin-bottom: 6px;
+      }
+      input {
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        font-family: monospace;
+        font-size: 13px;
+      }
+      .row {
+        margin-bottom: 14px;
+      }
+      button {
+        background: #2563eb;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 16px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      code {
+        background: #f1f5f9;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 90%;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Portal widget — test page</h1>
+    <p>
+      This page simulates a third-party site that has embedded the portal
+      chatbot widget. Set your business's <code>publicKey</code> below and
+      click <em>Load widget</em> — a chat bubble will appear in the bottom
+      corner.
+    </p>
+
+    <div class="card">
+      <div class="row">
+        <label for="pk">Business public key</label>
+        <input id="pk" placeholder="paste publicKey from /app/businesses/.../settings" />
+      </div>
+      <div class="row">
+        <label for="loc">Locale</label>
+        <select id="loc">
+          <option value="">auto-detect</option>
+          <option value="he">Hebrew</option>
+          <option value="en">English</option>
+        </select>
+      </div>
+      <button id="go">Load widget</button>
+    </div>
+
+    <p style="margin-top: 24px; font-size: 13px; color: #64748b;">
+      Each load creates (or restores) one session. To start fresh, run
+      <code>localStorage.clear()</code> in DevTools.
+    </p>
+
+    <script>
+      document.getElementById("go").addEventListener("click", function () {
+        var pk = document.getElementById("pk").value.trim();
+        if (!pk) return alert("publicKey required");
+        var loc = document.getElementById("loc").value;
+        var existing = document.querySelector('script[data-portal-widget-loaded]');
+        if (existing) existing.remove();
+        window.__portalWidgetLoaded = false;
+        var s = document.createElement("script");
+        s.src = "/widget.js?ts=" + Date.now();
+        s.dataset.publicKey = pk;
+        if (loc) s.dataset.locale = loc;
+        s.setAttribute("data-portal-widget-loaded", "");
+        document.body.appendChild(s);
+      });
+    </script>
+  </body>
+</html>

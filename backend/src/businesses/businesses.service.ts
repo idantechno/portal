@@ -44,10 +44,7 @@ export class BusinessesService {
     private readonly dataSource: DataSource,
   ) {}
 
-  async create(
-    ownerUserId: string,
-    dto: CreateBusinessDto,
-  ): Promise<Business> {
+  async create(ownerUserId: string, dto: CreateBusinessDto): Promise<Business> {
     const desiredSlug = dto.slug ? dto.slug.toLowerCase() : toSlug(dto.name);
     if (!desiredSlug || !SLUG_RE.test(desiredSlug)) {
       throw new BadRequestException('Invalid slug');
@@ -76,7 +73,9 @@ export class BusinessesService {
   }
 
   async update(businessId: string, dto: UpdateBusinessDto): Promise<Business> {
-    const business = await this.businesses.findOne({ where: { id: businessId } });
+    const business = await this.businesses.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
 
     if (dto.slug && dto.slug !== business.slug) {
@@ -111,10 +110,7 @@ export class BusinessesService {
     });
   }
 
-  async listForUser(
-    userId: string,
-    userRole: UserRole,
-  ): Promise<Business[]> {
+  async listForUser(userId: string, userRole: UserRole): Promise<Business[]> {
     if (userRole === UserRole.GlobalAdmin) {
       return this.businesses.find({ order: { createdAt: 'DESC' } });
     }
@@ -126,7 +122,10 @@ export class BusinessesService {
     });
   }
 
-  membership(businessId: string, userId: string): Promise<BusinessMember | null> {
+  membership(
+    businessId: string,
+    userId: string,
+  ): Promise<BusinessMember | null> {
     return this.members.findOne({ where: { businessId, userId } });
   }
 
@@ -141,12 +140,17 @@ export class BusinessesService {
     businessId: string,
     dto: AddMemberDto,
   ): Promise<BusinessMember> {
-    const business = await this.businesses.findOne({ where: { id: businessId } });
+    const business = await this.businesses.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
 
     let user = await this.users.findByEmail(dto.email);
     if (!user) {
-      const passwordHash = await bcrypt.hash(dto.temporaryPassword, BCRYPT_ROUNDS);
+      const passwordHash = await bcrypt.hash(
+        dto.temporaryPassword,
+        BCRYPT_ROUNDS,
+      );
       user = await this.users.create({
         email: dto.email,
         passwordHash,
@@ -171,7 +175,9 @@ export class BusinessesService {
   }
 
   async removeMember(businessId: string, userId: string): Promise<void> {
-    const business = await this.businesses.findOne({ where: { id: businessId } });
+    const business = await this.businesses.findOne({
+      where: { id: businessId },
+    });
     if (!business) throw new NotFoundException('Business not found');
     if (business.ownerUserId === userId) {
       throw new BadRequestException('Cannot remove the founding owner');
@@ -182,7 +188,9 @@ export class BusinessesService {
   private async uniqueSlug(base: string): Promise<string> {
     for (let i = 0; i < 50; i++) {
       const candidate = i === 0 ? base : `${base}-${i + 1}`;
-      const taken = await this.businesses.findOne({ where: { slug: candidate } });
+      const taken = await this.businesses.findOne({
+        where: { slug: candidate },
+      });
       if (!taken) return candidate;
     }
     throw new ConflictException('Could not allocate a unique slug');

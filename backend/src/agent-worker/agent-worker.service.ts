@@ -109,9 +109,10 @@ export class AgentWorkerService {
         permissionMode: 'dontAsk',
         maxTurns: MAX_TURNS,
         abortController: controller,
+        // eslint-disable-next-line @typescript-eslint/require-await -- SDK CanUseTool type requires Promise return
         canUseTool: async (toolName, input) => {
           if (ALLOWED_BUILTIN_TOOLS.includes(toolName)) {
-            const i = input as Record<string, unknown>;
+            const i = input;
             const candidates = [i.file_path, i.path].filter(
               (v): v is string => typeof v === 'string',
             );

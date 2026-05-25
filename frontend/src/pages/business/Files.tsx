@@ -103,7 +103,6 @@ function entriesAt(tree: ContextFileTree, folder: string): ExplorerEntry[] {
 }
 
 export default function Files() {
-  const { t } = useTranslation();
   const { businessId = "" } = useParams<{ businessId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const path = searchParams.get("path") ?? "";
@@ -145,9 +144,6 @@ export default function Files() {
       }}
     />
   );
-
-  // unreachable, just for t() inference
-  void t;
 }
 
 interface ExplorerProps {
@@ -588,38 +584,11 @@ interface FileEditorProps {
 
 function FileEditor({ businessId, fileId, onClose }: FileEditorProps) {
   const { t } = useTranslation();
-  const qc = useQueryClient();
-  const [content, setContent] = useState<string>("");
-  const [original, setOriginal] = useState<string>("");
-  const [showPreview, setShowPreview] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   const fileQ = useQuery({
     queryKey: ["file-content", businessId, fileId],
     queryFn: () => filesApi.getContent(businessId, fileId),
   });
-
-  useEffect(() => {
-    if (fileQ.data) {
-      setContent(fileQ.data.content);
-      setOriginal(fileQ.data.content);
-    }
-  }, [fileQ.data]);
-
-  const saveMut = useMutation({
-    mutationFn: () => filesApi.updateContent(businessId, fileId, content),
-    onSuccess: () => {
-      setOriginal(content);
-      qc.invalidateQueries({ queryKey: ["files-tree", businessId] });
-      qc.invalidateQueries({ queryKey: ["file-content", businessId, fileId] });
-    },
-    onError: (err) => setError(apiErrorMessage(err, t("files.saveFailed"))),
-  });
-
-  const file = fileQ.data?.file;
-  const isText = file ? isTextFile(file) : false;
-  const isMd = file ? isMarkdownFile(file) : false;
-  const dirty = content !== original;
 
   if (fileQ.isLoading) {
     return (
@@ -627,7 +596,7 @@ function FileEditor({ businessId, fileId, onClose }: FileEditorProps) {
     );
   }
 
-  if (fileQ.isError || !file) {
+  if (fileQ.isError || !fileQ.data) {
     return (
       <div className="p-8">
         <Button variant="secondary" onClick={onClose}>
@@ -641,6 +610,53 @@ function FileEditor({ businessId, fileId, onClose }: FileEditorProps) {
       </div>
     );
   }
+
+  return (
+    <LoadedFileEditor
+      businessId={businessId}
+      fileId={fileId}
+      file={fileQ.data.file}
+      initialContent={fileQ.data.content}
+      onClose={onClose}
+    />
+  );
+}
+
+interface LoadedFileEditorProps {
+  businessId: string;
+  fileId: string;
+  file: ContextFile;
+  initialContent: string;
+  onClose: () => void;
+}
+
+function LoadedFileEditor({
+  businessId,
+  fileId,
+  file,
+  initialContent,
+  onClose,
+}: LoadedFileEditorProps) {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const [content, setContent] = useState<string>(initialContent);
+  const [original, setOriginal] = useState<string>(initialContent);
+  const [showPreview, setShowPreview] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const saveMut = useMutation({
+    mutationFn: () => filesApi.updateContent(businessId, fileId, content),
+    onSuccess: () => {
+      setOriginal(content);
+      qc.invalidateQueries({ queryKey: ["files-tree", businessId] });
+      qc.invalidateQueries({ queryKey: ["file-content", businessId, fileId] });
+    },
+    onError: (err) => setError(apiErrorMessage(err, t("files.saveFailed"))),
+  });
+
+  const isText = isTextFile(file);
+  const isMd = isMarkdownFile(file);
+  const dirty = content !== original;
 
   if (!isText) {
     return (

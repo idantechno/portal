@@ -19,7 +19,7 @@ import {
 } from "../../api/conversations";
 import { useAuthStore } from "../../store/auth";
 import { apiErrorMessage } from "../../api/client";
-import { Button, Card, Spinner, Textarea } from "../../components/ui";
+import { Button, Spinner, Textarea } from "../../components/ui";
 
 type Tab = "all" | "bot" | "human" | "closed";
 

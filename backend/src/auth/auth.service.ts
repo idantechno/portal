@@ -55,7 +55,10 @@ export class AuthService {
       email: user.email,
       role: user.role,
     };
-    const expiresIn = this.config.get<string>('JWT_EXPIRES_IN', '7d') as unknown as number;
+    const expiresIn = this.config.get<string>(
+      'JWT_EXPIRES_IN',
+      '7d',
+    ) as unknown as number;
     const accessToken = this.jwt.sign(payload, { expiresIn });
     return {
       accessToken,

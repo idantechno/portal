@@ -19,7 +19,10 @@ import { JwtStrategy } from './strategies/jwt.strategy';
         if (!secret) throw new Error('JWT_SECRET is not configured');
         // `expiresIn` is typed as `number | ms.StringValue` — env strings are
         // forwarded to the `ms` parser at runtime, so we widen the type here.
-        const expiresIn = config.get<string>('JWT_EXPIRES_IN', '7d') as unknown as number;
+        const expiresIn = config.get<string>(
+          'JWT_EXPIRES_IN',
+          '7d',
+        ) as unknown as number;
         return {
           secret,
           signOptions: { expiresIn },

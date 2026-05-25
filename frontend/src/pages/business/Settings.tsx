@@ -1,9 +1,10 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { businessesApi } from "../../api/businesses";
 import { apiErrorMessage } from "../../api/client";
+import type { Business } from "../../api/types";
 import {
   Button,
   Card,
@@ -23,7 +24,6 @@ function buildSnippet(publicKey: string): string {
 export default function Settings() {
   const { t } = useTranslation();
   const { businessId = "" } = useParams<{ businessId: string }>();
-  const qc = useQueryClient();
 
   const biz = useQuery({
     queryKey: ["business", businessId],
@@ -31,24 +31,33 @@ export default function Settings() {
     enabled: Boolean(businessId),
   });
 
-  const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
-  const [systemPrompt, setSystemPrompt] = useState("");
-  const [allowedOriginsText, setAllowedOriginsText] = useState("");
+  if (biz.isLoading || !biz.data) {
+    return <div className="p-8 text-neutral-500 text-sm">{t("common.loading")}</div>;
+  }
+
+  return <SettingsForm businessId={businessId} business={biz.data} />;
+}
+
+interface SettingsFormProps {
+  businessId: string;
+  business: Business;
+}
+
+function SettingsForm({ businessId, business }: SettingsFormProps) {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+
+  const [name, setName] = useState(business.name);
+  const [slug, setSlug] = useState(business.slug);
+  const [systemPrompt, setSystemPrompt] = useState(
+    business.systemPromptOverride ?? "",
+  );
+  const [allowedOriginsText, setAllowedOriginsText] = useState(
+    (business.widgetAllowedOrigins ?? []).join("\n"),
+  );
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [savedAt, setSavedAt] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (biz.data) {
-      setName(biz.data.name);
-      setSlug(biz.data.slug);
-      setSystemPrompt(biz.data.systemPromptOverride ?? "");
-      setAllowedOriginsText(
-        (biz.data.widgetAllowedOrigins ?? []).join("\n"),
-      );
-    }
-  }, [biz.data]);
+  const [showSaved, setShowSaved] = useState(false);
 
   const save = useMutation({
     mutationFn: () =>
@@ -64,7 +73,8 @@ export default function Settings() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["business", businessId] });
       qc.invalidateQueries({ queryKey: ["businesses"] });
-      setSavedAt(Date.now());
+      setShowSaved(true);
+      setTimeout(() => setShowSaved(false), 3000);
     },
     onError: (err) => setError(apiErrorMessage(err, "Save failed")),
   });
@@ -76,14 +86,9 @@ export default function Settings() {
   }
 
   function copySnippet() {
-    if (!biz.data) return;
-    navigator.clipboard.writeText(buildSnippet(biz.data.publicKey));
+    navigator.clipboard.writeText(buildSnippet(business.publicKey));
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  }
-
-  if (biz.isLoading || !biz.data) {
-    return <div className="p-8 text-neutral-500 text-sm">{t("common.loading")}</div>;
   }
 
   return (
@@ -132,7 +137,7 @@ export default function Settings() {
             <Button type="submit" disabled={save.isPending}>
               {save.isPending ? <Spinner /> : t("settings.save")}
             </Button>
-            {savedAt && Date.now() - savedAt < 3000 && (
+            {showSaved && (
               <span className="text-sm text-green-700">{t("settings.saved")}</span>
             )}
           </div>
@@ -144,7 +149,7 @@ export default function Settings() {
         <div className="space-y-4">
           <div>
             <Label>{t("settings.publicKey")}</Label>
-            <Input value={biz.data.publicKey} readOnly dir="ltr" />
+            <Input value={business.publicKey} readOnly dir="ltr" />
           </div>
           <div>
             <Label>{t("settings.embedSnippet")}</Label>
@@ -153,7 +158,7 @@ export default function Settings() {
                 className="rounded-lg border border-neutral-200 bg-neutral-50 p-3 text-xs font-mono overflow-x-auto"
                 dir="ltr"
               >
-                {buildSnippet(biz.data.publicKey)}
+                {buildSnippet(business.publicKey)}
               </pre>
               <button
                 type="button"

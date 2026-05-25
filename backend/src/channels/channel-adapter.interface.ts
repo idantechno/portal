@@ -14,5 +14,8 @@ export interface ChannelAdapter {
    * Deliver an already-persisted message to the customer over this channel.
    * Should return the channel-native message id when available (e.g. WhatsApp wamid).
    */
-  send(conversation: Conversation, message: Message): Promise<{ externalMessageId?: string }>;
+  send(
+    conversation: Conversation,
+    message: Message,
+  ): Promise<{ externalMessageId?: string }>;
 }

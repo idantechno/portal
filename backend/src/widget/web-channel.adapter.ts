@@ -25,6 +25,7 @@ export class WebChannelAdapter implements ChannelAdapter, OnModuleInit {
     this.registry.register(this);
   }
 
+  // eslint-disable-next-line @typescript-eslint/require-await -- ChannelAdapter.send is async by contract; web channel is a no-op
   async send(
     conversation: Conversation,
     message: Message,

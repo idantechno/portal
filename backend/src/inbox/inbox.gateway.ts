@@ -82,7 +82,10 @@ export class InboxGateway
     if (!businessId) return { ok: false, error: 'missing businessId' };
 
     if (data.role !== UserRole.GlobalAdmin) {
-      const membership = await this.businesses.membership(businessId, data.userId);
+      const membership = await this.businesses.membership(
+        businessId,
+        data.userId,
+      );
       if (!membership) return { ok: false, error: 'not a member' };
     }
     await socket.join(businessRoom(businessId));

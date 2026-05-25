@@ -44,9 +44,7 @@ export class FilesystemService {
     if (relativePath == null || relativePath.length > 512) {
       throw new BadRequestException('Invalid path');
     }
-    const normalized = path
-      .normalize(relativePath)
-      .replace(/^[/\\]+/, '');
+    const normalized = path.normalize(relativePath).replace(/^[/\\]+/, '');
     if (normalized.startsWith('..') || normalized.includes('\0')) {
       throw new BadRequestException('Invalid path');
     }
@@ -122,15 +120,15 @@ export class FilesystemService {
       .trim();
     if (!cleanedName) throw new BadRequestException('Empty filename');
     if (cleanedName.includes('/')) {
-      throw new BadRequestException('Filename must not contain path separators');
+      throw new BadRequestException(
+        'Filename must not contain path separators',
+      );
     }
     return folder ? `${folder}/${cleanedName}` : cleanedName;
   }
 
   isHiddenPath(relativePath: string): boolean {
-    return (
-      relativePath === '_hidden' || relativePath.startsWith(HIDDEN_PREFIX)
-    );
+    return relativePath === '_hidden' || relativePath.startsWith(HIDDEN_PREFIX);
   }
 
   async ensureBusinessRoot(businessId: string): Promise<void> {

@@ -185,7 +185,10 @@ export class ConversationsService {
   ): Promise<Conversation> {
     const conv = await this.findByIdScoped(businessId, conversationId);
     conv.status = status;
-    if (status === ConversationStatus.Human && assignedAgentUserId !== undefined) {
+    if (
+      status === ConversationStatus.Human &&
+      assignedAgentUserId !== undefined
+    ) {
       conv.assignedAgentUserId = assignedAgentUserId;
     }
     if (status === ConversationStatus.Bot) {

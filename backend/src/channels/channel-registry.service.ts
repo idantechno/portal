@@ -16,7 +16,9 @@ export class ChannelRegistry {
 
   register(adapter: ChannelAdapter): void {
     if (this.adapters.has(adapter.channel)) {
-      this.log.warn(`Replacing existing adapter for channel=${adapter.channel}`);
+      this.log.warn(
+        `Replacing existing adapter for channel=${adapter.channel}`,
+      );
     }
     this.adapters.set(adapter.channel, adapter);
     this.log.log(`Registered channel adapter: ${adapter.channel}`);
@@ -32,7 +34,9 @@ export class ChannelRegistry {
   ): Promise<{ externalMessageId?: string }> {
     const adapter = this.adapters.get(conversation.channel);
     if (!adapter) {
-      throw new Error(`No channel adapter registered for ${conversation.channel}`);
+      throw new Error(
+        `No channel adapter registered for ${conversation.channel}`,
+      );
     }
     return adapter.send(conversation, message);
   }

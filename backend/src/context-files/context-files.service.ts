@@ -44,10 +44,16 @@ export class ContextFilesService {
 
   async upload(input: UploadInput): Promise<ContextFile> {
     await this.fs.ensureBusinessRoot(input.businessId);
-    const folder = this.fs.normalizeFolderPath(input.folder ?? '', input.hidden);
+    const folder = this.fs.normalizeFolderPath(
+      input.folder ?? '',
+      input.hidden,
+    );
     const filename = input.originalName;
     const userRelative = this.fs.joinFolderAndName(folder, filename);
-    const relativePath = this.fs.composeRelativePath(userRelative, input.hidden);
+    const relativePath = this.fs.composeRelativePath(
+      userRelative,
+      input.hidden,
+    );
 
     const existing = await this.files.findOne({
       where: { businessId: input.businessId, relativePath },
@@ -153,7 +159,10 @@ export class ContextFilesService {
     return file;
   }
 
-  async download(businessId: string, fileId: string): Promise<{
+  async download(
+    businessId: string,
+    fileId: string,
+  ): Promise<{
     file: ContextFile;
     buffer: Buffer;
   }> {
@@ -220,7 +229,8 @@ export class ContextFilesService {
 
 function guessMime(relativePath: string): string {
   const lower = relativePath.toLowerCase();
-  if (lower.endsWith('.md') || lower.endsWith('.markdown')) return 'text/markdown';
+  if (lower.endsWith('.md') || lower.endsWith('.markdown'))
+    return 'text/markdown';
   if (lower.endsWith('.txt')) return 'text/plain';
   if (lower.endsWith('.json')) return 'application/json';
   if (lower.endsWith('.yaml') || lower.endsWith('.yml')) return 'text/yaml';

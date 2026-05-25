@@ -118,8 +118,7 @@ export class WidgetService {
             m.role !== MessageRole.System,
         )
       : all.filter(
-          (m) =>
-            m.role !== MessageRole.Tool && m.role !== MessageRole.System,
+          (m) => m.role !== MessageRole.Tool && m.role !== MessageRole.System,
         );
     return { messages, conversationStatus: conversation.status };
   }

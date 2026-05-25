@@ -1,11 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  Post,
-  Query,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { Public } from '../auth/decorators/public.decorator';
 import { WidgetService } from './widget.service';
 import { SendWidgetMessageDto } from './dto/send-widget-message.dto';

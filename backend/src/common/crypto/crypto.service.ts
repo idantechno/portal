@@ -40,7 +40,10 @@ export class CryptoService {
   encrypt(plaintext: string): string {
     const iv = randomBytes(IV_LEN);
     const cipher = createCipheriv(ALGO, this.key, iv);
-    const enc = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+    const enc = Buffer.concat([
+      cipher.update(plaintext, 'utf8'),
+      cipher.final(),
+    ]);
     const tag = cipher.getAuthTag();
     return Buffer.concat([iv, tag, enc]).toString('base64');
   }

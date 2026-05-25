@@ -9,10 +9,7 @@ import { BusinessScopeGuard } from './guards/business-scope.guard';
 import { BusinessOwnerGuard } from './guards/business-owner.guard';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Business, BusinessMember]),
-    UsersModule,
-  ],
+  imports: [TypeOrmModule.forFeature([Business, BusinessMember]), UsersModule],
   controllers: [BusinessesController],
   providers: [BusinessesService, BusinessScopeGuard, BusinessOwnerGuard],
   exports: [BusinessesService, BusinessScopeGuard, BusinessOwnerGuard],

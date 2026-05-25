@@ -1,6 +1,6 @@
-import {
+import { forwardRef } from "react";
+import type {
   ButtonHTMLAttributes,
-  forwardRef,
   HTMLAttributes,
   InputHTMLAttributes,
   TextareaHTMLAttributes,

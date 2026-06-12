@@ -157,8 +157,15 @@ export class WhatsappWebhookController {
     });
 
     if (!signatureOk) {
+      const expected = createHmac('sha256', appSecret)
+        .update(raw)
+        .digest('hex');
       this.log.warn(
-        `Bad signature on inbound webhook (phone_number_id=${phoneNumberId ?? 'none'})`,
+        `Bad signature on inbound webhook (phone_number_id=${phoneNumberId ?? 'none'}) ` +
+          `rawLen=${raw.length} secretLen=${appSecret.length} ` +
+          `sigHeader=${signature ?? 'MISSING'} ` +
+          `expected=sha256=${expected} ` +
+          `bodyStart=${raw.subarray(0, 80).toString('utf8').replace(/\n/g, '\\n')}`,
       );
       return { ok: true };
     }

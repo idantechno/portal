@@ -48,6 +48,8 @@ import { RolesGuard } from './auth/guards/roles.guard';
         connection: {
           host: cfg.get<string>('REDIS_HOST', 'redis'),
           port: cfg.get<number>('REDIS_PORT', 6379),
+          username: cfg.get<string>('REDIS_USERNAME'),
+          password: cfg.get<string>('REDIS_PASSWORD'),
         },
       }),
     }),

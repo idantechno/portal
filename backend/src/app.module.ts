@@ -19,6 +19,7 @@ import { CryptoModule } from './common/crypto/crypto.module';
 import { WhatsappModule } from './whatsapp/whatsapp.module';
 import { InboxModule } from './inbox/inbox.module';
 import { WidgetModule } from './widget/widget.module';
+import { DocumentsModule } from './documents/documents.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 
@@ -66,6 +67,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
     InboxModule,
     WhatsappModule,
     WidgetModule,
+    DocumentsModule,
   ],
   controllers: [AppController, HealthController],
   providers: [

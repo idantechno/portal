@@ -50,9 +50,16 @@ export class PdfRendererService implements OnModuleDestroy {
 
   private getBrowser(): Promise<Browser> {
     if (!this.browserPromise) {
-      this.log.log('Launching headless browser for PDF rendering');
+      // In production (Docker) we use the system Chromium installed in the
+      // image (PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium). Locally, the
+      // env var is unset and Puppeteer falls back to its bundled binary.
+      const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+      this.log.log(
+        `Launching headless browser for PDF rendering${executablePath ? ` (executable=${executablePath})` : ''}`,
+      );
       this.browserPromise = launch({
         headless: true,
+        executablePath: executablePath || undefined,
         // --no-sandbox is safe here because we only ever render our own HTML
         // (templates we control) — never untrusted user input as HTML.
         args: ['--no-sandbox', '--disable-setuid-sandbox'],

@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&family=Suez+One&display=swap");
 @import "tailwindcss";
 
 @theme {
@@ -13,8 +13,36 @@
   --color-brand-800: oklch(0.32 0.13 250);
   --color-brand-900: oklch(0.24 0.10 250);
 
+  /* Warm palette used by the public sign page (ported from milui-tofes). */
+  --color-peach-50: #fbf3e7;
+  --color-peach-100: #f7e5c8;
+  --color-peach-200: #f1d2a0;
+  --color-peach-300: #e8b57a;
+  --color-peach-400: #d99452;
+
+  --color-tomato-100: #fde0e1;
+  --color-tomato-400: #e94b53;
+  --color-tomato-500: #d7242d;
+  --color-tomato-600: #b81e26;
+  --color-tomato-700: #8e1820;
+
+  --color-basil-100: #d8edd9;
+  --color-basil-400: #6bbf80;
+  --color-basil-500: #34a853;
+  --color-basil-600: #0e8b3d;
+  --color-basil-700: #0a6e2f;
+
+  --color-wood-300: #c8a685;
+  --color-wood-500: #8b5a2b;
+  --color-wood-700: #5c3719;
+  --color-wood-900: #2a190b;
+
+  --color-cream: #fff8f0;
+  --color-wheat: #e8d5b7;
+
   --font-sans:
     "Inter", "Heebo", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: "Suez One", Georgia, serif;
 }
 
 html {
@@ -25,6 +53,39 @@ html {
 body {
   @apply bg-neutral-50 text-neutral-900;
 }
+
+/* Display font helper class used by the warm sign page. */
+.font-display {
+  font-family: var(--font-display);
+}
+
+/* Tabular numbers for prices and IDs. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Warm body background reserved for the public sign page (apply via class). */
+.warm-bg {
+  background-color: var(--color-peach-50);
+  background-image:
+    radial-gradient(ellipse 60% 40% at 50% 0%, rgba(241, 210, 160, 0.55), transparent 70%),
+    radial-gradient(ellipse 80% 50% at 100% 100%, rgba(232, 181, 122, 0.18), transparent 70%),
+    radial-gradient(ellipse 80% 50% at 0% 100%, rgba(13, 139, 61, 0.06), transparent 70%);
+  background-attachment: fixed;
+}
+
+.signature-canvas {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+.animate-fade-up { animation: fadeUp 0.45s ease-out both; }
 
 .markdown-preview {
   @apply text-sm leading-relaxed text-neutral-800;

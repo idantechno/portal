@@ -3,6 +3,8 @@ import { useAuthStore } from "./store/auth";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
+import SignDocument from "./pages/SignDocument";
+import AgentDocumentsPage from "./pages/AgentDocumentsPage";
 import BusinessLayout from "./pages/business/BusinessLayout";
 import Inbox from "./pages/business/Inbox";
 import Files from "./pages/business/Files";
@@ -21,11 +23,20 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
+      <Route path="/sign/:token" element={<SignDocument />} />
       <Route
         path="/app"
         element={
           <RequireAuth>
             <Dashboard />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/app/agents/documents"
+        element={
+          <RequireAuth>
+            <AgentDocumentsPage />
           </RequireAuth>
         }
       />

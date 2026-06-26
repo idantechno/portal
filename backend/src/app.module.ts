@@ -1,3 +1,4 @@
+import { join } from 'node:path';
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -34,17 +35,25 @@ import { RolesGuard } from './auth/guards/roles.guard';
     }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (cfg: ConfigService) => ({
-        type: 'postgres',
-        host: cfg.get<string>('DB_HOST', 'localhost'),
-        port: cfg.get<number>('DB_PORT', 5432),
-        username: cfg.get<string>('DB_USERNAME', 'postgres'),
-        password: cfg.get<string>('DB_PASSWORD', 'postgres'),
-        database: cfg.get<string>('DB_NAME', 'portal'),
-        autoLoadEntities: true,
-        synchronize: cfg.get<string>('DB_SYNCHRONIZE', 'false') === 'true',
-        logging: cfg.get<string>('DB_LOGGING', 'false') === 'true',
-      }),
+      useFactory: (cfg: ConfigService) => {
+        const synchronize =
+          cfg.get<string>('DB_SYNCHRONIZE', 'false') === 'true';
+        return {
+          type: 'postgres',
+          host: cfg.get<string>('DB_HOST', 'localhost'),
+          port: cfg.get<number>('DB_PORT', 5432),
+          username: cfg.get<string>('DB_USERNAME', 'postgres'),
+          password: cfg.get<string>('DB_PASSWORD', 'postgres'),
+          database: cfg.get<string>('DB_NAME', 'portal'),
+          autoLoadEntities: true,
+          // Dev uses synchronize for fast iteration; prod keeps it off and runs
+          // migrations automatically on boot instead.
+          synchronize,
+          migrations: [join(__dirname, 'migrations', '*.{js,ts}')],
+          migrationsRun: !synchronize,
+          logging: cfg.get<string>('DB_LOGGING', 'false') === 'true',
+        };
+      },
     }),
     BullModule.forRootAsync({
       inject: [ConfigService],

@@ -142,7 +142,14 @@ export class ConversationsService {
           conversationId: conversation.id,
           latestMessageId: message.id,
         },
-        { removeOnComplete: 100, removeOnFail: 200 },
+        {
+          // Retry transient failures (LLM 429/5xx, network) with exponential
+          // backoff: ~5s, 10s, 20s. A persistently failing run lands in failed.
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 5000 },
+          removeOnComplete: 100,
+          removeOnFail: 200,
+        },
       );
     } catch (err) {
       this.log.error(

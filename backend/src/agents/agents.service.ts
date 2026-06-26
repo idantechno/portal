@@ -83,12 +83,15 @@ export class AgentsService {
     // businessId -> (agentKey -> row)
     const byBusiness = new Map<string, Map<string, BusinessAgent>>();
     for (const r of rows) {
-      const m = byBusiness.get(r.businessId) ?? new Map();
+      const m =
+        byBusiness.get(r.businessId) ?? new Map<string, BusinessAgent>();
       m.set(r.agentKey, r);
       byBusiness.set(r.businessId, m);
     }
     return AGENT_CATALOG.filter((a) =>
-      ids.some((id) => this.effectiveEnabled(a.key, byBusiness.get(id)?.get(a.key))),
+      ids.some((id) =>
+        this.effectiveEnabled(a.key, byBusiness.get(id)?.get(a.key)),
+      ),
     );
   }
 

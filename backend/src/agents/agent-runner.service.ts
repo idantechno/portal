@@ -29,6 +29,8 @@ export interface AgentRunInput {
   model?: string;
   maxTurns?: number;
   abortController?: AbortController;
+  /** Hard wall-clock cap; the run is aborted past this. Defaults from env. */
+  timeoutMs?: number;
   /** Short label included in log lines so multi-agent logs are scannable. */
   runLabel?: string;
 }
@@ -71,6 +73,9 @@ export class AgentRunner {
     const controller = input.abortController ?? new AbortController();
     const label = input.runLabel ?? 'agent';
     const cwd = input.cwd;
+    const timeoutMs =
+      input.timeoutMs ??
+      Number(this.config.get<string>('AGENT_RUN_TIMEOUT_MS', '120000'));
 
     // Defense in depth: cwd is not a filesystem jail. Block Read/Glob/Grep
     // calls whose path argument resolves outside cwd so a misbehaving model
@@ -119,6 +124,12 @@ export class AgentRunner {
       },
     });
 
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, timeoutMs);
+
     try {
       for await (const msg of q) {
         if (msg.type === 'system' && msg.subtype === 'init') {
@@ -142,9 +153,14 @@ export class AgentRunner {
         }
       }
     } catch (err) {
+      if (timedOut) {
+        this.log.error(`[${label}] timed out after ${timeoutMs}ms`);
+        throw new AgentRunError('timeout', `exceeded ${timeoutMs}ms`);
+      }
       this.log.error(`[${label}] threw: ${(err as Error).message}`);
       throw err;
     } finally {
+      clearTimeout(timer);
       controller.abort();
     }
 

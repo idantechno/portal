@@ -12,10 +12,15 @@ import { Business } from './business.entity';
 import { BusinessMember } from './business-member.entity';
 import { BusinessRole } from '../common/enums/business-role.enum';
 import { UserRole } from '../common/enums/user-role.enum';
+import { User } from '../users/user.entity';
 import { UsersService } from '../users/users.service';
 import { CreateBusinessDto } from './dto/create-business.dto';
 import { UpdateBusinessDto } from './dto/update-business.dto';
 import { AddMemberDto } from './dto/add-member.dto';
+
+export interface BusinessMemberWithUser extends BusinessMember {
+  user: Pick<User, 'id' | 'email' | 'name' | 'status'> | null;
+}
 
 const PUBLIC_KEY_ALPHABET =
   'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -110,10 +115,12 @@ export class BusinessesService {
     });
   }
 
-  async listForUser(userId: string, userRole: UserRole): Promise<Business[]> {
-    if (userRole === UserRole.GlobalAdmin) {
-      return this.businesses.find({ order: { createdAt: 'DESC' } });
-    }
+  /**
+   * Businesses the user actually belongs to. Platform staff use the admin
+   * interface for the cross-tenant view; this stays membership-scoped for
+   * everyone so the normal dashboard isn't flooded with every tenant.
+   */
+  async listForUser(userId: string): Promise<Business[]> {
     const memberships = await this.members.find({ where: { userId } });
     if (memberships.length === 0) return [];
     return this.businesses.find({
@@ -136,6 +143,25 @@ export class BusinessesService {
     });
   }
 
+  /** Members enriched with the user's name/email/status for the team UI. */
+  async listMembersWithUsers(
+    businessId: string,
+  ): Promise<BusinessMemberWithUser[]> {
+    const members = await this.listMembers(businessId);
+    if (members.length === 0) return [];
+    const users = await this.users.findByIds(members.map((m) => m.userId));
+    const byId = new Map(users.map((u) => [u.id, u]));
+    return members.map((m) => {
+      const u = byId.get(m.userId);
+      return {
+        ...m,
+        user: u
+          ? { id: u.id, email: u.email, name: u.name, status: u.status }
+          : null,
+      };
+    });
+  }
+
   async addMember(
     businessId: string,
     dto: AddMemberDto,
@@ -151,14 +177,13 @@ export class BusinessesService {
         dto.temporaryPassword,
         BCRYPT_ROUNDS,
       );
+      // New accounts are plain platform members; their power in this business
+      // comes from the BusinessMember row, not a global role.
       user = await this.users.create({
         email: dto.email,
         passwordHash,
         name: dto.name,
-        role:
-          dto.role === BusinessRole.Owner
-            ? UserRole.BusinessOwner
-            : UserRole.BusinessAgent,
+        role: UserRole.Member,
       });
     }
     const existing = await this.members.findOne({
@@ -171,6 +196,26 @@ export class BusinessesService {
       userId: user.id,
       role: dto.role,
     });
+    return this.members.save(member);
+  }
+
+  async updateMemberRole(
+    businessId: string,
+    userId: string,
+    role: BusinessRole,
+  ): Promise<BusinessMember> {
+    const business = await this.businesses.findOne({
+      where: { id: businessId },
+    });
+    if (!business) throw new NotFoundException('Business not found');
+    if (business.ownerUserId === userId) {
+      throw new BadRequestException("Cannot change the founding owner's role");
+    }
+    const member = await this.members.findOne({
+      where: { businessId, userId },
+    });
+    if (!member) throw new NotFoundException('Member not found');
+    member.role = role;
     return this.members.save(member);
   }
 

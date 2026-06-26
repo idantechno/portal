@@ -7,4 +7,6 @@ export const authApi = {
   login: (input: { email: string; password: string }) =>
     api.post<AuthResponse>("/auth/login", input).then((r) => r.data),
   me: () => api.get<AuthUser>("/auth/me").then((r) => r.data),
+  changePassword: (input: { currentPassword: string; newPassword: string }) =>
+    api.post<{ ok: boolean }>("/auth/change-password", input).then((r) => r.data),
 };

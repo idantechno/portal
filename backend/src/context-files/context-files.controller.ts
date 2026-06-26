@@ -21,7 +21,7 @@ import type { Response } from 'express';
 import { Express } from 'express';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../auth/auth.types';
-import { UserRole } from '../common/enums/user-role.enum';
+import { isPlatformStaff } from '../common/enums/user-role.enum';
 import { BusinessScopeGuard } from '../businesses/guards/business-scope.guard';
 import { ContextFilesService } from './context-files.service';
 
@@ -38,7 +38,7 @@ export class ContextFilesController {
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    const includeHidden = user.role === UserRole.GlobalAdmin;
+    const includeHidden = isPlatformStaff(user.role);
     return this.files.list(businessId, includeHidden);
   }
 
@@ -47,7 +47,7 @@ export class ContextFilesController {
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    const includeHidden = user.role === UserRole.GlobalAdmin;
+    const includeHidden = isPlatformStaff(user.role);
     return this.files.tree(businessId, includeHidden);
   }
 
@@ -66,7 +66,7 @@ export class ContextFilesController {
   ) {
     if (!file) throw new BadRequestException('No file uploaded');
     const wantsHidden = hidden === 'true' || hidden === '1';
-    if (wantsHidden && user.role !== UserRole.GlobalAdmin) {
+    if (wantsHidden && !isPlatformStaff(user.role)) {
       throw new ForbiddenException(
         'Only global admins can upload hidden files',
       );
@@ -74,7 +74,9 @@ export class ContextFilesController {
     return this.files.upload({
       businessId,
       uploadedByUserId: user.id,
-      originalName: file.originalname,
+      // Multer decodes the multipart filename as latin1; re-decode as UTF-8 so
+      // Hebrew (and other non-ASCII) filenames are preserved instead of mojibake.
+      originalName: Buffer.from(file.originalname, 'latin1').toString('utf8'),
       folder,
       buffer: file.buffer,
       mimeType: file.mimetype,
@@ -90,7 +92,7 @@ export class ContextFilesController {
   ) {
     if (!body?.path) throw new BadRequestException('path is required');
     const wantsHidden = body.hidden === true;
-    if (wantsHidden && user.role !== UserRole.GlobalAdmin) {
+    if (wantsHidden && !isPlatformStaff(user.role)) {
       throw new ForbiddenException(
         'Only global admins can create hidden folders',
       );
@@ -116,7 +118,7 @@ export class ContextFilesController {
       throw new BadRequestException('Content too large');
     }
     const wantsHidden = body.hidden === true;
-    if (wantsHidden && user.role !== UserRole.GlobalAdmin) {
+    if (wantsHidden && !isPlatformStaff(user.role)) {
       throw new ForbiddenException(
         'Only global admins can create hidden files',
       );
@@ -138,7 +140,7 @@ export class ContextFilesController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     const { file, content } = await this.files.getContent(businessId, fileId);
-    if (file.hiddenForBusiness && user.role !== UserRole.GlobalAdmin) {
+    if (file.hiddenForBusiness && !isPlatformStaff(user.role)) {
       throw new ForbiddenException('Hidden file');
     }
     return { file, content };
@@ -152,7 +154,7 @@ export class ContextFilesController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     const file = await this.files.getById(businessId, fileId);
-    if (file.hiddenForBusiness && user.role !== UserRole.GlobalAdmin) {
+    if (file.hiddenForBusiness && !isPlatformStaff(user.role)) {
       throw new ForbiddenException('Hidden file');
     }
     const content = body?.content ?? '';
@@ -170,7 +172,7 @@ export class ContextFilesController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     if (!body?.newPath) throw new BadRequestException('newPath is required');
-    const isGlobalAdmin = user.role === UserRole.GlobalAdmin;
+    const isGlobalAdmin = isPlatformStaff(user.role);
     return this.files.move(businessId, fileId, body.newPath, isGlobalAdmin);
   }
 
@@ -182,7 +184,7 @@ export class ContextFilesController {
     @Res() res: Response,
   ) {
     const { file, buffer } = await this.files.download(businessId, fileId);
-    if (file.hiddenForBusiness && user.role !== UserRole.GlobalAdmin) {
+    if (file.hiddenForBusiness && !isPlatformStaff(user.role)) {
       throw new ForbiddenException('Hidden file');
     }
     res.set({
@@ -202,7 +204,7 @@ export class ContextFilesController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     const file = await this.files.getById(businessId, fileId);
-    if (file.hiddenForBusiness && user.role !== UserRole.GlobalAdmin) {
+    if (file.hiddenForBusiness && !isPlatformStaff(user.role)) {
       throw new ForbiddenException('Hidden file');
     }
     await this.files.remove(businessId, fileId);

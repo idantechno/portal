@@ -7,7 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { BusinessesService } from '../businesses.service';
-import { UserRole } from '../../common/enums/user-role.enum';
+import { isPlatformStaff } from '../../common/enums/user-role.enum';
 import { AuthenticatedUser } from '../../auth/auth.types';
 import { BusinessScopeContext } from '../decorators/current-business.decorator';
 
@@ -43,11 +43,18 @@ export class BusinessScopeGuard implements CanActivate {
       business.id,
       req.user.id,
     );
-    if (!membership && req.user.role !== UserRole.GlobalAdmin) {
+    const staff = isPlatformStaff(req.user.role);
+    if (!membership && !staff) {
       throw new ForbiddenException('Not a member of this business');
     }
 
-    req.businessScope = { business, membership };
+    req.businessScope = {
+      business,
+      membership,
+      // True when access is granted purely by platform-staff privilege (the
+      // caller is not an actual member of this business).
+      viaPlatformStaff: !membership && staff,
+    };
     return true;
   }
 }

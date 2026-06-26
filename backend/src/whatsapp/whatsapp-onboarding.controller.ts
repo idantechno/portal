@@ -11,7 +11,9 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { BusinessScopeGuard } from '../businesses/guards/business-scope.guard';
-import { BusinessOwnerGuard } from '../businesses/guards/business-owner.guard';
+import { BusinessRoleGuard } from '../businesses/guards/business-role.guard';
+import { MinBusinessRole } from '../businesses/decorators/business-roles.decorator';
+import { BusinessRole } from '../common/enums/business-role.enum';
 import { EmbeddedSignupExchangeDto } from './dto/embedded-signup-exchange.dto';
 import { WhatsappConnectionsService } from './whatsapp-connections.service';
 
@@ -27,7 +29,8 @@ interface PhoneNumberResponse {
   id?: string;
 }
 
-@UseGuards(BusinessScopeGuard, BusinessOwnerGuard)
+@UseGuards(BusinessScopeGuard, BusinessRoleGuard)
+@MinBusinessRole(BusinessRole.Admin)
 @Controller('businesses/:businessId/channels/whatsapp')
 export class WhatsappOnboardingController {
   private readonly log = new Logger(WhatsappOnboardingController.name);

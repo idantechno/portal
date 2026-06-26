@@ -21,7 +21,7 @@ export class BusinessMember {
   @Column({ type: 'uuid', name: 'user_id' })
   userId!: string;
 
-  @Column({ type: 'enum', enum: BusinessRole, default: BusinessRole.Agent })
+  @Column({ type: 'varchar', length: 16, default: BusinessRole.Agent })
   role!: BusinessRole;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })

@@ -6,6 +6,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { AccountStatus } from '../common/enums/account-status.enum';
 
 @Entity({ name: 'businesses' })
 export class Business {
@@ -14,6 +15,9 @@ export class Business {
 
   @Column({ type: 'varchar', length: 255 })
   name!: string;
+
+  @Column({ type: 'varchar', length: 16, default: AccountStatus.Active })
+  status!: AccountStatus;
 
   @Index({ unique: true })
   @Column({ type: 'varchar', length: 64 })

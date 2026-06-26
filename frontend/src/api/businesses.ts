@@ -1,5 +1,5 @@
 import { api } from "./client";
-import type { Business } from "./types";
+import type { Business, BusinessMember, BusinessRole } from "./types";
 
 export const businessesApi = {
   list: () => api.get<Business[]>("/businesses").then((r) => r.data),
@@ -16,4 +16,33 @@ export const businessesApi = {
       widgetAllowedOrigins?: string[];
     },
   ) => api.patch<Business>(`/businesses/${id}`, input).then((r) => r.data),
+
+  // ---- Members ----
+  listMembers: (businessId: string) =>
+    api
+      .get<BusinessMember[]>(`/businesses/${businessId}/members`)
+      .then((r) => r.data),
+  addMember: (
+    businessId: string,
+    input: {
+      email: string;
+      name: string;
+      role: BusinessRole;
+      temporaryPassword: string;
+    },
+  ) =>
+    api
+      .post<BusinessMember>(`/businesses/${businessId}/members`, input)
+      .then((r) => r.data),
+  updateMemberRole: (businessId: string, userId: string, role: BusinessRole) =>
+    api
+      .patch<BusinessMember>(
+        `/businesses/${businessId}/members/${userId}`,
+        { role },
+      )
+      .then((r) => r.data),
+  removeMember: (businessId: string, userId: string) =>
+    api
+      .delete(`/businesses/${businessId}/members/${userId}`)
+      .then((r) => r.data),
 };

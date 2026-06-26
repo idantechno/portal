@@ -12,7 +12,7 @@ import {
 } from '@nestjs/websockets';
 import type { Server, Socket } from 'socket.io';
 import { BusinessesService } from '../businesses/businesses.service';
-import { UserRole } from '../common/enums/user-role.enum';
+import { isPlatformStaff, UserRole } from '../common/enums/user-role.enum';
 import { JwtPayload } from '../auth/auth.types';
 
 interface SocketData {
@@ -81,7 +81,7 @@ export class InboxGateway
     const businessId = body?.businessId;
     if (!businessId) return { ok: false, error: 'missing businessId' };
 
-    if (data.role !== UserRole.GlobalAdmin) {
+    if (!isPlatformStaff(data.role)) {
       const membership = await this.businesses.membership(
         businessId,
         data.userId,

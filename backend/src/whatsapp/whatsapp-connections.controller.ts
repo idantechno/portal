@@ -7,7 +7,9 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { BusinessScopeGuard } from '../businesses/guards/business-scope.guard';
-import { BusinessOwnerGuard } from '../businesses/guards/business-owner.guard';
+import { BusinessRoleGuard } from '../businesses/guards/business-role.guard';
+import { MinBusinessRole } from '../businesses/decorators/business-roles.decorator';
+import { BusinessRole } from '../common/enums/business-role.enum';
 import { WhatsappConnectionsService } from './whatsapp-connections.service';
 
 @UseGuards(BusinessScopeGuard)
@@ -21,7 +23,8 @@ export class WhatsappConnectionsController {
     return conn ? this.conns.toPublic(conn) : null;
   }
 
-  @UseGuards(BusinessOwnerGuard)
+  @UseGuards(BusinessRoleGuard)
+  @MinBusinessRole(BusinessRole.Admin)
   @Delete()
   async delete(@Param('businessId', ParseUUIDPipe) businessId: string) {
     await this.conns.delete(businessId);

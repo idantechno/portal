@@ -26,7 +26,8 @@ export class RolesGuard implements CanActivate {
     const user = req.user;
     if (!user) throw new ForbiddenException('No authenticated user');
 
-    if (user.role === UserRole.GlobalAdmin) return true;
+    // Super admin satisfies any platform-role requirement.
+    if (user.role === UserRole.SuperAdmin) return true;
     if (required.includes(user.role)) return true;
 
     throw new ForbiddenException('Insufficient role');

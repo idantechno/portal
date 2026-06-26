@@ -4,8 +4,10 @@ import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { businessesApi } from "../api/businesses";
+import { authApi } from "../api/auth";
 import { apiErrorMessage } from "../api/client";
 import { useAuthStore } from "../store/auth";
+import { isPlatformStaff } from "../lib/roles";
 import {
   Button,
   Card,
@@ -31,6 +33,8 @@ export default function Dashboard() {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [createError, setCreateError] = useState<string | null>(null);
+  const [showPw, setShowPw] = useState(false);
+  const staff = isPlatformStaff(user?.role);
 
   const createMut = useMutation({
     mutationFn: () =>
@@ -57,6 +61,12 @@ export default function Dashboard() {
             <span className="text-neutral-600">{user?.name}</span>
             <button
               className="text-neutral-500 hover:text-neutral-800"
+              onClick={() => setShowPw(true)}
+            >
+              {t("account.changePassword")}
+            </button>
+            <button
+              className="text-neutral-500 hover:text-neutral-800"
               onClick={() =>
                 i18n.changeLanguage(i18n.language === "he" ? "en" : "he")
               }
@@ -77,6 +87,25 @@ export default function Dashboard() {
       </header>
 
       <main className="max-w-5xl mx-auto px-6 py-10">
+        {staff && (
+          <Link to="/app/admin" className="block mb-8">
+            <Card className="p-6 bg-neutral-900 text-white hover:bg-neutral-800 transition-colors flex items-center gap-5">
+              <div className="h-12 w-12 rounded-xl bg-white/10 flex items-center justify-center text-2xl shrink-0">
+                🛡️
+              </div>
+              <div className="flex-1">
+                <div className="font-semibold text-base mb-0.5">
+                  {t("admin.title")}
+                </div>
+                <div className="text-sm text-neutral-300">
+                  {t("admin.dashboardHint")}
+                </div>
+              </div>
+              <div className="text-sm font-medium shrink-0">→</div>
+            </Card>
+          </Link>
+        )}
+
         <section className="mb-10">
           <h2 className="text-xs uppercase tracking-wider text-neutral-500 mb-3">
             כלים
@@ -183,6 +212,99 @@ export default function Dashboard() {
           ))}
         </div>
       </main>
+      {showPw && <ChangePasswordModal onClose={() => setShowPw(false)} />}
+    </div>
+  );
+}
+
+function ChangePasswordModal({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+
+  const mut = useMutation({
+    mutationFn: () =>
+      authApi.changePassword({ currentPassword: current, newPassword: next }),
+    onSuccess: () => {
+      setDone(true);
+      setCurrent("");
+      setNext("");
+    },
+    onError: (err) => setError(apiErrorMessage(err, t("account.changeFailed"))),
+  });
+
+  function submit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    mut.mutate();
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <Card
+        className="p-6 w-full max-w-md"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold">
+            {t("account.changePassword")}
+          </h2>
+          <button
+            className="text-neutral-400 hover:text-neutral-700"
+            onClick={onClose}
+          >
+            ✕
+          </button>
+        </div>
+        {done ? (
+          <div className="space-y-4">
+            <div className="text-sm text-green-700">{t("account.changed")}</div>
+            <Button variant="secondary" onClick={onClose}>
+              {t("common.back")}
+            </Button>
+          </div>
+        ) : (
+          <form className="space-y-4" onSubmit={submit}>
+            <div>
+              <Label htmlFor="cur-pw">{t("account.currentPassword")}</Label>
+              <Input
+                id="cur-pw"
+                type="password"
+                value={current}
+                onChange={(e) => setCurrent(e.target.value)}
+                required
+                dir="ltr"
+              />
+            </div>
+            <div>
+              <Label htmlFor="new-pw">{t("account.newPassword")}</Label>
+              <Input
+                id="new-pw"
+                type="password"
+                value={next}
+                onChange={(e) => setNext(e.target.value)}
+                required
+                minLength={8}
+                dir="ltr"
+              />
+            </div>
+            <FormError message={error} />
+            <div className="flex items-center gap-3">
+              <Button type="submit" disabled={mut.isPending}>
+                {mut.isPending ? <Spinner /> : t("account.change")}
+              </Button>
+              <Button type="button" variant="ghost" onClick={onClose}>
+                {t("common.cancel")}
+              </Button>
+            </div>
+          </form>
+        )}
+      </Card>
     </div>
   );
 }

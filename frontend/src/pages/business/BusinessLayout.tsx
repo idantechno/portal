@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useNavigate, useParams } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query";
 import { businessesApi } from "../../api/businesses";
 import { useAuthStore } from "../../store/auth";
+import { canManageBusiness } from "../../lib/roles";
 
 export default function BusinessLayout() {
   const { t, i18n } = useTranslation();
@@ -17,13 +18,17 @@ export default function BusinessLayout() {
     queryFn: () => businessesApi.get(businessId),
   });
 
+  const canManage = canManageBusiness(biz.data?.myRole, user?.role);
+  const viaStaff = biz.data?.viaPlatformStaff ?? false;
+
   const navItems = [
-    { to: "inbox", label: t("nav.inbox") },
-    { to: "leads", label: t("nav.leads") },
-    { to: "files", label: t("nav.files") },
-    { to: "channels/whatsapp", label: t("nav.whatsapp") },
-    { to: "settings", label: t("nav.settings") },
-  ];
+    { to: "inbox", label: t("nav.inbox"), show: true },
+    { to: "leads", label: t("nav.leads"), show: true },
+    { to: "files", label: t("nav.files"), show: true },
+    { to: "members", label: t("nav.team"), show: canManage },
+    { to: "channels/whatsapp", label: t("nav.whatsapp"), show: canManage },
+    { to: "settings", label: t("nav.settings"), show: canManage },
+  ].filter((it) => it.show);
 
   return (
     <div className="h-screen overflow-hidden bg-neutral-50 grid grid-cols-[260px_1fr]">
@@ -86,6 +91,14 @@ export default function BusinessLayout() {
         </div>
       </aside>
       <main className="overflow-auto min-h-0">
+        {viaStaff && (
+          <div className="bg-amber-500 text-amber-950 text-sm px-4 py-2 flex items-center justify-between">
+            <span>⚠️ {t("admin.viewingAsStaff")}</span>
+            <Link to="/app/admin/businesses" className="underline font-medium">
+              {t("admin.title")}
+            </Link>
+          </div>
+        )}
         <Outlet />
       </main>
     </div>

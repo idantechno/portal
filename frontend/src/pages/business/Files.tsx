@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { filesApi } from "../../api/files";
 import { apiErrorMessage } from "../../api/client";
 import { useAuthStore } from "../../store/auth";
+import { isPlatformStaff } from "../../lib/roles";
 import {
   Button,
   Card,
@@ -165,7 +166,7 @@ function Explorer({
 }: ExplorerProps) {
   const { t, i18n } = useTranslation();
   const user = useAuthStore((s) => s.user);
-  const isGlobalAdmin = user?.role === "global_admin";
+  const isStaff = isPlatformStaff(user?.role);
   const qc = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadHidden, setUploadHidden] = useState(false);
@@ -303,7 +304,7 @@ function Explorer({
           </nav>
 
           <div className="flex items-center gap-2 flex-wrap">
-            {isGlobalAdmin && !isHiddenContext && (
+            {isStaff && !isHiddenContext && (
               <label className="flex items-center gap-2 text-xs text-neutral-700">
                 <input
                   type="checkbox"
@@ -360,7 +361,7 @@ function Explorer({
           title={t("files.newFolder")}
           label={t("files.folderName")}
           placeholder={t("files.folderNamePlaceholder")}
-          allowHidden={isGlobalAdmin && !isHiddenContext}
+          allowHidden={isStaff && !isHiddenContext}
           onCancel={() => setShowNewFolder(false)}
           onSubmit={(name, hidden) => {
             setShowNewFolder(false);
@@ -378,7 +379,7 @@ function Explorer({
           title={t("files.newFile")}
           label={t("files.fileName")}
           placeholder={t("files.fileNamePlaceholder")}
-          allowHidden={isGlobalAdmin && !isHiddenContext}
+          allowHidden={isStaff && !isHiddenContext}
           onCancel={() => setShowNewFile(false)}
           onSubmit={(name, hidden) => {
             setShowNewFile(false);

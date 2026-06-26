@@ -5,6 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { businessesApi } from "../api/businesses";
 import { authApi } from "../api/auth";
+import { agentsApi } from "../api/agents";
 import { apiErrorMessage } from "../api/client";
 import { useAuthStore } from "../store/auth";
 import { isPlatformStaff } from "../lib/roles";
@@ -17,6 +18,12 @@ import {
   Spinner,
 } from "../components/ui";
 
+// Maps an entitled agent to the page that opens it. Agents without a tool page
+// (e.g. the always-on chat agent) simply don't appear in the dashboard tools.
+const AGENT_ROUTES: Record<string, string | undefined> = {
+  documents: "/app/agents/documents",
+};
+
 export default function Dashboard() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -28,6 +35,12 @@ export default function Dashboard() {
     queryKey: ["businesses"],
     queryFn: businessesApi.list,
   });
+
+  const myAgents = useQuery({
+    queryKey: ["me", "agents"],
+    queryFn: agentsApi.mine,
+  });
+  const tools = (myAgents.data ?? []).filter((a) => AGENT_ROUTES[a.key]);
 
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState("");
@@ -106,30 +119,35 @@ export default function Dashboard() {
           </Link>
         )}
 
-        <section className="mb-10">
-          <h2 className="text-xs uppercase tracking-wider text-neutral-500 mb-3">
-            כלים
-          </h2>
-          <Link to="/app/agents/documents" className="block">
-            <Card className="p-6 hover:border-brand-300 hover:shadow-md transition-all flex items-center gap-5">
-              <div className="h-12 w-12 rounded-xl bg-brand-50 text-brand-700 flex items-center justify-center text-2xl shrink-0">
-                📝
-              </div>
-              <div className="flex-1">
-                <div className="font-semibold text-base mb-0.5">
-                  סוכן מסמכים
-                </div>
-                <div className="text-sm text-neutral-600">
-                  ספר על העסקה — הסוכן יכין הזמנת עבודה, חוזה או הצעת מחיר
-                  ויחזיר קישור לחתימה.
-                </div>
-              </div>
-              <div className="text-brand-700 text-sm font-medium shrink-0">
-                פתח →
-              </div>
-            </Card>
-          </Link>
-        </section>
+        {tools.length > 0 && (
+          <section className="mb-10">
+            <h2 className="text-xs uppercase tracking-wider text-neutral-500 mb-3">
+              כלים
+            </h2>
+            <div className="space-y-3">
+              {tools.map((a) => (
+                <Link key={a.key} to={AGENT_ROUTES[a.key]!} className="block">
+                  <Card className="p-6 hover:border-brand-300 hover:shadow-md transition-all flex items-center gap-5">
+                    <div className="h-12 w-12 rounded-xl bg-brand-50 text-brand-700 flex items-center justify-center text-2xl shrink-0">
+                      {a.icon}
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-semibold text-base mb-0.5">
+                        {a.name}
+                      </div>
+                      <div className="text-sm text-neutral-600">
+                        {a.description}
+                      </div>
+                    </div>
+                    <div className="text-brand-700 text-sm font-medium shrink-0">
+                      {t("dashboard.open")} →
+                    </div>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
 
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold">{t("dashboard.myBusinesses")}</h1>

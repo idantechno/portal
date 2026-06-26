@@ -120,3 +120,17 @@ export interface AuditPage {
   items: AuditEvent[];
   total: number;
 }
+
+// ---- Agents ----
+
+export interface AgentDefinition {
+  key: string;
+  name: string;
+  description: string;
+  icon: string;
+  defaultEnabled: boolean;
+}
+
+export interface AgentAccessView extends AgentDefinition {
+  enabled: boolean;
+}

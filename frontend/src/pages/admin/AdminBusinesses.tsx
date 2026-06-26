@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { adminApi } from "../../api/admin";
 import type { AccountStatus } from "../../api/types";
@@ -75,7 +75,12 @@ export default function AdminBusinesses() {
             {businesses.data?.map((b) => (
               <tr key={b.id} className="hover:bg-neutral-50">
                 <td className="px-4 py-3">
-                  <div className="font-medium">{b.name}</div>
+                  <Link
+                    to={`/app/admin/businesses/${b.id}`}
+                    className="font-medium text-brand-700 hover:underline"
+                  >
+                    {b.name}
+                  </Link>
                   <div className="text-xs text-neutral-500" dir="ltr">
                     /{b.slug}
                   </div>

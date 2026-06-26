@@ -6,6 +6,7 @@ import { FilesystemService } from '../context-files/filesystem.service';
 import { ChannelRegistry } from '../channels/channel-registry.service';
 import { LeadsService } from '../leads/leads.service';
 import { AgentRunner } from '../agents/agent-runner.service';
+import { AgentsService } from '../agents/agents.service';
 import { ConversationStatus } from '../common/enums/conversation-status.enum';
 import { MessageRole } from '../common/enums/message-role.enum';
 import { AgentRunJobData } from './agent-worker.constants';
@@ -26,6 +27,7 @@ export class AgentWorkerService {
     private readonly filesystem: FilesystemService,
     private readonly channels: ChannelRegistry,
     private readonly runner: AgentRunner,
+    private readonly agents: AgentsService,
   ) {}
 
   async runAgent(data: AgentRunJobData): Promise<void> {
@@ -43,6 +45,15 @@ export class AgentWorkerService {
     const business = await this.businesses.findById(data.businessId);
     if (!business) {
       throw new Error(`Business ${data.businessId} not found`);
+    }
+
+    // The chat agent is gated per business — if this tenant isn't entitled,
+    // don't auto-reply (the conversation still records the inbound message).
+    if (!(await this.agents.hasAccess(business.id, 'chat'))) {
+      this.log.log(
+        `Skipping agent run for business ${business.id}: chat agent not enabled`,
+      );
+      return;
     }
 
     await this.filesystem.ensureBusinessRoot(business.id);

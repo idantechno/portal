@@ -16,6 +16,7 @@ import WhatsappSettings from "./pages/business/WhatsappSettings";
 import AdminLayout from "./pages/admin/AdminLayout";
 import AdminOverview from "./pages/admin/AdminOverview";
 import AdminBusinesses from "./pages/admin/AdminBusinesses";
+import AdminBusinessDetail from "./pages/admin/AdminBusinessDetail";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminAudit from "./pages/admin/AdminAudit";
 
@@ -66,6 +67,7 @@ export default function App() {
         <Route index element={<Navigate to="overview" replace />} />
         <Route path="overview" element={<AdminOverview />} />
         <Route path="businesses" element={<AdminBusinesses />} />
+        <Route path="businesses/:businessId" element={<AdminBusinessDetail />} />
         <Route path="users" element={<AdminUsers />} />
         <Route path="audit" element={<AdminAudit />} />
       </Route>

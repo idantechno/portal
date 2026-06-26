@@ -12,13 +12,16 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { BusinessScopeGuard } from '../businesses/guards/business-scope.guard';
+import { RequireAgentGuard } from '../agents/guards/require-agent.guard';
+import { RequireAgent } from '../agents/decorators/require-agent.decorator';
 import { DocumentPdfService } from './document-pdf.service';
 import { DocumentsAgentService } from './documents-agent.service';
 import { DocumentsService } from './documents.service';
 import { DocumentsChatDto } from './dto/documents-chat.dto';
 import { UpsertBusinessConfigDto } from './dto/upsert-business-config.dto';
 
-@UseGuards(BusinessScopeGuard)
+@UseGuards(BusinessScopeGuard, RequireAgentGuard)
+@RequireAgent('documents')
 @Controller('businesses/:businessId')
 export class DocumentsController {
   constructor(

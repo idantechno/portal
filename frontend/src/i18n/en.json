@@ -184,7 +184,12 @@
     "support": "Support",
     "member": "Member",
     "businessCount": "Businesses",
-    "viewingAsStaff": "You are viewing this business as platform staff — every action is logged."
+    "viewingAsStaff": "You are viewing this business as platform staff — every action is logged.",
+    "agents": "Agents",
+    "agentsHint": "Grant or revoke this business's access to agents per your contract.",
+    "backToBusinesses": "Back to businesses",
+    "on": "On",
+    "off": "Off"
   },
   "members": {
     "title": "Team",

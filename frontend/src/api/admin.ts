@@ -5,6 +5,7 @@ import type {
   AdminBusinessDetail,
   AdminOverview,
   AdminUser,
+  AgentAccessView,
   AuditPage,
   UserRole,
 } from "./types";
@@ -53,4 +54,14 @@ export const adminApi = {
     offset?: number;
   }) =>
     api.get<AuditPage>("/admin/audit", { params }).then((r) => r.data),
+
+  businessAgents: (id: string) =>
+    api
+      .get<AgentAccessView[]>(`/admin/businesses/${id}/agents`)
+      .then((r) => r.data),
+
+  setBusinessAgent: (id: string, agentKey: string, enabled: boolean) =>
+    api
+      .put(`/admin/businesses/${id}/agents/${agentKey}`, { enabled })
+      .then((r) => r.data),
 };

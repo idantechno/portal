@@ -22,6 +22,7 @@ import { WidgetModule } from './widget/widget.module';
 import { DocumentsModule } from './documents/documents.module';
 import { AuditModule } from './audit/audit.module';
 import { AdminModule } from './admin/admin.module';
+import { AgentsModule } from './agents/agents.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 
@@ -72,6 +73,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
     DocumentsModule,
     AuditModule,
     AdminModule,
+    AgentsModule,
   ],
   controllers: [AppController, HealthController],
   providers: [

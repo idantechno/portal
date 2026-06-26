@@ -53,9 +53,9 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
     <input
       ref={ref}
       className={cn(
-        "block w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm",
-        "placeholder:text-neutral-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none",
-        "disabled:bg-neutral-50 disabled:text-neutral-500",
+        "block w-full rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm",
+        "placeholder:text-neutral-400 focus:bg-white focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none",
+        "disabled:bg-neutral-100 disabled:text-neutral-500",
         className,
       )}
       {...rest}
@@ -71,8 +71,8 @@ export const Textarea = forwardRef<
   <textarea
     ref={ref}
     className={cn(
-      "block w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm",
-      "placeholder:text-neutral-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none",
+      "block w-full rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm",
+      "placeholder:text-neutral-400 focus:bg-white focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none",
       "min-h-24",
       className,
     )}

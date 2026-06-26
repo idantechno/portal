@@ -123,7 +123,7 @@ export default function DocumentsAgent({ businessId }: { businessId: string }) {
               disabled={chat.isPending}
               rows={2}
               placeholder="לדוגמה: 'הלקוח שלי אורל אריאלי רוצה הדרכת AI לעסקים — 4 שעות, 3 קבוצות, 100 איש. העלות 4500 ש״ח עם מקדמה.'"
-              className="flex-1 block rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none resize-none"
+              className="flex-1 block rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm focus:bg-white focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none resize-none"
             />
             <Button
               type="submit"
@@ -202,7 +202,7 @@ function CreatedDocumentCard({ doc }: { doc: DocumentInstance }) {
               readOnly
               value={publicUrl}
               dir="ltr"
-              className="flex-1 rounded border border-neutral-200 px-2 py-1 text-xs font-mono"
+              className="flex-1 rounded border border-neutral-300 bg-neutral-50 px-2 py-1 text-xs font-mono"
               onFocus={(e) => e.currentTarget.select()}
             />
             <button

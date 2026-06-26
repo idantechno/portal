@@ -8,6 +8,10 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
+    // Poll for file changes — native FS events don't propagate over the
+    // Windows -> Linux container bind mount, so HMR would otherwise serve
+    // stale modules until the dev server is restarted.
+    watch: { usePolling: true, interval: 150 },
     proxy: {
       '/api': {
         target: process.env.VITE_API_PROXY_TARGET ?? 'http://localhost:3000',

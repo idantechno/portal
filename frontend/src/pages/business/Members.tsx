@@ -140,7 +140,7 @@ export default function Members() {
                             role: e.target.value as BusinessRole,
                           })
                         }
-                        className="rounded-lg border border-neutral-200 bg-white px-2 py-1.5 text-sm focus:border-brand-500 focus:outline-none"
+                        className="rounded-lg border border-neutral-300 bg-neutral-50 px-2 py-1.5 text-sm focus:bg-white focus:border-brand-500 focus:outline-none"
                       >
                         {ROLE_OPTIONS.map((r) => (
                           <option key={r} value={r}>
@@ -212,7 +212,7 @@ export default function Members() {
                 id="m-role"
                 value={role}
                 onChange={(e) => setRole(e.target.value as BusinessRole)}
-                className="block w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
+                className="block w-full rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm focus:bg-white focus:border-brand-500 focus:outline-none"
               >
                 {ROLE_OPTIONS.map((r) => (
                   <option key={r} value={r}>

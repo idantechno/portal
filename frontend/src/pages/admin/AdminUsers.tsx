@@ -83,7 +83,7 @@ export default function AdminUsers() {
                             role: e.target.value as UserRole,
                           })
                         }
-                        className="rounded-lg border border-neutral-200 bg-white px-2 py-1.5 text-sm focus:border-brand-500 focus:outline-none"
+                        className="rounded-lg border border-neutral-300 bg-neutral-50 px-2 py-1.5 text-sm focus:bg-white focus:border-brand-500 focus:outline-none"
                       >
                         {ROLE_OPTIONS.map((r) => (
                           <option key={r} value={r}>

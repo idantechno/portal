@@ -52,12 +52,17 @@ export default function AdminBusinesses() {
     <div className="p-8 max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6 gap-4">
         <h1 className="text-2xl font-bold">{t("admin.businesses")}</h1>
-        <Input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder={t("admin.search")}
-          className="max-w-xs"
-        />
+        <div className="flex items-center gap-3">
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder={t("admin.search")}
+            className="max-w-xs"
+          />
+          <Link to="/app/admin/clients/new">
+            <Button>{t("admin.createClient")}</Button>
+          </Link>
+        </div>
       </div>
 
       <Card className="overflow-hidden">

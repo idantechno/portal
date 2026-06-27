@@ -20,6 +20,7 @@ import { AdminService } from './admin.service';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { ListAuditQueryDto } from './dto/list-audit.dto';
+import { CreateClientDto } from './dto/create-client.dto';
 
 /**
  * Cross-tenant admin surface. The class-level @Roles lets platform staff
@@ -41,6 +42,11 @@ export class AdminController {
     return this.admin.overview();
   }
 
+  @Get('agents')
+  agentCatalog() {
+    return this.admin.agentCatalog();
+  }
+
   @Get('businesses')
   listBusinesses(@Query('q') q?: string) {
     return this.admin.listBusinesses(q);
@@ -49,6 +55,29 @@ export class AdminController {
   @Get('businesses/:businessId')
   businessDetail(@Param('businessId', ParseUUIDPipe) businessId: string) {
     return this.admin.businessDetail(businessId);
+  }
+
+  /** Onboard a client: creates the business + owner account + agent grants. */
+  @Roles(UserRole.SuperAdmin)
+  @Post('businesses')
+  async createClient(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Body() dto: CreateClientDto,
+    @Ip() ip: string,
+  ) {
+    const result = await this.admin.createClient(actor.id, dto);
+    await this.audit.record({
+      actorUserId: actor.id,
+      actorEmail: actor.email,
+      actorRole: actor.role,
+      action: 'client.created',
+      businessId: result.business.id,
+      targetType: 'business',
+      targetId: result.business.id,
+      metadata: { ownerEmail: result.owner.email, agents: dto.agentKeys },
+      ip,
+    });
+    return result;
   }
 
   /**

@@ -8,7 +8,6 @@ import {
   Post,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { Public } from './decorators/public.decorator';
@@ -22,12 +21,6 @@ export class AuthController {
     private readonly auth: AuthService,
     private readonly users: UsersService,
   ) {}
-
-  @Public()
-  @Post('signup')
-  signup(@Body() dto: SignupDto) {
-    return this.auth.signup(dto);
-  }
 
   @Public()
   @HttpCode(HttpStatus.OK)

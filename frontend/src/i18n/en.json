@@ -33,7 +33,9 @@
     "businessName": "Business name",
     "businessSlug": "Slug",
     "noBusinesses": "You have no businesses yet. Create one to get started.",
-    "open": "Open"
+    "open": "Open",
+    "yourAgents": "Your agents",
+    "noAgents": "No agents assigned yet. Contact your administrator."
   },
   "files": {
     "title": "Context files",
@@ -189,7 +191,18 @@
     "agentsHint": "Grant or revoke this business's access to agents per your contract.",
     "backToBusinesses": "Back to businesses",
     "on": "On",
-    "off": "Off"
+    "off": "Off",
+    "createClient": "Create client",
+    "clientBusinessName": "Business name",
+    "clientOwnerName": "Owner name",
+    "clientOwnerEmail": "Owner email",
+    "clientSlug": "Slug (optional)",
+    "clientAgents": "Agents to grant",
+    "clientCreated": "Client created!",
+    "tempPassword": "Temporary password",
+    "shareCredsHint": "Share the email and temporary password with the owner; they'll change it on first login.",
+    "createAnother": "Create another",
+    "createClientFailed": "Failed to create client"
   },
   "members": {
     "title": "Team",

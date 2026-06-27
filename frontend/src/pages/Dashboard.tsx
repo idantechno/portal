@@ -18,11 +18,16 @@ import {
   Spinner,
 } from "../components/ui";
 
-// Maps an entitled agent to the page that opens it. Agents without a tool page
-// (e.g. the always-on chat agent) simply don't appear in the dashboard tools.
-const AGENT_ROUTES: Record<string, string | undefined> = {
-  documents: "/app/agents/documents",
-};
+// Resolves the page an entitled agent opens. The chat agent opens the
+// business's inbox (where the owner watches the bot); documents opens its tool.
+function agentLink(
+  key: string,
+  businessId: string | undefined,
+): string | undefined {
+  if (key === "documents") return "/app/agents/documents";
+  if (key === "chat") return businessId ? `/app/businesses/${businessId}/inbox` : undefined;
+  return undefined;
+}
 
 export default function Dashboard() {
   const { t, i18n } = useTranslation();
@@ -30,6 +35,7 @@ export default function Dashboard() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const qc = useQueryClient();
+  const staff = isPlatformStaff(user?.role);
 
   const businesses = useQuery({
     queryKey: ["businesses"],
@@ -40,14 +46,18 @@ export default function Dashboard() {
     queryKey: ["me", "agents"],
     queryFn: agentsApi.mine,
   });
-  const tools = (myAgents.data ?? []).filter((a) => AGENT_ROUTES[a.key]);
+
+  // Clients have one implicit business; use it to route the chat agent.
+  const firstBizId = businesses.data?.[0]?.id;
+  const agentCards = (myAgents.data ?? [])
+    .map((a) => ({ ...a, to: agentLink(a.key, firstBizId) }))
+    .filter((a): a is typeof a & { to: string } => Boolean(a.to));
 
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [createError, setCreateError] = useState<string | null>(null);
   const [showPw, setShowPw] = useState(false);
-  const staff = isPlatformStaff(user?.role);
 
   const createMut = useMutation({
     mutationFn: () =>
@@ -119,14 +129,14 @@ export default function Dashboard() {
           </Link>
         )}
 
-        {tools.length > 0 && (
+        {agentCards.length > 0 && (
           <section className="mb-10">
             <h2 className="text-xs uppercase tracking-wider text-neutral-500 mb-3">
-              כלים
+              {t("dashboard.yourAgents")}
             </h2>
             <div className="space-y-3">
-              {tools.map((a) => (
-                <Link key={a.key} to={AGENT_ROUTES[a.key]!} className="block">
+              {agentCards.map((a) => (
+                <Link key={a.key} to={a.to} className="block">
                   <Card className="p-6 hover:border-brand-300 hover:shadow-md transition-all flex items-center gap-5">
                     <div className="h-12 w-12 rounded-xl bg-brand-50 text-brand-700 flex items-center justify-center text-2xl shrink-0">
                       {a.icon}
@@ -149,6 +159,14 @@ export default function Dashboard() {
           </section>
         )}
 
+        {!staff && agentCards.length === 0 && !myAgents.isLoading && (
+          <Card className="p-12 text-center text-neutral-500">
+            {t("dashboard.noAgents")}
+          </Card>
+        )}
+
+        {staff && (
+        <>
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold">{t("dashboard.myBusinesses")}</h1>
           {!showCreate && (
@@ -229,6 +247,8 @@ export default function Dashboard() {
             </Link>
           ))}
         </div>
+        </>
+        )}
       </main>
       {showPw && <ChangePasswordModal onClose={() => setShowPw(false)} />}
     </div>

@@ -134,3 +134,9 @@ export interface AgentDefinition {
 export interface AgentAccessView extends AgentDefinition {
   enabled: boolean;
 }
+
+export interface CreateClientResult {
+  business: Business;
+  owner: { id: string; email: string; name: string };
+  temporaryPassword: string;
+}

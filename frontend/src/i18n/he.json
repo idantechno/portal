@@ -33,7 +33,9 @@
     "businessName": "שם העסק",
     "businessSlug": "מזהה (slug)",
     "noBusinesses": "אין לך עסקים עדיין. צור עסק כדי להתחיל.",
-    "open": "פתח"
+    "open": "פתח",
+    "yourAgents": "הסוכנים שלך",
+    "noAgents": "עדיין לא הוקצו לך סוכנים. פנה למנהל המערכת."
   },
   "files": {
     "title": "קבצי הקשר",
@@ -189,7 +191,18 @@
     "agentsHint": "הענק או שלול גישה לסוכנים עבור העסק הזה לפי החוזה.",
     "backToBusinesses": "חזרה לעסקים",
     "on": "פעיל",
-    "off": "כבוי"
+    "off": "כבוי",
+    "createClient": "צור לקוח חדש",
+    "clientBusinessName": "שם העסק",
+    "clientOwnerName": "שם בעל העסק",
+    "clientOwnerEmail": "אימייל בעל העסק",
+    "clientSlug": "מזהה (אופציונלי)",
+    "clientAgents": "סוכנים להעניק",
+    "clientCreated": "הלקוח נוצר בהצלחה!",
+    "tempPassword": "סיסמה זמנית",
+    "shareCredsHint": "מסור לבעל העסק את האימייל והסיסמה הזמנית. הוא יחליף סיסמה בכניסה הראשונה.",
+    "createAnother": "צור לקוח נוסף",
+    "createClientFailed": "יצירת הלקוח נכשלה"
   },
   "members": {
     "title": "צוות",

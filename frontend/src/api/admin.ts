@@ -6,7 +6,9 @@ import type {
   AdminOverview,
   AdminUser,
   AgentAccessView,
+  AgentDefinition,
   AuditPage,
+  CreateClientResult,
   UserRole,
 } from "./types";
 
@@ -54,6 +56,20 @@ export const adminApi = {
     offset?: number;
   }) =>
     api.get<AuditPage>("/admin/audit", { params }).then((r) => r.data),
+
+  agentCatalog: () =>
+    api.get<AgentDefinition[]>("/admin/agents").then((r) => r.data),
+
+  createClient: (input: {
+    businessName: string;
+    ownerName: string;
+    ownerEmail: string;
+    slug?: string;
+    agentKeys: string[];
+  }) =>
+    api
+      .post<CreateClientResult>("/admin/businesses", input)
+      .then((r) => r.data),
 
   businessAgents: (id: string) =>
     api

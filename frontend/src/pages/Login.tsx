@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { authApi } from "../api/auth";
 import { useAuthStore } from "../store/auth";
@@ -78,15 +78,6 @@ export default function Login() {
               {busy ? <Spinner /> : t("auth.submitLogin")}
             </Button>
           </form>
-          <div className="mt-6 text-center text-sm text-neutral-600">
-            {t("auth.noAccount")}{" "}
-            <Link
-              to="/signup"
-              className="text-brand-700 hover:underline font-medium"
-            >
-              {t("auth.switchToSignup")}
-            </Link>
-          </div>
         </Card>
         <div className="mt-4 text-center text-xs text-neutral-500">
           <button

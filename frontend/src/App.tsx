@@ -2,7 +2,6 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuthStore } from "./store/auth";
 import { isPlatformStaff } from "./lib/roles";
 import Login from "./pages/Login";
-import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
 import SignDocument from "./pages/SignDocument";
 import AgentDocumentsPage from "./pages/AgentDocumentsPage";
@@ -17,6 +16,7 @@ import AdminLayout from "./pages/admin/AdminLayout";
 import AdminOverview from "./pages/admin/AdminOverview";
 import AdminBusinesses from "./pages/admin/AdminBusinesses";
 import AdminBusinessDetail from "./pages/admin/AdminBusinessDetail";
+import AdminCreateClient from "./pages/admin/AdminCreateClient";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminAudit from "./pages/admin/AdminAudit";
 
@@ -38,7 +38,6 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
-      <Route path="/signup" element={<Signup />} />
       <Route path="/sign/:token" element={<SignDocument />} />
       <Route
         path="/app"
@@ -67,6 +66,7 @@ export default function App() {
         <Route index element={<Navigate to="overview" replace />} />
         <Route path="overview" element={<AdminOverview />} />
         <Route path="businesses" element={<AdminBusinesses />} />
+        <Route path="clients/new" element={<AdminCreateClient />} />
         <Route path="businesses/:businessId" element={<AdminBusinessDetail />} />
         <Route path="users" element={<AdminUsers />} />
         <Route path="audit" element={<AdminAudit />} />

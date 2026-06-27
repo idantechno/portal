@@ -1,10 +1,27 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import * as bcrypt from 'bcryptjs';
+import { customAlphabet } from 'nanoid';
 import { Business } from '../businesses/business.entity';
 import { BusinessMember } from '../businesses/business-member.entity';
+import { BusinessesService } from '../businesses/businesses.service';
+import { AgentsService } from '../agents/agents.service';
+import { AGENT_CATALOG } from '../agents/agent-catalog';
 import { UsersService } from '../users/users.service';
+import { UserRole } from '../common/enums/user-role.enum';
 import { AccountStatus } from '../common/enums/account-status.enum';
+import { CreateClientDto } from './dto/create-client.dto';
+
+// Readable temp password (no ambiguous chars) the admin hands to the client.
+const generatePassword = customAlphabet(
+  'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789',
+  12,
+);
 
 function publicUser(u: {
   id: string;
@@ -23,7 +40,51 @@ export class AdminService {
     @InjectRepository(BusinessMember)
     private readonly members: Repository<BusinessMember>,
     private readonly users: UsersService,
+    private readonly businessesService: BusinessesService,
+    private readonly agents: AgentsService,
   ) {}
+
+  /**
+   * Provision a client in one step: owner account (with a generated temp
+   * password) + business + agent grants. The admin's selection is authoritative
+   * — every catalog agent is set explicitly (granted or revoked).
+   */
+  async createClient(actorUserId: string, dto: CreateClientDto) {
+    const email = dto.ownerEmail.toLowerCase();
+    if (await this.users.findByEmail(email)) {
+      throw new ConflictException('A user with this email already exists');
+    }
+    const temporaryPassword = generatePassword();
+    const passwordHash = await bcrypt.hash(temporaryPassword, 12);
+    const owner = await this.users.create({
+      email,
+      passwordHash,
+      name: dto.ownerName,
+      role: UserRole.Member,
+    });
+    const business = await this.businessesService.create(owner.id, {
+      name: dto.businessName,
+      slug: dto.slug,
+    });
+    for (const agent of AGENT_CATALOG) {
+      await this.agents.setAccess(
+        business.id,
+        agent.key,
+        dto.agentKeys.includes(agent.key),
+        actorUserId,
+      );
+    }
+    return {
+      business,
+      owner: { id: owner.id, email: owner.email, name: owner.name },
+      temporaryPassword,
+    };
+  }
+
+  /** The agent catalog — used to populate the onboarding form. */
+  agentCatalog() {
+    return this.agents.catalog();
+  }
 
   async overview() {
     const [totalBusinesses, suspendedBusinesses, totalUsers, suspendedUsers] =

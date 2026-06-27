@@ -42,10 +42,12 @@ export default function Login() {
     <div className="min-h-dvh grid place-items-center bg-gradient-to-br from-brand-50 via-cream-50 to-cream-100 px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="font-display text-4xl text-navy-900 tracking-tight">
-            Portal Studio
-          </div>
-          <div className="text-sm text-navy-400 mt-2">{t("tagline")}</div>
+          <img
+            src="/logo.png"
+            alt="Portal Studio"
+            className="mx-auto h-32 w-auto mb-1"
+          />
+          <div className="text-sm text-navy-400 mt-1">{t("tagline")}</div>
         </div>
         <Card className="p-7">
           <h1 className="text-xl font-semibold mb-6 text-navy-900">

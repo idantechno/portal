@@ -34,8 +34,14 @@ export default function BusinessLayout() {
     <div className="h-dvh overflow-hidden bg-cream-50 grid grid-cols-[268px_1fr]">
       <aside className="border-e border-navy-100 bg-white overflow-y-auto flex flex-col">
         <div className="h-16 px-5 flex items-center border-b border-navy-100">
-          <Link to="/app" className="font-display text-xl text-navy-900 hover:text-brand-600 transition-colors">
-            Portal Studio
+          <Link
+            to="/app"
+            className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
+          >
+            <img src="/icon.png" alt="" className="h-7 w-7" />
+            <span className="font-display text-xl text-navy-900">
+              Portal Studio
+            </span>
           </Link>
         </div>
         <div className="p-4">

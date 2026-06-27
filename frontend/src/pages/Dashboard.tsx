@@ -79,7 +79,12 @@ export default function Dashboard() {
     <div className="min-h-dvh bg-cream-50">
       <header className="bg-navy-900 sticky top-0 z-10 shadow-[0_8px_24px_-16px_rgba(1,20,39,0.6)]">
         <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="font-display text-2xl text-cream-100">Portal Studio</div>
+          <div className="flex items-center gap-2.5">
+            <img src="/icon.png" alt="" className="h-8 w-8" />
+            <span className="font-display text-2xl text-cream-100">
+              Portal Studio
+            </span>
+          </div>
           <div className="flex items-center gap-4 text-sm">
             <span className="text-brand-200 font-medium">{user?.name}</span>
             <button

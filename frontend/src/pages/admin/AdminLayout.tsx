@@ -19,10 +19,13 @@ export default function AdminLayout() {
     <div className="h-dvh overflow-hidden bg-cream-50 grid grid-cols-[268px_1fr]">
       <aside className="bg-navy-900 text-navy-100 overflow-y-auto flex flex-col">
         <div className="px-6 pt-6 pb-5">
-          <div className="font-display text-2xl text-cream-100 leading-none">
-            Portal Studio
+          <div className="flex items-center gap-2.5">
+            <img src="/icon.png" alt="" className="h-8 w-8" />
+            <div className="font-display text-2xl text-cream-100 leading-none">
+              Portal Studio
+            </div>
           </div>
-          <div className="text-xs text-brand-300 mt-1.5 tracking-wide">
+          <div className="text-xs text-brand-300 mt-2 tracking-wide">
             {t("admin.title")}
           </div>
         </div>

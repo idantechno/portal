@@ -38,6 +38,23 @@
     "whatToday": "What should we work on today?",
     "noAgents": "No agents assigned yet. Contact your administrator."
   },
+  "home": {
+    "greetingMorning": "Good morning",
+    "greetingAfternoon": "Good afternoon",
+    "greetingEvening": "Good evening",
+    "allCalm": "All quiet — your agent is handling every inquiry",
+    "nothingNeedsYou": "Nothing needs your attention right now. We'll flag you the moment a decision is yours to make.",
+    "needsYouTitleOne": "One conversation is waiting for your decision",
+    "needsYouTitle": "{{count}} conversations are waiting for your decision",
+    "needsYouSub": "The bot handed these to you for a decision. Everything else is handled.",
+    "waitingLabel": "Waiting for you",
+    "waitingNeedsAction": "Needs action",
+    "waitingAllHandled": "All handled",
+    "activeLabel": "Active conversations",
+    "activeSub": "Agent is answering",
+    "newLeadsLabel": "New leads",
+    "leadsSub": "in the last 7 days"
+  },
   "files": {
     "title": "Context files",
     "subtitle": "The bot reads these files to answer questions about your business.",

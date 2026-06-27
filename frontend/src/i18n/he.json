@@ -38,6 +38,23 @@
     "whatToday": "במה נתחיל היום?",
     "noAgents": "עדיין לא הוקצו לך סוכנים. פנה למנהל המערכת."
   },
+  "home": {
+    "greetingMorning": "בוקר טוב",
+    "greetingAfternoon": "צהריים טובים",
+    "greetingEvening": "ערב טוב",
+    "allCalm": "הכל רגוע — הסוכן מטפל בכל הפניות",
+    "nothingNeedsYou": "אין שיחות שדורשות אותך כרגע. נרים לך דגל ברגע שתצטרך להחליט.",
+    "needsYouTitleOne": "שיחה אחת ממתינה להחלטה שלך",
+    "needsYouTitle": "{{count}} שיחות ממתינות להחלטה שלך",
+    "needsYouSub": "הבוט העביר אליך את אלה כי רצה שתחליט. כל השאר מטופל.",
+    "waitingLabel": "מחכות לך",
+    "waitingNeedsAction": "טיפול נדרש",
+    "waitingAllHandled": "הכל מטופל",
+    "activeLabel": "שיחות פעילות",
+    "activeSub": "הסוכן עונה",
+    "newLeadsLabel": "לידים חדשים",
+    "leadsSub": "ב-7 הימים האחרונים"
+  },
   "files": {
     "title": "קבצי הקשר",
     "subtitle": "הבוט יקרא את הקבצים האלה כדי לענות על שאלות על העסק שלך.",

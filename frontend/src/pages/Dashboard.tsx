@@ -17,6 +17,7 @@ import {
   Label,
   Spinner,
 } from "../components/ui";
+import { HomeBriefing } from "../components/HomeBriefing";
 
 // Resolves the page an entitled agent opens. The chat agent opens the
 // business's inbox (where the owner watches the bot); documents opens its tool.
@@ -52,6 +53,11 @@ export default function Dashboard() {
   const agentCards = (myAgents.data ?? [])
     .map((a) => ({ ...a, to: agentLink(a.key, firstBizId) }))
     .filter((a): a is typeof a & { to: string } => Boolean(a.to));
+
+  // The calm home briefing is the client owner's view: it needs a single
+  // business and the chat agent (it summarizes conversations + leads).
+  const hasChat = (myAgents.data ?? []).some((a) => a.key === "chat");
+  const showBriefing = !staff && !!firstBizId && hasChat;
 
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState("");
@@ -136,14 +142,26 @@ export default function Dashboard() {
           </Link>
         )}
 
+        {showBriefing && firstBizId && (
+          <HomeBriefing businessId={firstBizId} name={user?.name} />
+        )}
+
         {agentCards.length > 0 && (
           <section className="mb-10">
-            <h2 className="text-sm font-semibold text-brand-600 mb-1">
-              {t("dashboard.yourAgents")}
-            </h2>
-            <p className="text-2xl font-semibold text-navy-900 mb-5">
-              {t("dashboard.whatToday")}
-            </p>
+            {showBriefing ? (
+              <h2 className="text-sm font-semibold text-brand-600 mb-4">
+                {t("dashboard.yourAgents")}
+              </h2>
+            ) : (
+              <>
+                <h2 className="text-sm font-semibold text-brand-600 mb-1">
+                  {t("dashboard.yourAgents")}
+                </h2>
+                <p className="text-2xl font-semibold text-navy-900 mb-5">
+                  {t("dashboard.whatToday")}
+                </p>
+              </>
+            )}
             <div className="grid gap-3.5">
               {agentCards.map((a) => {
                 const tone =

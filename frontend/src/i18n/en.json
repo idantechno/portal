@@ -202,7 +202,8 @@
     "tempPassword": "Temporary password",
     "shareCredsHint": "Share the email and temporary password with the owner; they'll change it on first login.",
     "createAnother": "Create another",
-    "createClientFailed": "Failed to create client"
+    "createClientFailed": "Failed to create client",
+    "ownerExistedNote": "This user already existed — they were added as the owner and sign in with their existing password."
   },
   "members": {
     "title": "Team",

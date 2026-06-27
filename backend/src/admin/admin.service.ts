@@ -1,8 +1,4 @@
-import {
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
@@ -51,17 +47,20 @@ export class AdminService {
    */
   async createClient(actorUserId: string, dto: CreateClientDto) {
     const email = dto.ownerEmail.toLowerCase();
-    if (await this.users.findByEmail(email)) {
-      throw new ConflictException('A user with this email already exists');
+    // Reuse an existing account as the owner; only mint a temp password for a
+    // brand-new owner. (Lets the operator onboard their own / a returning user.)
+    let owner = await this.users.findByEmail(email);
+    let temporaryPassword: string | null = null;
+    if (!owner) {
+      temporaryPassword = generatePassword();
+      const passwordHash = await bcrypt.hash(temporaryPassword, 12);
+      owner = await this.users.create({
+        email,
+        passwordHash,
+        name: dto.ownerName,
+        role: UserRole.Member,
+      });
     }
-    const temporaryPassword = generatePassword();
-    const passwordHash = await bcrypt.hash(temporaryPassword, 12);
-    const owner = await this.users.create({
-      email,
-      passwordHash,
-      name: dto.ownerName,
-      role: UserRole.Member,
-    });
     const business = await this.businessesService.create(owner.id, {
       name: dto.businessName,
       slug: dto.slug,
@@ -78,6 +77,7 @@ export class AdminService {
       business,
       owner: { id: owner.id, email: owner.email, name: owner.name },
       temporaryPassword,
+      ownerExisted: temporaryPassword === null,
     };
   }
 

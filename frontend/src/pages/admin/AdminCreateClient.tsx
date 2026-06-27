@@ -86,23 +86,29 @@ export default function AdminCreateClient() {
           <div className="space-y-3">
             <Field label={t("admin.clientBusinessName")} value={result.business.name} />
             <Field label={t("admin.clientOwnerEmail")} value={result.owner.email} ltr />
-            <div>
-              <Label>{t("admin.tempPassword")}</Label>
-              <div className="flex items-center gap-2">
-                <Input value={result.temporaryPassword} readOnly dir="ltr" />
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => {
-                    navigator.clipboard.writeText(result.temporaryPassword);
-                    setCopied(true);
-                    setTimeout(() => setCopied(false), 2000);
-                  }}
-                >
-                  {copied ? t("settings.copied") : t("settings.copy")}
-                </Button>
+            {result.temporaryPassword ? (
+              <div>
+                <Label>{t("admin.tempPassword")}</Label>
+                <div className="flex items-center gap-2">
+                  <Input value={result.temporaryPassword} readOnly dir="ltr" />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => {
+                      navigator.clipboard.writeText(result.temporaryPassword!);
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 2000);
+                    }}
+                  >
+                    {copied ? t("settings.copied") : t("settings.copy")}
+                  </Button>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">
+                {t("admin.ownerExistedNote")}
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-3 mt-6">
             <Button onClick={reset}>{t("admin.createAnother")}</Button>

@@ -47,9 +47,13 @@ export default function AdminCreateClient() {
   const create = useMutation({
     mutationFn: () =>
       adminApi.createClient({
-        businessName,
-        ownerName,
-        ownerEmail,
+        businessName: businessName.trim(),
+        ownerName: ownerName.trim(),
+        // Strip whitespace and zero-width/bidi chars that sneak in via paste.
+        ownerEmail: ownerEmail.replace(
+          /[\s​-‏‪-‮﻿]/g,
+          "",
+        ),
         slug: slug.trim() || undefined,
         agentKeys: selected,
       }),
@@ -159,7 +163,8 @@ export default function AdminCreateClient() {
               <Label htmlFor="c-email">{t("admin.clientOwnerEmail")}</Label>
               <Input
                 id="c-email"
-                type="email"
+                type="text"
+                inputMode="email"
                 value={ownerEmail}
                 onChange={(e) => setOwnerEmail(e.target.value)}
                 required

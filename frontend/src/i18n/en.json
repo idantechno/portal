@@ -203,7 +203,10 @@
     "shareCredsHint": "Share the email and temporary password with the owner; they'll change it on first login.",
     "createAnother": "Create another",
     "createClientFailed": "Failed to create client",
-    "ownerExistedNote": "This user already existed — they were added as the owner and sign in with their existing password."
+    "ownerExistedNote": "This user already existed — they were added as the owner and sign in with their existing password.",
+    "resetPassword": "Reset password",
+    "passwordReset": "Password reset",
+    "passwordResetHint": "Share the new temporary password with the user; they'll change it on next login."
   },
   "members": {
     "title": "Team",

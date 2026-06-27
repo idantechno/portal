@@ -48,6 +48,11 @@ export const adminApi = {
   setUserStatus: (id: string, status: AccountStatus) =>
     api.patch(`/admin/users/${id}/status`, { status }).then((r) => r.data),
 
+  resetUserPassword: (id: string) =>
+    api
+      .post<{ temporaryPassword: string }>(`/admin/users/${id}/reset-password`)
+      .then((r) => r.data),
+
   audit: (params: {
     businessId?: string;
     actorUserId?: string;

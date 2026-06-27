@@ -183,6 +183,26 @@ export class AdminController {
     return { ok: true };
   }
 
+  @Roles(UserRole.SuperAdmin)
+  @Post('users/:userId/reset-password')
+  async resetUserPassword(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Ip() ip: string,
+  ) {
+    const result = await this.admin.resetUserPassword(userId);
+    await this.audit.record({
+      actorUserId: actor.id,
+      actorEmail: actor.email,
+      actorRole: actor.role,
+      action: 'user.password_reset',
+      targetType: 'user',
+      targetId: userId,
+      ip,
+    });
+    return result;
+  }
+
   @Get('audit')
   listAudit(@Query() query: ListAuditQueryDto) {
     return this.audit.list(query);

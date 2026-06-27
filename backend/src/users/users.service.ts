@@ -80,6 +80,10 @@ export class UsersService implements OnApplicationBootstrap {
       .then(() => undefined);
   }
 
+  delete(id: string): Promise<void> {
+    return this.users.delete({ id }).then(() => undefined);
+  }
+
   setRole(userId: string, role: UserRole): Promise<void> {
     return this.users.update({ id: userId }, { role }).then(() => undefined);
   }

@@ -5,7 +5,7 @@ import { adminApi } from "../../api/admin";
 import type { AccountStatus, UserRole } from "../../api/types";
 import { useAuthStore } from "../../store/auth";
 import { isSuperAdmin } from "../../lib/roles";
-import { Button, Card, Input } from "../../components/ui";
+import { Button, Card, Input, Label } from "../../components/ui";
 
 const ROLE_OPTIONS: UserRole[] = ["member", "support", "super_admin"];
 
@@ -37,6 +37,18 @@ export default function AdminUsers() {
     mutationFn: ({ id, status }: { id: string; status: AccountStatus }) =>
       adminApi.setUserStatus(id, status),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "users"] }),
+  });
+
+  const [resetResult, setResetResult] = useState<{
+    email: string;
+    password: string;
+  } | null>(null);
+  const resetPw = useMutation({
+    mutationFn: (u: { id: string; email: string }) =>
+      adminApi
+        .resetUserPassword(u.id)
+        .then((r) => ({ email: u.email, password: r.temporaryPassword })),
+    onSuccess: (r) => setResetResult(r),
   });
 
   return (
@@ -111,21 +123,35 @@ export default function AdminUsers() {
                   </td>
                   <td className="px-4 py-3 text-end">
                     {canModerate && !isSelf && (
-                      <Button
-                        size="sm"
-                        variant={u.status === "active" ? "ghost" : "secondary"}
-                        onClick={() =>
-                          setStatus.mutate({
-                            id: u.id,
-                            status:
-                              u.status === "active" ? "suspended" : "active",
-                          })
-                        }
-                      >
-                        {u.status === "active"
-                          ? t("admin.suspend")
-                          : t("admin.activate")}
-                      </Button>
+                      <div className="flex items-center gap-2 justify-end">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={resetPw.isPending}
+                          onClick={() =>
+                            resetPw.mutate({ id: u.id, email: u.email })
+                          }
+                        >
+                          {t("admin.resetPassword")}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={
+                            u.status === "active" ? "ghost" : "secondary"
+                          }
+                          onClick={() =>
+                            setStatus.mutate({
+                              id: u.id,
+                              status:
+                                u.status === "active" ? "suspended" : "active",
+                            })
+                          }
+                        >
+                          {u.status === "active"
+                            ? t("admin.suspend")
+                            : t("admin.activate")}
+                        </Button>
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -140,6 +166,45 @@ export default function AdminUsers() {
           <div className="p-6 text-sm text-neutral-500">{t("admin.noResults")}</div>
         )}
       </Card>
+
+      {resetResult && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
+          onClick={() => setResetResult(null)}
+        >
+          <Card
+            className="p-6 w-full max-w-md"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-lg font-semibold mb-1">
+              {t("admin.passwordReset")}
+            </h2>
+            <p className="text-sm text-neutral-500 mb-4">
+              {t("admin.passwordResetHint")}
+            </p>
+            <div className="text-sm mb-3" dir="ltr">
+              {resetResult.email}
+            </div>
+            <Label>{t("admin.tempPassword")}</Label>
+            <div className="flex items-center gap-2">
+              <Input value={resetResult.password} readOnly dir="ltr" />
+              <Button
+                variant="secondary"
+                onClick={() =>
+                  navigator.clipboard.writeText(resetResult.password)
+                }
+              >
+                {t("settings.copy")}
+              </Button>
+            </div>
+            <div className="mt-5 text-end">
+              <Button onClick={() => setResetResult(null)}>
+                {t("common.back")}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

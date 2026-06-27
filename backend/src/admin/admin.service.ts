@@ -50,6 +50,7 @@ export class AdminService {
     // Reuse an existing account as the owner; only mint a temp password for a
     // brand-new owner. (Lets the operator onboard their own / a returning user.)
     let owner = await this.users.findByEmail(email);
+    const createdOwner = !owner;
     let temporaryPassword: string | null = null;
     if (!owner) {
       temporaryPassword = generatePassword();
@@ -61,24 +62,41 @@ export class AdminService {
         role: UserRole.Member,
       });
     }
-    const business = await this.businessesService.create(owner.id, {
-      name: dto.businessName,
-      slug: dto.slug,
-    });
-    for (const agent of AGENT_CATALOG) {
-      await this.agents.setAccess(
-        business.id,
-        agent.key,
-        dto.agentKeys.includes(agent.key),
-        actorUserId,
-      );
+    try {
+      const business = await this.businessesService.create(owner.id, {
+        name: dto.businessName,
+        slug: dto.slug,
+      });
+      for (const agent of AGENT_CATALOG) {
+        await this.agents.setAccess(
+          business.id,
+          agent.key,
+          dto.agentKeys.includes(agent.key),
+          actorUserId,
+        );
+      }
+      return {
+        business,
+        owner: { id: owner.id, email: owner.email, name: owner.name },
+        temporaryPassword,
+        ownerExisted: !createdOwner,
+      };
+    } catch (err) {
+      // Compensate: if we minted the owner just now and business creation
+      // failed, remove it so a partial failure doesn't orphan an account.
+      if (createdOwner) await this.users.delete(owner.id);
+      throw err;
     }
-    return {
-      business,
-      owner: { id: owner.id, email: owner.email, name: owner.name },
-      temporaryPassword,
-      ownerExisted: temporaryPassword === null,
-    };
+  }
+
+  /** Generate a new temp password for a user (admin-driven reset). */
+  async resetUserPassword(userId: string): Promise<{ temporaryPassword: string }> {
+    const user = await this.users.findById(userId);
+    if (!user) throw new NotFoundException('User not found');
+    const temporaryPassword = generatePassword();
+    const passwordHash = await bcrypt.hash(temporaryPassword, 12);
+    await this.users.updatePassword(userId, passwordHash);
+    return { temporaryPassword };
   }
 
   /** The agent catalog — used to populate the onboarding form. */

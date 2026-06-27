@@ -77,19 +77,19 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-dvh bg-cream-50">
-      <header className="border-b border-navy-100 bg-white/70 backdrop-blur sticky top-0 z-10">
+      <header className="bg-navy-900 sticky top-0 z-10 shadow-[0_8px_24px_-16px_rgba(1,20,39,0.6)]">
         <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="font-display text-2xl text-navy-900">Portal Studio</div>
+          <div className="font-display text-2xl text-cream-100">Portal Studio</div>
           <div className="flex items-center gap-4 text-sm">
-            <span className="text-navy-600 font-medium">{user?.name}</span>
+            <span className="text-brand-200 font-medium">{user?.name}</span>
             <button
-              className="text-navy-400 hover:text-navy-800 transition-colors"
+              className="text-navy-200 hover:text-white transition-colors"
               onClick={() => setShowPw(true)}
             >
               {t("account.changePassword")}
             </button>
             <button
-              className="text-navy-400 hover:text-navy-800 transition-colors"
+              className="text-navy-200 hover:text-white transition-colors"
               onClick={() =>
                 i18n.changeLanguage(i18n.language === "he" ? "en" : "he")
               }
@@ -97,7 +97,7 @@ export default function Dashboard() {
               {i18n.language === "he" ? "EN" : "עב"}
             </button>
             <button
-              className="text-navy-400 hover:text-coral-500 transition-colors"
+              className="text-navy-200 hover:text-coral-300 transition-colors"
               onClick={() => {
                 logout();
                 navigate("/login");
@@ -143,10 +143,10 @@ export default function Dashboard() {
               {agentCards.map((a) => {
                 const tone =
                   a.key === "documents"
-                    ? "bg-teal-50 text-teal-600"
+                    ? "bg-teal-100 text-teal-700"
                     : a.key === "chat"
-                      ? "bg-brand-50 text-brand-600"
-                      : "bg-coral-50 text-coral-500";
+                      ? "bg-brand-100 text-brand-700"
+                      : "bg-coral-100 text-coral-700";
                 return (
                   <Link key={a.key} to={a.to} className="block group">
                     <Card className="p-5 flex items-center gap-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-[0_18px_40px_-22px_rgba(1,20,39,0.4)]">

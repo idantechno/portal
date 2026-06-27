@@ -10,20 +10,31 @@ function cn(...parts: Array<string | undefined | false | null>): string {
   return parts.filter(Boolean).join(" ");
 }
 
-type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+type ButtonVariant =
+  | "primary"
+  | "secondary"
+  | "ghost"
+  | "danger"
+  | "coral"
+  | "teal";
 type ButtonSize = "sm" | "md" | "lg";
 
 const buttonVariantClass: Record<ButtonVariant, string> = {
   primary:
-    "bg-brand-600 text-white hover:bg-brand-700 disabled:bg-brand-300 shadow-sm",
+    "bg-brand-600 text-white hover:bg-brand-700 disabled:bg-brand-300 shadow-[0_8px_18px_-10px_rgba(66,105,132,0.7)]",
   secondary:
-    "bg-white text-neutral-900 border border-neutral-200 hover:bg-neutral-50",
-  ghost: "bg-transparent text-neutral-700 hover:bg-neutral-100",
-  danger: "bg-red-600 text-white hover:bg-red-700",
+    "bg-white text-navy-900 border border-navy-100 hover:bg-cream-50 hover:border-navy-200",
+  ghost: "bg-transparent text-navy-700 hover:bg-navy-50",
+  danger:
+    "bg-red-600 text-white hover:bg-red-700 shadow-[0_8px_18px_-10px_rgba(220,38,38,0.6)]",
+  coral:
+    "bg-coral-400 text-white hover:bg-coral-500 shadow-[0_8px_18px_-10px_rgba(220,93,70,0.7)]",
+  teal:
+    "bg-teal-400 text-white hover:bg-teal-500 shadow-[0_8px_18px_-10px_rgba(53,125,120,0.6)]",
 };
 const buttonSizeClass: Record<ButtonSize, string> = {
-  sm: "h-8 px-3 text-sm",
-  md: "h-10 px-4 text-sm",
+  sm: "h-9 px-3.5 text-sm",
+  md: "h-11 px-5 text-sm",
   lg: "h-12 px-6 text-base",
 };
 
@@ -37,7 +48,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     <button
       ref={ref}
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-brand-300 disabled:cursor-not-allowed",
+        "inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-all duration-150 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:ring-offset-2 focus-visible:ring-offset-cream-50 disabled:cursor-not-allowed disabled:active:scale-100",
         buttonVariantClass[variant],
         buttonSizeClass[size],
         className,
@@ -48,18 +59,15 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 );
 Button.displayName = "Button";
 
+const fieldClass = cn(
+  "block w-full rounded-xl border border-navy-200 bg-white px-3.5 py-2.5 text-sm text-navy-900",
+  "placeholder:text-navy-300 focus:border-brand-400 focus:ring-4 focus:ring-brand-100 focus:outline-none",
+  "transition-colors disabled:bg-cream-50 disabled:text-navy-300",
+);
+
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
   ({ className, ...rest }, ref) => (
-    <input
-      ref={ref}
-      className={cn(
-        "block w-full rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm",
-        "placeholder:text-neutral-400 focus:bg-white focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none",
-        "disabled:bg-neutral-100 disabled:text-neutral-500",
-        className,
-      )}
-      {...rest}
-    />
+    <input ref={ref} className={cn(fieldClass, className)} {...rest} />
   ),
 );
 Input.displayName = "Input";
@@ -68,16 +76,7 @@ export const Textarea = forwardRef<
   HTMLTextAreaElement,
   TextareaHTMLAttributes<HTMLTextAreaElement>
 >(({ className, ...rest }, ref) => (
-  <textarea
-    ref={ref}
-    className={cn(
-      "block w-full rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm",
-      "placeholder:text-neutral-400 focus:bg-white focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none",
-      "min-h-24",
-      className,
-    )}
-    {...rest}
-  />
+  <textarea ref={ref} className={cn(fieldClass, "min-h-24", className)} {...rest} />
 ));
 Textarea.displayName = "Textarea";
 
@@ -93,7 +92,7 @@ export function Label({
   return (
     <label
       htmlFor={htmlFor}
-      className={cn("block text-sm font-medium text-neutral-700 mb-1.5", className)}
+      className={cn("block text-sm font-medium text-navy-800 mb-1.5", className)}
     >
       {children}
     </label>
@@ -108,7 +107,7 @@ export function Card({
   return (
     <div
       className={cn(
-        "rounded-xl border border-neutral-200 bg-white shadow-sm",
+        "rounded-2xl border border-navy-100 bg-white shadow-[0_12px_32px_-20px_rgba(1,20,39,0.28)]",
         className,
       )}
       {...rest}
@@ -121,7 +120,7 @@ export function Card({
 export function FormError({ message }: { message?: string | null }) {
   if (!message) return null;
   return (
-    <div className="rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+    <div className="rounded-xl bg-coral-50 border border-coral-200 px-3.5 py-2.5 text-sm text-coral-700">
       {message}
     </div>
   );

@@ -39,14 +39,18 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen grid place-items-center bg-gradient-to-br from-brand-50 via-neutral-50 to-white px-4">
+    <div className="min-h-dvh grid place-items-center bg-gradient-to-br from-brand-50 via-cream-50 to-cream-100 px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="text-3xl font-bold text-brand-700">{t("appName")}</div>
-          <div className="text-sm text-neutral-500 mt-1">{t("tagline")}</div>
+          <div className="font-display text-4xl text-navy-900 tracking-tight">
+            Portal Studio
+          </div>
+          <div className="text-sm text-navy-400 mt-2">{t("tagline")}</div>
         </div>
-        <Card className="p-6">
-          <h1 className="text-xl font-semibold mb-6">{t("auth.login")}</h1>
+        <Card className="p-7">
+          <h1 className="text-xl font-semibold mb-6 text-navy-900">
+            {t("auth.login")}
+          </h1>
           <form className="space-y-4" onSubmit={submit}>
             <div>
               <Label htmlFor="email">{t("auth.email")}</Label>
@@ -79,7 +83,7 @@ export default function Login() {
             </Button>
           </form>
         </Card>
-        <div className="mt-4 text-center text-xs text-neutral-500">
+        <div className="mt-5 text-center text-xs text-navy-400">
           <button
             className="hover:underline"
             onClick={() =>

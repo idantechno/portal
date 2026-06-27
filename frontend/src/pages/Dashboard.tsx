@@ -76,20 +76,20 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50">
-      <header className="border-b border-neutral-200 bg-white">
-        <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
-          <div className="font-semibold text-brand-700">{t("appName")}</div>
-          <div className="flex items-center gap-3 text-sm">
-            <span className="text-neutral-600">{user?.name}</span>
+    <div className="min-h-dvh bg-cream-50">
+      <header className="border-b border-navy-100 bg-white/70 backdrop-blur sticky top-0 z-10">
+        <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="font-display text-2xl text-navy-900">Portal Studio</div>
+          <div className="flex items-center gap-4 text-sm">
+            <span className="text-navy-600 font-medium">{user?.name}</span>
             <button
-              className="text-neutral-500 hover:text-neutral-800"
+              className="text-navy-400 hover:text-navy-800 transition-colors"
               onClick={() => setShowPw(true)}
             >
               {t("account.changePassword")}
             </button>
             <button
-              className="text-neutral-500 hover:text-neutral-800"
+              className="text-navy-400 hover:text-navy-800 transition-colors"
               onClick={() =>
                 i18n.changeLanguage(i18n.language === "he" ? "en" : "he")
               }
@@ -97,7 +97,7 @@ export default function Dashboard() {
               {i18n.language === "he" ? "EN" : "עב"}
             </button>
             <button
-              className="text-neutral-500 hover:text-red-600"
+              className="text-navy-400 hover:text-coral-500 transition-colors"
               onClick={() => {
                 logout();
                 navigate("/login");
@@ -111,56 +111,71 @@ export default function Dashboard() {
 
       <main className="max-w-5xl mx-auto px-6 py-10">
         {staff && (
-          <Link to="/app/admin" className="block mb-8">
-            <Card className="p-6 bg-neutral-900 text-white hover:bg-neutral-800 transition-colors flex items-center gap-5">
-              <div className="h-12 w-12 rounded-xl bg-white/10 flex items-center justify-center text-2xl shrink-0">
+          <Link to="/app/admin" className="block mb-8 group">
+            <Card className="p-6 bg-navy-900 border-navy-900 text-white hover:bg-navy-800 transition-colors flex items-center gap-5">
+              <div className="h-12 w-12 rounded-2xl bg-white/10 flex items-center justify-center text-2xl shrink-0">
                 🛡️
               </div>
               <div className="flex-1">
                 <div className="font-semibold text-base mb-0.5">
                   {t("admin.title")}
                 </div>
-                <div className="text-sm text-neutral-300">
+                <div className="text-sm text-navy-200">
                   {t("admin.dashboardHint")}
                 </div>
               </div>
-              <div className="text-sm font-medium shrink-0">→</div>
+              <div className="text-coral-300 text-xl shrink-0 transition-transform group-hover:-translate-x-1 rtl:rotate-180">
+                →
+              </div>
             </Card>
           </Link>
         )}
 
         {agentCards.length > 0 && (
           <section className="mb-10">
-            <h2 className="text-xs uppercase tracking-wider text-neutral-500 mb-3">
+            <h2 className="text-sm font-semibold text-brand-600 mb-1">
               {t("dashboard.yourAgents")}
             </h2>
-            <div className="space-y-3">
-              {agentCards.map((a) => (
-                <Link key={a.key} to={a.to} className="block">
-                  <Card className="p-6 hover:border-brand-300 hover:shadow-md transition-all flex items-center gap-5">
-                    <div className="h-12 w-12 rounded-xl bg-brand-50 text-brand-700 flex items-center justify-center text-2xl shrink-0">
-                      {a.icon}
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-semibold text-base mb-0.5">
-                        {a.name}
+            <p className="text-2xl font-semibold text-navy-900 mb-5">
+              {t("dashboard.whatToday")}
+            </p>
+            <div className="grid gap-3.5">
+              {agentCards.map((a) => {
+                const tone =
+                  a.key === "documents"
+                    ? "bg-teal-50 text-teal-600"
+                    : a.key === "chat"
+                      ? "bg-brand-50 text-brand-600"
+                      : "bg-coral-50 text-coral-500";
+                return (
+                  <Link key={a.key} to={a.to} className="block group">
+                    <Card className="p-5 flex items-center gap-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-[0_18px_40px_-22px_rgba(1,20,39,0.4)]">
+                      <div
+                        className={`h-14 w-14 rounded-2xl flex items-center justify-center text-2xl shrink-0 ${tone}`}
+                      >
+                        {a.icon}
                       </div>
-                      <div className="text-sm text-neutral-600">
-                        {a.description}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-base text-navy-900 mb-0.5">
+                          {a.name}
+                        </div>
+                        <div className="text-sm text-navy-400">
+                          {a.description}
+                        </div>
                       </div>
-                    </div>
-                    <div className="text-brand-700 text-sm font-medium shrink-0">
-                      {t("dashboard.open")} →
-                    </div>
-                  </Card>
-                </Link>
-              ))}
+                      <div className="text-brand-500 text-xl shrink-0 transition-transform group-hover:-translate-x-1 rtl:rotate-180">
+                        →
+                      </div>
+                    </Card>
+                  </Link>
+                );
+              })}
             </div>
           </section>
         )}
 
         {!staff && agentCards.length === 0 && !myAgents.isLoading && (
-          <Card className="p-12 text-center text-neutral-500">
+          <Card className="p-12 text-center text-navy-400">
             {t("dashboard.noAgents")}
           </Card>
         )}

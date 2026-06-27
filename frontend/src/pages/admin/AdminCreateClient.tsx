@@ -49,11 +49,7 @@ export default function AdminCreateClient() {
       adminApi.createClient({
         businessName: businessName.trim(),
         ownerName: ownerName.trim(),
-        // Strip whitespace and zero-width/bidi chars that sneak in via paste.
-        ownerEmail: ownerEmail.replace(
-          /[\s​-‏‪-‮﻿]/g,
-          "",
-        ),
+        ownerEmail: ownerEmail.replace(/\s+/g, ""),
         // Slugify whatever was typed (spaces -> hyphens, drop invalid chars);
         // empty -> let the backend derive it from the business name.
         slug:

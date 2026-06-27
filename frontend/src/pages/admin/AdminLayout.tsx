@@ -16,22 +16,27 @@ export default function AdminLayout() {
   ];
 
   return (
-    <div className="h-screen overflow-hidden bg-neutral-50 grid grid-cols-[260px_1fr]">
-      <aside className="border-e border-neutral-200 bg-neutral-900 text-neutral-100 overflow-y-auto flex flex-col">
-        <div className="h-14 px-5 flex items-center border-b border-white/10">
-          <span className="font-semibold">{t("admin.title")}</span>
+    <div className="h-dvh overflow-hidden bg-cream-50 grid grid-cols-[268px_1fr]">
+      <aside className="bg-navy-900 text-navy-100 overflow-y-auto flex flex-col">
+        <div className="px-6 pt-6 pb-5">
+          <div className="font-display text-2xl text-cream-100 leading-none">
+            Portal Studio
+          </div>
+          <div className="text-xs text-brand-300 mt-1.5 tracking-wide">
+            {t("admin.title")}
+          </div>
         </div>
-        <div className="p-4 flex-1">
+        <div className="px-4 flex-1">
           <nav className="space-y-1">
             {navItems.map((it) => (
               <NavLink
                 key={it.to}
                 to={it.to}
                 className={({ isActive }) =>
-                  `block rounded-md px-3 py-2 text-sm ${
+                  `block rounded-xl px-3.5 py-2.5 text-sm transition-colors ${
                     isActive
                       ? "bg-white/10 text-white font-medium"
-                      : "text-neutral-300 hover:bg-white/5"
+                      : "text-navy-200 hover:bg-white/5 hover:text-white"
                   }`
                 }
               >
@@ -43,15 +48,13 @@ export default function AdminLayout() {
         <div className="px-4 pb-4 border-t border-white/10 pt-4 text-sm">
           <Link
             to="/app"
-            className="block rounded-md px-3 py-2 text-neutral-300 hover:bg-white/5"
+            className="block rounded-xl px-3.5 py-2.5 text-navy-200 hover:bg-white/5 hover:text-white transition-colors"
           >
             ← {t("admin.backToApp")}
           </Link>
-          <div className="px-3 py-2 text-neutral-400 truncate">
-            {user?.name}
-          </div>
+          <div className="px-3.5 py-2 text-navy-300 truncate">{user?.name}</div>
           <button
-            className="w-full text-start rounded-md px-3 py-2 text-neutral-400 hover:bg-white/5"
+            className="w-full text-start rounded-xl px-3.5 py-2 text-navy-300 hover:bg-white/5 transition-colors"
             onClick={() =>
               i18n.changeLanguage(i18n.language === "he" ? "en" : "he")
             }
@@ -59,7 +62,7 @@ export default function AdminLayout() {
             {t("common.language")}: {i18n.language === "he" ? "עברית" : "English"}
           </button>
           <button
-            className="w-full text-start rounded-md px-3 py-2 text-red-300 hover:bg-red-500/10"
+            className="w-full text-start rounded-xl px-3.5 py-2 text-coral-300 hover:bg-coral-500/15 transition-colors"
             onClick={() => {
               logout();
               navigate("/login");

@@ -54,7 +54,14 @@ export default function AdminCreateClient() {
           /[\s​-‏‪-‮﻿]/g,
           "",
         ),
-        slug: slug.trim() || undefined,
+        // Slugify whatever was typed (spaces -> hyphens, drop invalid chars);
+        // empty -> let the backend derive it from the business name.
+        slug:
+          slug
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-+|-+$/g, "") || undefined,
         agentKeys: selected,
       }),
     onSuccess: (r) => setResult(r),

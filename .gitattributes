@@ -1,0 +1,5 @@
+# Shell scripts must stay LF — they run inside Linux containers, and CRLF
+# breaks the shebang (`/bin/sh^M: bad interpreter`). core.autocrlf=true would
+# otherwise rewrite them to CRLF on checkout on Windows.
+*.sh text eol=lf
+docker-entrypoint.sh text eol=lf

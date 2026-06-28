@@ -28,16 +28,18 @@ ENV PORT=3000
 ENV PUPPETEER_SKIP_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      curl tini ca-certificates \
+      curl tini ca-certificates gosu \
       chromium fonts-liberation fonts-noto-color-emoji \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -r app && useradd -r -g app -G audio,video -m app
 COPY --from=build --chown=app:app /app/node_modules ./node_modules
 COPY --from=build --chown=app:app /app/dist ./dist
 COPY --from=build --chown=app:app /app/package.json ./package.json
-USER app
+COPY --chmod=755 docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+# Stay root so the entrypoint can chown the Railway volume, then it drops to
+# the non-root `app` user via gosu before running node.
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD curl -fsS http://localhost:3000/api/health || exit 1
-ENTRYPOINT ["/usr/bin/tini", "--"]
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/docker-entrypoint.sh"]
 CMD ["node", "dist/main.js"]

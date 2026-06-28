@@ -19,7 +19,14 @@ import {
 function buildSnippet(publicKey: string): string {
   const origin =
     typeof window !== "undefined" ? window.location.origin : "https://your-app";
-  return `<script src="${origin}/widget.js" data-public-key="${publicKey}" async></script>`;
+  // The widget JS is served from this app, but the API lives on its own origin
+  // (VITE_API_URL). When they differ, the snippet tells the widget where the
+  // backend is via data-api-origin so its calls don't hit the static host.
+  const apiBase =
+    (import.meta.env.VITE_API_URL as string | undefined) ?? "/api";
+  const apiOrigin = new URL(apiBase, origin).origin;
+  const apiAttr = apiOrigin !== origin ? ` data-api-origin="${apiOrigin}"` : "";
+  return `<script src="${origin}/widget.js" data-public-key="${publicKey}"${apiAttr} async></script>`;
 }
 
 export default function Settings() {

@@ -3,13 +3,15 @@
  * Usage:
  *   <script src="https://your-portal.example.com/widget.js"
  *           data-public-key="..."
+ *           data-api-origin="https://api.example.com"  // optional; see below
  *           data-locale="he"        // optional, "he" or "en"; auto-detect otherwise
  *           data-title="Chat"       // optional header title
  *           data-side="end"></script>  // "start" or "end"; defaults "end" (right in LTR)
  *
- * The script tag's src origin becomes the API origin, so the widget works
- * when embedded on a third-party site as long as that origin allows CORS
- * (TODO: backend hardening — see widget.controller.ts).
+ * API origin: data-api-origin if set, otherwise the script tag's src origin.
+ * When the widget JS and the API live on different hosts (e.g. app.* serves
+ * the script but api.* serves the backend), pass data-api-origin so calls
+ * reach the backend. The embed snippet in business settings fills this in.
  */
 (function () {
   "use strict";
@@ -23,7 +25,7 @@
   }
 
   var PUBLIC_KEY = script.dataset.publicKey;
-  var API_ORIGIN = new URL(script.src).origin;
+  var API_ORIGIN = script.dataset.apiOrigin || new URL(script.src).origin;
   var LOCALE = script.dataset.locale || detectLocale();
   var SIDE = script.dataset.side === "start" ? "start" : "end";
   var TITLE = script.dataset.title || (LOCALE === "he" ? "צ'אט" : "Chat");
@@ -83,30 +85,33 @@
 
   var style = document.createElement("style");
   style.textContent =
-    ":host,*{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Heebo','Inter',sans-serif}" +
-    ".bubble{width:60px;height:60px;border-radius:50%;background:#2563eb;color:#fff;border:none;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,0.18);display:grid;place-items:center;font-size:28px;transition:transform .15s ease}" +
+    ":host,*{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Rubik','Heebo','Inter',sans-serif}" +
+    ".bubble{width:60px;height:60px;border-radius:50%;background:#6091B0;color:#fff;border:none;cursor:pointer;box-shadow:0 10px 26px rgba(1,20,39,0.22);display:grid;place-items:center;transition:transform .15s ease}" +
     ".bubble:hover{transform:scale(1.06)}" +
-    ".panel{position:absolute;bottom:74px;width:360px;height:520px;max-height:80vh;background:#fff;border-radius:16px;box-shadow:0 20px 50px rgba(0,0,0,0.20);overflow:hidden;display:flex;flex-direction:column;border:1px solid rgba(0,0,0,0.06)}" +
+    ".bubble svg{width:26px;height:26px}" +
+    ".panel{position:absolute;bottom:74px;width:360px;height:520px;max-height:80vh;background:#fff;border-radius:18px;box-shadow:0 24px 56px rgba(1,20,39,0.24);overflow:hidden;display:flex;flex-direction:column;border:1px solid rgba(1,20,39,0.06)}" +
     ".panel[data-side='end']{right:0}" +
     ".panel[data-side='start']{left:0}" +
-    ".header{background:#1d4ed8;color:#fff;padding:14px 16px;font-weight:600;font-size:14px;display:flex;align-items:center;justify-content:space-between}" +
-    ".header .close{background:transparent;border:none;color:#fff;font-size:18px;cursor:pointer;line-height:1;padding:4px}" +
-    ".banner{padding:8px 12px;font-size:12px;background:#fef3c7;color:#92400e;text-align:center;border-bottom:1px solid rgba(0,0,0,0.05)}" +
-    ".list{flex:1;overflow-y:auto;padding:12px;background:#f8fafc;display:flex;flex-direction:column;gap:8px}" +
-    ".msg{max-width:80%;padding:8px 12px;border-radius:12px;font-size:14px;line-height:1.35;white-space:pre-wrap;word-wrap:break-word}" +
-    ".msg.customer{align-self:flex-end;background:#2563eb;color:#fff;border-bottom-right-radius:4px}" +
-    ".msg.bot{align-self:flex-start;background:#fff;border:1px solid #e5e7eb;color:#0f172a;border-bottom-left-radius:4px}" +
-    ".msg.agent{align-self:flex-start;background:#10b981;color:#fff;border-bottom-left-radius:4px}" +
-    "[dir='rtl'] .msg.customer{border-bottom-right-radius:12px;border-bottom-left-radius:4px}" +
-    "[dir='rtl'] .msg.bot,[dir='rtl'] .msg.agent{border-bottom-left-radius:12px;border-bottom-right-radius:4px}" +
+    ".header{background:#011427;color:#fff;padding:14px 16px;font-weight:600;font-size:14px;display:flex;align-items:center;justify-content:space-between}" +
+    ".header .close{background:transparent;border:none;color:#fff;font-size:18px;cursor:pointer;line-height:1;padding:4px;opacity:.85}" +
+    ".header .close:hover{opacity:1}" +
+    ".banner{padding:8px 12px;font-size:12px;background:#fbeee9;color:#b24430;text-align:center;border-bottom:1px solid rgba(1,20,39,0.05)}" +
+    ".list{flex:1;overflow-y:auto;padding:12px;background:#FBF7F1;display:flex;flex-direction:column;gap:8px}" +
+    ".msg{max-width:80%;padding:8px 12px;border-radius:14px;font-size:14px;line-height:1.4;white-space:pre-wrap;word-wrap:break-word}" +
+    ".msg.customer{align-self:flex-end;background:#6091B0;color:#fff;border-bottom-right-radius:4px}" +
+    ".msg.bot{align-self:flex-start;background:#fff;border:1px solid #ece4d9;color:#011427;border-bottom-left-radius:4px}" +
+    ".msg.agent{align-self:flex-start;background:#357D78;color:#fff;border-bottom-left-radius:4px}" +
+    "[dir='rtl'] .msg.customer{border-bottom-right-radius:14px;border-bottom-left-radius:4px}" +
+    "[dir='rtl'] .msg.bot,[dir='rtl'] .msg.agent{border-bottom-left-radius:14px;border-bottom-right-radius:4px}" +
     ".time{font-size:10px;opacity:.7;margin-top:2px}" +
-    ".composer{padding:10px;background:#fff;border-top:1px solid #e5e7eb;display:flex;gap:8px;align-items:flex-end}" +
-    ".composer textarea{flex:1;border:1px solid #e5e7eb;border-radius:10px;padding:8px 10px;font-size:14px;font-family:inherit;resize:none;outline:none;max-height:120px;min-height:38px}" +
-    ".composer textarea:focus{border-color:#2563eb;box-shadow:0 0 0 2px rgba(37,99,235,0.15)}" +
-    ".composer button{background:#2563eb;color:#fff;border:none;border-radius:10px;padding:0 14px;height:38px;cursor:pointer;font-weight:600;font-size:14px}" +
+    ".composer{padding:10px;background:#fff;border-top:1px solid #ece4d9;display:flex;gap:8px;align-items:flex-end}" +
+    ".composer textarea{flex:1;border:1px solid #d9d0c4;border-radius:12px;padding:8px 10px;font-size:14px;font-family:inherit;resize:none;outline:none;max-height:120px;min-height:38px;background:#fff}" +
+    ".composer textarea:focus{border-color:#6091B0;box-shadow:0 0 0 2px rgba(96,145,176,0.20)}" +
+    ".composer button{background:#6091B0;color:#fff;border:none;border-radius:12px;padding:0 14px;height:38px;cursor:pointer;font-weight:600;font-size:14px;transition:background .15s ease}" +
+    ".composer button:hover:not(:disabled){background:#527e9c}" +
     ".composer button:disabled{opacity:.5;cursor:not-allowed}" +
-    ".typing{padding:8px 12px;font-size:12px;color:#64748b}" +
-    ".empty{padding:24px 16px;font-size:13px;color:#64748b;text-align:center}";
+    ".typing{padding:8px 12px;font-size:12px;color:#6c7a86}" +
+    ".empty{padding:24px 16px;font-size:13px;color:#6c7a86;text-align:center}";
   root.appendChild(style);
 
   var wrap = document.createElement("div");
@@ -116,7 +121,8 @@
   var bubble = document.createElement("button");
   bubble.className = "bubble";
   bubble.setAttribute("aria-label", T.open);
-  bubble.textContent = "💬";
+  bubble.innerHTML =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>';
   bubble.addEventListener("click", togglePanel);
   wrap.appendChild(bubble);
 

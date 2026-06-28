@@ -82,6 +82,10 @@
         <input id="pk" placeholder="paste publicKey from /app/businesses/.../settings" />
       </div>
       <div class="row">
+        <label for="api">API origin (leave blank if same site)</label>
+        <input id="api" placeholder="https://api.portalstudio.co.il" />
+      </div>
+      <div class="row">
         <label for="loc">Locale</label>
         <select id="loc">
           <option value="">auto-detect</option>
@@ -98,16 +102,25 @@
     </p>
 
     <script>
+      // In prod the widget JS is served from app.* but the API is on api.*.
+      // Pre-fill that guess; leave blank to call this page's own origin.
+      var apiGuess = location.origin.replace("//app.", "//api.");
+      if (apiGuess !== location.origin) {
+        document.getElementById("api").value = apiGuess;
+      }
+
       document.getElementById("go").addEventListener("click", function () {
         var pk = document.getElementById("pk").value.trim();
         if (!pk) return alert("publicKey required");
         var loc = document.getElementById("loc").value;
+        var apiOrigin = document.getElementById("api").value.trim();
         var existing = document.querySelector('script[data-portal-widget-loaded]');
         if (existing) existing.remove();
         window.__portalWidgetLoaded = false;
         var s = document.createElement("script");
         s.src = "/widget.js?ts=" + Date.now();
         s.dataset.publicKey = pk;
+        if (apiOrigin) s.dataset.apiOrigin = apiOrigin;
         if (loc) s.dataset.locale = loc;
         s.setAttribute("data-portal-widget-loaded", "");
         document.body.appendChild(s);

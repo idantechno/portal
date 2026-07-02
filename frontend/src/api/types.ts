@@ -123,12 +123,23 @@ export interface AuditPage {
 
 // ---- Agents ----
 
+export type AgentPillar =
+  | "conversations"
+  | "orchestration"
+  | "sales"
+  | "content"
+  | "documents"
+  | "finance"
+  | "growth";
+
 export interface AgentDefinition {
   key: string;
   name: string;
   description: string;
   icon: string;
   defaultEnabled: boolean;
+  status?: "live" | "soon";
+  pillar?: AgentPillar;
 }
 
 export interface AgentAccessView extends AgentDefinition {

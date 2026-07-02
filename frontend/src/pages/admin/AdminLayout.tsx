@@ -19,17 +19,26 @@ export default function AdminLayout() {
     <div className="h-dvh overflow-hidden bg-cream-50 grid grid-cols-[268px_1fr]">
       <aside className="bg-navy-900 text-navy-100 overflow-y-auto flex flex-col">
         <div className="px-6 pt-6 pb-5">
-          <div className="flex items-center gap-2.5">
+          <Link
+            to="/app"
+            className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
+          >
             <img src="/icon.png" alt="" className="h-8 w-8" />
             <div className="font-display text-2xl text-cream-100 leading-none">
               Portal Studio
             </div>
-          </div>
+          </Link>
           <div className="text-xs text-brand-300 mt-2 tracking-wide">
             {t("admin.title")}
           </div>
         </div>
         <div className="px-4 flex-1">
+          <Link
+            to="clients/new"
+            className="mb-4 flex items-center justify-center gap-2 rounded-xl bg-coral-400 px-3.5 py-2.5 text-sm font-semibold text-white hover:bg-coral-500 transition-colors shadow-[0_8px_18px_-10px_rgba(220,93,70,0.7)]"
+          >
+            + {t("admin.createClient")}
+          </Link>
           <nav className="space-y-1">
             {navItems.map((it) => (
               <NavLink

@@ -24,6 +24,12 @@ import { DocumentsModule } from './documents/documents.module';
 import { AuditModule } from './audit/audit.module';
 import { AdminModule } from './admin/admin.module';
 import { AgentsModule } from './agents/agents.module';
+import { TasksModule } from './tasks/tasks.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { AutomationsModule } from './automations/automations.module';
+import { BillingModule } from './billing/billing.module';
+import { IntegrationsModule } from './integrations/integrations.module';
+import { GreenInvoiceModule } from './green-invoice/green-invoice.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 
@@ -83,6 +89,12 @@ import { RolesGuard } from './auth/guards/roles.guard';
     AuditModule,
     AdminModule,
     AgentsModule,
+    TasksModule,
+    NotificationsModule,
+    AutomationsModule,
+    BillingModule,
+    IntegrationsModule,
+    GreenInvoiceModule,
   ],
   controllers: [AppController, HealthController],
   providers: [

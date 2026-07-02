@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { businessesApi } from "../api/businesses";
 import { authApi } from "../api/auth";
@@ -26,8 +26,10 @@ function agentLink(
   businessId: string | undefined,
 ): string | undefined {
   if (key === "documents") return "/app/agents/documents";
-  if (key === "chat") return businessId ? `/app/businesses/${businessId}/inbox` : undefined;
-  return undefined;
+  if (key === "chat")
+    return businessId ? `/app/businesses/${businessId}/inbox` : undefined;
+  // Every other (generative) agent opens the agent studio inside the business.
+  return businessId ? `/app/businesses/${businessId}/agents` : undefined;
 }
 
 export default function Dashboard() {
@@ -79,6 +81,23 @@ export default function Dashboard() {
     e.preventDefault();
     setCreateError(null);
     createMut.mutate();
+  }
+
+  // One home, not two: a client lands on (and the logo returns to) their
+  // business cockpit. Only platform staff see this account-level dashboard.
+  if (!staff) {
+    if (businesses.isLoading) {
+      return (
+        <div className="min-h-dvh grid place-items-center text-navy-400 text-sm">
+          {t("common.loading")}
+        </div>
+      );
+    }
+    if (firstBizId) {
+      return (
+        <Navigate to={`/app/businesses/${firstBizId}/home`} replace />
+      );
+    }
   }
 
   return (

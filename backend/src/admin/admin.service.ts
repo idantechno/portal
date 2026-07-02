@@ -90,7 +90,9 @@ export class AdminService {
   }
 
   /** Generate a new temp password for a user (admin-driven reset). */
-  async resetUserPassword(userId: string): Promise<{ temporaryPassword: string }> {
+  async resetUserPassword(
+    userId: string,
+  ): Promise<{ temporaryPassword: string }> {
     const user = await this.users.findById(userId);
     if (!user) throw new NotFoundException('User not found');
     const temporaryPassword = generatePassword();

@@ -35,6 +35,19 @@ services:
       retries: 10
     networks: [portal]
 
+  adminer:
+    image: adminer:latest
+    container_name: portal-adminer-dev
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+      ADMINER_DESIGN: dracula
+    ports:
+      - "${ADMINER_HOST_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [portal]
+
   backend:
     build:
       context: ./backend

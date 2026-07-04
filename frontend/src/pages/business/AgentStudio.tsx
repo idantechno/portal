@@ -1,22 +1,22 @@
 import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { agentsApi } from "../../api/agents";
 import type { AgentDefinition } from "../../api/types";
 import { apiErrorMessage } from "../../api/client";
+import { agentRoute } from "../../lib/agentRoutes";
 import { Button, Card, FormError, Spinner, Textarea } from "../../components/ui";
 
-// Agents that produce an artifact on demand (the others have dedicated UIs:
-// chat lives in the inbox, documents has its own tool).
-const STUDIO_KEYS = [
-  "marketing",
-  "analytics",
-  "accounting",
-  "sales",
-  "crm",
-  "quote",
-  "orchestrator",
-];
+// Agents with their own dedicated screen — clicking their card navigates there.
+// Every other (generative) agent is handled inline in this hub. This page is
+// the single place that lists ALL of the business's agents.
+const DEDICATED_KEYS = new Set([
+  "main",
+  "chat",
+  "documents",
+  "ideas",
+  "designer",
+]);
 
 const PLACEHOLDER: Record<string, string> = {
   marketing: "לדוגמה: כתוב 3 פוסטים לאינסטגרם על מבצע סוף עונה.",
@@ -30,14 +30,16 @@ const PLACEHOLDER: Record<string, string> = {
 
 export default function AgentStudio() {
   const { businessId = "" } = useParams<{ businessId: string }>();
+  const navigate = useNavigate();
   const [active, setActive] = useState<AgentDefinition | null>(null);
   const [instruction, setInstruction] = useState("");
   const [output, setOutput] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const agents = useQuery({
-    queryKey: ["me", "agents"],
-    queryFn: agentsApi.mine,
+    queryKey: ["business", businessId, "agents"],
+    queryFn: () => agentsApi.forBusiness(businessId),
+    enabled: Boolean(businessId),
   });
 
   const runMut = useMutation({
@@ -46,15 +48,22 @@ export default function AgentStudio() {
     onError: (err) => setError(apiErrorMessage(err, "ההרצה נכשלה")),
   });
 
-  const studioAgents = (agents.data ?? []).filter((a) =>
-    STUDIO_KEYS.includes(a.key),
-  );
+  const allAgents = agents.data ?? [];
 
   function pick(agent: AgentDefinition) {
     setActive(agent);
     setInstruction("");
     setOutput(null);
     setError(null);
+  }
+
+  function onCardClick(agent: AgentDefinition) {
+    if (DEDICATED_KEYS.has(agent.key)) {
+      const to = agentRoute(agent.key, businessId);
+      if (to) navigate(to);
+      return;
+    }
+    pick(agent);
   }
 
   function run() {
@@ -66,32 +75,37 @@ export default function AgentStudio() {
   return (
     <div className="p-8 max-w-4xl mx-auto">
       <header className="mb-6">
-        <h1 className="text-2xl font-bold text-navy-900 mb-1">צוות הסוכנים</h1>
+        <h1 className="text-2xl font-bold text-navy-900 mb-1">הסוכנים שלך</h1>
         <p className="text-navy-500 text-sm">
-          בחר סוכן, תאר מה אתה צריך, וקבל תוצר מוכן לעריכה.
+          כל הסוכנים של העסק במקום אחד — בחר סוכן כדי להתחיל.
         </p>
       </header>
 
       {agents.isLoading && <div className="text-navy-400 text-sm">טוען...</div>}
-      {!agents.isLoading && studioAgents.length === 0 && (
+      {!agents.isLoading && allAgents.length === 0 && (
         <Card className="p-12 text-center text-navy-400">
-          עדיין לא הוקצו לעסק סוכנים גנרטיביים. פנה למנהל המערכת כדי להפעיל.
+          עדיין לא הוקצו לעסק סוכנים. פנה למנהל המערכת כדי להפעיל.
         </Card>
       )}
 
-      {studioAgents.length > 0 && (
+      {allAgents.length > 0 && (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-8">
-          {studioAgents.map((agent) => (
+          {allAgents.map((agent) => (
             <button
               key={agent.key}
-              onClick={() => pick(agent)}
-              className={`text-start rounded-2xl border p-4 transition-all ${
+              onClick={() => onCardClick(agent)}
+              className={`relative text-start rounded-2xl border p-4 transition-all ${
                 active?.key === agent.key
                   ? "border-brand-400 bg-brand-50 shadow-[0_12px_32px_-20px_rgba(1,20,39,0.4)]"
-                  : "border-navy-100 bg-white hover:border-brand-200"
+                  : "border-navy-100 bg-white hover:border-brand-200 hover:-translate-y-0.5"
               }`}
             >
-              <div className="text-2xl mb-2">{agent.icon}</div>
+              <div className="flex items-start justify-between">
+                <div className="text-2xl mb-2">{agent.icon}</div>
+                {DEDICATED_KEYS.has(agent.key) && (
+                  <span className="text-brand-400 text-lg rtl:rotate-180">→</span>
+                )}
+              </div>
               <div className="font-semibold text-navy-900 text-sm mb-0.5">
                 {agent.name}
               </div>

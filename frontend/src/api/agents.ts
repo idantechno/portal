@@ -10,6 +10,11 @@ export interface RunAgentResult {
 export const agentsApi = {
   /** Agents the current user is entitled to across their businesses. */
   mine: () => api.get<AgentDefinition[]>("/me/agents").then((r) => r.data),
+  /** Agents this specific business is entitled to. */
+  forBusiness: (businessId: string) =>
+    api
+      .get<AgentDefinition[]>(`/businesses/${businessId}/agents`)
+      .then((r) => r.data),
   /** Run an entitled agent on-demand and get its generated artifact. */
   run: (businessId: string, agentKey: string, instruction: string) =>
     api

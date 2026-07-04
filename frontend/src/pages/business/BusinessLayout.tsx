@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { Link, NavLink, Outlet, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { businessesApi } from "../../api/businesses";
+import { agentsApi } from "../../api/agents";
 import { useAuthStore } from "../../store/auth";
 import { NotificationBell } from "../../components/NotificationBell";
 
@@ -31,12 +32,28 @@ export default function BusinessLayout() {
     queryFn: () => businessesApi.get(businessId),
   });
 
+  // Which agents this business is entitled to — gates the dedicated-agent links
+  // (concierge/ideas/designer) so they only appear when granted.
+  const entitled = useQuery({
+    queryKey: ["business", businessId, "agents"],
+    queryFn: () => agentsApi.forBusiness(businessId),
+  });
+  const hasAgent = (key: string) =>
+    (entitled.data ?? []).some((a) => a.key === key);
+
   const viaStaff = biz.data?.viaPlatformStaff ?? false;
 
   const groups: NavGroup[] = [
     {
       title: "מוקד",
       items: [
+        {
+          to: "/app/agents/main",
+          label: "הסוכן הראשי",
+          icon: "🧭",
+          show: hasAgent("main"),
+          absolute: true,
+        },
         { to: "home", label: "בית", icon: "🏠", show: true },
         { to: "inbox", label: "שיחות", icon: "💬", show: true },
         { to: "leads", label: "לידים", icon: "🤝", show: true },
@@ -52,6 +69,20 @@ export default function BusinessLayout() {
           label: "מסמכים",
           icon: "📝",
           show: true,
+          absolute: true,
+        },
+        {
+          to: "/app/agents/ideas",
+          label: "סוכן רעיונות",
+          icon: "💡",
+          show: hasAgent("ideas"),
+          absolute: true,
+        },
+        {
+          to: "/app/agents/designer",
+          label: "סוכן מעצב גרפי",
+          icon: "🎨",
+          show: hasAgent("designer"),
           absolute: true,
         },
         { to: "files", label: "קבצי הקשר", icon: "📁", show: true },

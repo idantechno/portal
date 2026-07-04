@@ -34,6 +34,7 @@ import { IdeasModule } from './ideas/ideas.module';
 import { SupportModule } from './support/support.module';
 import { MainAgentModule } from './main-agent/main-agent.module';
 import { DesignerModule } from './designer/designer.module';
+import { FilingModule } from './filing/filing.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 
@@ -103,6 +104,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
     SupportModule,
     MainAgentModule,
     DesignerModule,
+    FilingModule,
   ],
   controllers: [AppController, HealthController],
   providers: [

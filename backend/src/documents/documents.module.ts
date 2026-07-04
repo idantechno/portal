@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AgentsModule } from '../agents/agents.module';
 import { BusinessesModule } from '../businesses/businesses.module';
 import { ContextFilesModule } from '../context-files/context-files.module';
+import { FilingModule } from '../filing/filing.module';
 import { BusinessTemplateConfig } from './business-template-config.entity';
 import { DocumentInstance } from './document-instance.entity';
 import { DocumentTemplate } from './document-template.entity';
@@ -24,6 +25,7 @@ import { PdfRendererService } from './pdf-renderer.service';
     BusinessesModule,
     ContextFilesModule,
     AgentsModule,
+    FilingModule,
   ],
   controllers: [DocumentsController, DocumentsPublicController],
   providers: [

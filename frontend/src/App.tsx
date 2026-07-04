@@ -12,6 +12,7 @@ import BusinessLayout from "./pages/business/BusinessLayout";
 import Home from "./pages/business/Home";
 import Inbox from "./pages/business/Inbox";
 import Files from "./pages/business/Files";
+import Filing from "./pages/business/Filing";
 import Leads from "./pages/business/Leads";
 import Tasks from "./pages/business/Tasks";
 import Automations from "./pages/business/Automations";
@@ -118,6 +119,7 @@ export default function App() {
         <Route path="home" element={<Home />} />
         <Route path="inbox" element={<Inbox />} />
         <Route path="files" element={<Files />} />
+        <Route path="filing" element={<Filing />} />
         <Route path="leads" element={<Leads />} />
         <Route path="tasks" element={<Tasks />} />
         <Route path="agents" element={<AgentStudio />} />

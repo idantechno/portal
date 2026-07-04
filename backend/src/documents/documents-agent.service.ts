@@ -1,9 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createSdkMcpServer } from '@anthropic-ai/claude-agent-sdk';
 import { AgentRunner } from '../agents/agent-runner.service';
 import { BusinessesService } from '../businesses/businesses.service';
 import { FilesystemService } from '../context-files/filesystem.service';
+import { FilingService } from '../filing/filing.service';
+import { DocumentPdfService } from './document-pdf.service';
 import {
   ChatTurn,
   buildDocumentsSystemPrompt,
@@ -31,13 +33,43 @@ export interface DocumentsChatResult {
 
 @Injectable()
 export class DocumentsAgentService {
+  private readonly log = new Logger(DocumentsAgentService.name);
+
   constructor(
     private readonly config: ConfigService,
     private readonly runner: AgentRunner,
     private readonly businesses: BusinessesService,
     private readonly documents: DocumentsService,
     private readonly filesystem: FilesystemService,
+    private readonly documentPdf: DocumentPdfService,
+    private readonly filing: FilingService,
   ) {}
+
+  /**
+   * Files each produced document into the business's documents drawer (under
+   * the "produced" folder) so it's organized automatically. Best-effort — a
+   * filing failure never breaks the chat.
+   */
+  private async autoFile(
+    businessId: string,
+    created: DocumentInstance[],
+  ): Promise<void> {
+    for (const doc of created) {
+      try {
+        const pdf = await this.documentPdf.getOrRenderPdf(businessId, doc.id);
+        await this.filing.fileProduced({
+          businessId,
+          filename: `מסמך-${doc.id.slice(0, 8)}.pdf`,
+          buffer: pdf,
+          mimeType: 'application/pdf',
+        });
+      } catch (err) {
+        this.log.warn(
+          `Auto-filing produced document ${doc.id} failed: ${(err as Error).message}`,
+        );
+      }
+    }
+  }
 
   async chat(input: DocumentsChatInput): Promise<DocumentsChatResult> {
     const business = await this.businesses.findById(input.businessId);
@@ -81,6 +113,8 @@ export class DocumentsAgentService {
       ],
       runLabel: `documents-agent business=${business.id}`,
     });
+
+    if (created.length > 0) await this.autoFile(business.id, created);
 
     return { reply: finalText, created };
   }

@@ -30,6 +30,10 @@ import { AutomationsModule } from './automations/automations.module';
 import { BillingModule } from './billing/billing.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { GreenInvoiceModule } from './green-invoice/green-invoice.module';
+import { IdeasModule } from './ideas/ideas.module';
+import { SupportModule } from './support/support.module';
+import { MainAgentModule } from './main-agent/main-agent.module';
+import { DesignerModule } from './designer/designer.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 
@@ -95,6 +99,10 @@ import { RolesGuard } from './auth/guards/roles.guard';
     BillingModule,
     IntegrationsModule,
     GreenInvoiceModule,
+    IdeasModule,
+    SupportModule,
+    MainAgentModule,
+    DesignerModule,
   ],
   controllers: [AppController, HealthController],
   providers: [

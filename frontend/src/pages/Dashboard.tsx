@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, Navigate, useNavigate } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { businessesApi } from "../api/businesses";
 import { authApi } from "../api/auth";
 import { agentsApi } from "../api/agents";
@@ -25,7 +25,10 @@ function agentLink(
   key: string,
   businessId: string | undefined,
 ): string | undefined {
+  if (key === "main") return "/app/agents/main";
   if (key === "documents") return "/app/agents/documents";
+  if (key === "ideas") return "/app/agents/ideas";
+  if (key === "designer") return "/app/agents/designer";
   if (key === "chat")
     return businessId ? `/app/businesses/${businessId}/inbox` : undefined;
   // Every other (generative) agent opens the agent studio inside the business.
@@ -37,7 +40,6 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
-  const qc = useQueryClient();
   const staff = isPlatformStaff(user?.role);
 
   const businesses = useQuery({
@@ -59,45 +61,28 @@ export default function Dashboard() {
   // The calm home briefing is the client owner's view: it needs a single
   // business and the chat agent (it summarizes conversations + leads).
   const hasChat = (myAgents.data ?? []).some((a) => a.key === "chat");
-  const showBriefing = !staff && !!firstBizId && hasChat;
+  const showBriefing = !!firstBizId && hasChat;
 
-  const [showCreate, setShowCreate] = useState(false);
-  const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
-  const [createError, setCreateError] = useState<string | null>(null);
   const [showPw, setShowPw] = useState(false);
 
-  const createMut = useMutation({
-    mutationFn: () =>
-      businessesApi.create({ name, slug: slug.trim() ? slug.trim() : undefined }),
-    onSuccess: (biz) => {
-      qc.invalidateQueries({ queryKey: ["businesses"] });
-      navigate(`/app/businesses/${biz.id}/files`);
-    },
-    onError: (err) => setCreateError(apiErrorMessage(err, "Failed to create")),
-  });
-
-  function submitCreate(e: FormEvent) {
-    e.preventDefault();
-    setCreateError(null);
-    createMut.mutate();
+  // Platform staff have no account-level dashboard of their own — their
+  // "my businesses" list is always empty (they aren't members of any tenant).
+  // Skip the redundant landing hop and open the admin cockpit directly.
+  if (staff) {
+    return <Navigate to="/app/admin" replace />;
   }
 
   // One home, not two: a client lands on (and the logo returns to) their
-  // business cockpit. Only platform staff see this account-level dashboard.
-  if (!staff) {
-    if (businesses.isLoading) {
-      return (
-        <div className="min-h-dvh grid place-items-center text-navy-400 text-sm">
-          {t("common.loading")}
-        </div>
-      );
-    }
-    if (firstBizId) {
-      return (
-        <Navigate to={`/app/businesses/${firstBizId}/home`} replace />
-      );
-    }
+  // business cockpit.
+  if (businesses.isLoading) {
+    return (
+      <div className="min-h-dvh grid place-items-center text-navy-400 text-sm">
+        {t("common.loading")}
+      </div>
+    );
+  }
+  if (firstBizId) {
+    return <Navigate to={`/app/businesses/${firstBizId}/home`} replace />;
   }
 
   return (
@@ -140,27 +125,6 @@ export default function Dashboard() {
       </header>
 
       <main className="max-w-5xl mx-auto px-6 py-10">
-        {staff && (
-          <Link to="/app/admin" className="block mb-8 group">
-            <Card className="p-6 bg-navy-900 border-navy-900 text-white hover:bg-navy-800 transition-colors flex items-center gap-5">
-              <div className="h-12 w-12 rounded-2xl bg-white/10 flex items-center justify-center text-2xl shrink-0">
-                🛡️
-              </div>
-              <div className="flex-1">
-                <div className="font-semibold text-base mb-0.5">
-                  {t("admin.title")}
-                </div>
-                <div className="text-sm text-navy-200">
-                  {t("admin.dashboardHint")}
-                </div>
-              </div>
-              <div className="text-coral-300 text-xl shrink-0 transition-transform group-hover:-translate-x-1 rtl:rotate-180">
-                →
-              </div>
-            </Card>
-          </Link>
-        )}
-
         {showBriefing && firstBizId && (
           <HomeBriefing businessId={firstBizId} name={user?.name} />
         )}
@@ -216,95 +180,10 @@ export default function Dashboard() {
           </section>
         )}
 
-        {!staff && agentCards.length === 0 && !myAgents.isLoading && (
+        {agentCards.length === 0 && !myAgents.isLoading && (
           <Card className="p-12 text-center text-navy-400">
             {t("dashboard.noAgents")}
           </Card>
-        )}
-
-        {staff && (
-        <>
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">{t("dashboard.myBusinesses")}</h1>
-          {!showCreate && (
-            <Button onClick={() => setShowCreate(true)}>
-              {t("dashboard.createBusiness")}
-            </Button>
-          )}
-        </div>
-
-        {showCreate && (
-          <Card className="p-6 mb-6">
-            <form onSubmit={submitCreate} className="space-y-4 max-w-md">
-              <div>
-                <Label htmlFor="biz-name">{t("dashboard.businessName")}</Label>
-                <Input
-                  id="biz-name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="biz-slug">{t("dashboard.businessSlug")}</Label>
-                <Input
-                  id="biz-slug"
-                  value={slug}
-                  onChange={(e) => setSlug(e.target.value.toLowerCase())}
-                  placeholder="auto"
-                  dir="ltr"
-                />
-              </div>
-              <FormError message={createError} />
-              <div className="flex items-center gap-3">
-                <Button type="submit" disabled={createMut.isPending}>
-                  {createMut.isPending ? <Spinner /> : t("dashboard.createBusiness")}
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => {
-                    setShowCreate(false);
-                    setName("");
-                    setSlug("");
-                    setCreateError(null);
-                  }}
-                >
-                  {t("common.cancel")}
-                </Button>
-              </div>
-            </form>
-          </Card>
-        )}
-
-        {businesses.isLoading && (
-          <div className="text-neutral-500 text-sm">{t("common.loading")}</div>
-        )}
-        {businesses.data && businesses.data.length === 0 && !showCreate && (
-          <Card className="p-12 text-center text-neutral-500">
-            {t("dashboard.noBusinesses")}
-          </Card>
-        )}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {businesses.data?.map((biz) => (
-            <Link
-              to={`/app/businesses/${biz.id}/files`}
-              key={biz.id}
-              className="block"
-            >
-              <Card className="p-5 hover:border-brand-300 hover:shadow-md transition-all">
-                <div className="font-semibold mb-1">{biz.name}</div>
-                <div className="text-xs text-neutral-500 mb-3" dir="ltr">
-                  /{biz.slug}
-                </div>
-                <div className="text-brand-700 text-sm font-medium">
-                  {t("dashboard.open")} →
-                </div>
-              </Card>
-            </Link>
-          ))}
-        </div>
-        </>
         )}
       </main>
       {showPw && <ChangePasswordModal onClose={() => setShowPw(false)} />}

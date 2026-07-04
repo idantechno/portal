@@ -33,6 +33,11 @@ import { PdfRendererService } from './pdf-renderer.service';
     DocumentPdfService,
     PdfRendererService,
   ],
-  exports: [DocumentsService, DocumentsAgentService, DocumentPdfService],
+  exports: [
+    DocumentsService,
+    DocumentsAgentService,
+    DocumentPdfService,
+    PdfRendererService,
+  ],
 })
 export class DocumentsModule {}

@@ -11,6 +11,7 @@
  * and admins can pre-grant) but their generation flow may still be a stub.
  */
 export const AGENT_KEYS = [
+  'main',
   'chat',
   'orchestrator',
   'sales',
@@ -20,6 +21,8 @@ export const AGENT_KEYS = [
   'accounting',
   'marketing',
   'analytics',
+  'ideas',
+  'designer',
 ] as const;
 
 export type AgentKey = (typeof AGENT_KEYS)[number];
@@ -47,6 +50,16 @@ export interface AgentDefinition {
 }
 
 export const AGENT_CATALOG: readonly AgentDefinition[] = [
+  {
+    key: 'main',
+    name: 'הסוכן הראשי',
+    description:
+      'הכניסה למערכת: מכיר את כל הסוכנים, מפנה אותך לְמה שאתה צריך, ומעביר פניות לצוות.',
+    icon: '🧭',
+    defaultEnabled: true,
+    status: 'live',
+    pillar: 'orchestration',
+  },
   {
     key: 'chat',
     name: 'סוכן צ׳אט',
@@ -129,6 +142,26 @@ export const AGENT_CATALOG: readonly AgentDefinition[] = [
     defaultEnabled: true,
     status: 'live',
     pillar: 'growth',
+  },
+  {
+    key: 'ideas',
+    name: 'סוכן רעיונות',
+    description:
+      'לוכד רעיונות גולמיים, מלטש אותם ומפתח אותם לכיוונים ומהלכים לעסק.',
+    icon: '💡',
+    defaultEnabled: false,
+    status: 'live',
+    pillar: 'growth',
+  },
+  {
+    key: 'designer',
+    name: 'סוכן מעצב גרפי',
+    description:
+      'מייצר מוצרים מעוצבים פשוטים להדפסה — תפריט, כרזה, מחירון, הזמנה — בצבעי העסק.',
+    icon: '🎨',
+    defaultEnabled: false,
+    status: 'live',
+    pillar: 'content',
   },
 ];
 

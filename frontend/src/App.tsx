@@ -5,6 +5,9 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import SignDocument from "./pages/SignDocument";
 import AgentDocumentsPage from "./pages/AgentDocumentsPage";
+import AgentIdeasPage from "./pages/AgentIdeasPage";
+import AgentMainPage from "./pages/AgentMainPage";
+import AgentDesignerPage from "./pages/AgentDesignerPage";
 import BusinessLayout from "./pages/business/BusinessLayout";
 import Home from "./pages/business/Home";
 import Inbox from "./pages/business/Inbox";
@@ -25,6 +28,7 @@ import AdminBusinessDetail from "./pages/admin/AdminBusinessDetail";
 import AdminCreateClient from "./pages/admin/AdminCreateClient";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminAudit from "./pages/admin/AdminAudit";
+import AdminSupport from "./pages/admin/AdminSupport";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token);
@@ -62,6 +66,30 @@ export default function App() {
         }
       />
       <Route
+        path="/app/agents/ideas"
+        element={
+          <RequireAuth>
+            <AgentIdeasPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/app/agents/main"
+        element={
+          <RequireAuth>
+            <AgentMainPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/app/agents/designer"
+        element={
+          <RequireAuth>
+            <AgentDesignerPage />
+          </RequireAuth>
+        }
+      />
+      <Route
         path="/app/admin"
         element={
           <RequireStaff>
@@ -75,6 +103,7 @@ export default function App() {
         <Route path="clients/new" element={<AdminCreateClient />} />
         <Route path="businesses/:businessId" element={<AdminBusinessDetail />} />
         <Route path="users" element={<AdminUsers />} />
+        <Route path="support" element={<AdminSupport />} />
         <Route path="audit" element={<AdminAudit />} />
       </Route>
       <Route

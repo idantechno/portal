@@ -12,6 +12,18 @@ import type {
   UserRole,
 } from "./types";
 
+export interface AdminSupportRequest {
+  id: string;
+  businessId: string;
+  businessName: string | null;
+  createdByUserId: string | null;
+  subject: string;
+  details: string;
+  status: "open" | "resolved";
+  createdAt: string;
+  resolvedAt: string | null;
+}
+
 export const adminApi = {
   overview: () =>
     api.get<AdminOverview>("/admin/overview").then((r) => r.data),
@@ -84,5 +96,17 @@ export const adminApi = {
   setBusinessAgent: (id: string, agentKey: string, enabled: boolean) =>
     api
       .put(`/admin/businesses/${id}/agents/${agentKey}`, { enabled })
+      .then((r) => r.data),
+
+  listSupportRequests: (status: "open" | "resolved" = "open") =>
+    api
+      .get<AdminSupportRequest[]>("/admin/support-requests", {
+        params: { status },
+      })
+      .then((r) => r.data),
+
+  resolveSupportRequest: (id: string) =>
+    api
+      .post<AdminSupportRequest>(`/admin/support-requests/${id}/resolve`)
       .then((r) => r.data),
 };

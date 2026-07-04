@@ -248,13 +248,20 @@ function DesignListItem({
   removing: boolean;
 }) {
   return (
-    <li className="bg-white border border-neutral-200 rounded-lg p-3">
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <span className="text-xs font-semibold leading-snug">
-          {design.title}
-        </span>
-        <KindPill kind={design.kind} />
-      </div>
+    <li className="bg-white border border-neutral-200 rounded-lg p-3 hover:border-brand-300 transition-colors">
+      <a
+        href={designerApi.pdfUrl(businessId, design.id)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block group"
+      >
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <span className="text-xs font-semibold leading-snug group-hover:text-brand-700">
+            {design.title}
+          </span>
+          <KindPill kind={design.kind} />
+        </div>
+      </a>
       <div className="flex items-center justify-between">
         <a
           href={designerApi.pdfUrl(businessId, design.id)}

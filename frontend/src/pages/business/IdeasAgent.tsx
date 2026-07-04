@@ -87,6 +87,26 @@ export default function IdeasAgent({ businessId }: { businessId: string }) {
     setError(null);
   };
 
+  // Click a saved idea in the sidebar to reopen it — sends a message that asks
+  // the agent to continue developing that specific idea (it's in the agent's
+  // context, so it picks the right one and builds on it).
+  const openIdea = (idea: Idea) => {
+    if (chat.isPending) return;
+    setError(null);
+    const opener = `בוא נחזור לרעיון "${idea.title}"${
+      idea.summary ? ` (${idea.summary})` : ""
+    } — אני רוצה להמשיך לפתח אותו.`;
+    const nextHistory: ChatTurn[] = [
+      ...messages.map(({ role, content }) => ({ role, content })),
+      { role: "user", content: opener },
+    ];
+    setMessages((prev) => [
+      ...prev,
+      { role: "user", content: opener, createdAt: Date.now() },
+    ]);
+    chat.mutate(nextHistory);
+  };
+
   return (
     <div className="h-full grid grid-cols-1 lg:grid-cols-[1fr_320px]">
       <div className="flex flex-col h-full min-h-0">
@@ -161,6 +181,7 @@ export default function IdeasAgent({ businessId }: { businessId: string }) {
             <IdeaListItem
               key={idea.id}
               idea={idea}
+              onOpen={() => openIdea(idea)}
               onRemove={() => remove.mutate(idea.id)}
               removing={remove.isPending && remove.variables === idea.id}
             />
@@ -223,28 +244,38 @@ function SavedIdeaCard({ idea }: { idea: Idea }) {
 
 function IdeaListItem({
   idea,
+  onOpen,
   onRemove,
   removing,
 }: {
   idea: Idea;
+  onOpen: () => void;
   onRemove: () => void;
   removing: boolean;
 }) {
   return (
-    <li className="bg-white border border-neutral-200 rounded-lg p-3">
-      <div className="flex items-start justify-between gap-2 mb-1">
-        <span className="text-xs font-semibold leading-snug">{idea.title}</span>
-        <StatusPill status={idea.status} />
-      </div>
-      {idea.summary && (
-        <p className="text-[11px] text-neutral-500 leading-relaxed mb-2">
-          {idea.summary}
-        </p>
-      )}
+    <li className="bg-white border border-neutral-200 rounded-lg p-3 hover:border-brand-300 transition-colors">
+      <button type="button" onClick={onOpen} className="w-full text-start group">
+        <div className="flex items-start justify-between gap-2 mb-1">
+          <span className="text-xs font-semibold leading-snug group-hover:text-brand-700">
+            {idea.title}
+          </span>
+          <StatusPill status={idea.status} />
+        </div>
+        {idea.summary && (
+          <p className="text-[11px] text-neutral-500 leading-relaxed mb-2">
+            {idea.summary}
+          </p>
+        )}
+      </button>
       <div className="flex items-center justify-between">
-        <span className="text-[10px] text-neutral-400">
-          {new Date(idea.updatedAt).toLocaleDateString("he-IL")}
-        </span>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="text-[10px] font-medium text-brand-600 hover:underline"
+        >
+          המשך לפתח →
+        </button>
         <button
           onClick={onRemove}
           disabled={removing}

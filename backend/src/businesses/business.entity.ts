@@ -8,6 +8,20 @@ import {
 } from 'typeorm';
 import { AccountStatus } from '../common/enums/account-status.enum';
 
+/** Per-business look & feel applied across the cockpit UI. All optional. */
+export interface BusinessBranding {
+  /** Main brand color — base for the sidebar/header. Hex `#rrggbb`. */
+  primaryColor?: string;
+  /** Secondary brand color — links/highlights. Hex `#rrggbb`. */
+  secondaryColor?: string;
+  /** Accent color — active state, primary buttons. Hex `#rrggbb`. */
+  accentColor?: string;
+  /** Logo as a data URI (client-resized) or absolute URL. */
+  logoUrl?: string;
+  /** Short tagline shown under the business name. */
+  slogan?: string;
+}
+
 @Entity({ name: 'businesses' })
 export class Business {
   @PrimaryGeneratedColumn('uuid')
@@ -42,6 +56,9 @@ export class Business {
     default: () => "'[]'::jsonb",
   })
   widgetAllowedOrigins!: string[];
+
+  @Column({ type: 'jsonb', name: 'branding', nullable: true })
+  branding!: BusinessBranding | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;

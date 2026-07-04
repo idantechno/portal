@@ -15,6 +15,7 @@ import {
   Spinner,
   Textarea,
 } from "../../components/ui";
+import BrandingCard from "../../components/BrandingCard";
 
 function buildSnippet(publicKey: string): string {
   const origin =
@@ -104,6 +105,8 @@ function SettingsForm({ businessId, business }: SettingsFormProps) {
       <header className="mb-6">
         <h1 className="text-2xl font-bold">{t("settings.title")}</h1>
       </header>
+
+      <BrandingCard businessId={businessId} business={business} />
 
       <Card className="p-6 mb-6">
         <h2 className="font-semibold mb-4">{t("settings.general")}</h2>

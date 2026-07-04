@@ -2,11 +2,39 @@ import {
   ArrayMaxSize,
   IsArray,
   IsBoolean,
+  IsHexColor,
   IsOptional,
   IsString,
   MaxLength,
   MinLength,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
+
+export class BrandingDto {
+  @IsOptional()
+  @IsHexColor()
+  primaryColor?: string;
+
+  @IsOptional()
+  @IsHexColor()
+  secondaryColor?: string;
+
+  @IsOptional()
+  @IsHexColor()
+  accentColor?: string;
+
+  // Data URI of a client-resized logo (kept small) or an absolute URL.
+  @IsOptional()
+  @IsString()
+  @MaxLength(600_000)
+  logoUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(140)
+  slogan?: string;
+}
 
 export class UpdateBusinessDto {
   @IsOptional()
@@ -36,4 +64,9 @@ export class UpdateBusinessDto {
   @IsString({ each: true })
   @MaxLength(255, { each: true })
   widgetAllowedOrigins?: string[];
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => BrandingDto)
+  branding?: BrandingDto;
 }

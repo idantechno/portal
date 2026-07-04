@@ -1,5 +1,10 @@
 import { api } from "./client";
-import type { Business, BusinessMember, BusinessRole } from "./types";
+import type {
+  Business,
+  BusinessBranding,
+  BusinessMember,
+  BusinessRole,
+} from "./types";
 
 export const businessesApi = {
   list: () => api.get<Business[]>("/businesses").then((r) => r.data),
@@ -14,6 +19,7 @@ export const businessesApi = {
       systemPromptOverride?: string;
       publicKeyEnabled?: boolean;
       widgetAllowedOrigins?: string[];
+      branding?: BusinessBranding;
     },
   ) => api.patch<Business>(`/businesses/${id}`, input).then((r) => r.data),
 

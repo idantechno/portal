@@ -18,6 +18,14 @@ export interface AuthResponse {
   user: AuthUser;
 }
 
+export interface BusinessBranding {
+  primaryColor?: string;
+  secondaryColor?: string;
+  accentColor?: string;
+  logoUrl?: string;
+  slogan?: string;
+}
+
 export interface Business {
   id: string;
   name: string;
@@ -28,6 +36,7 @@ export interface Business {
   publicKeyEnabled: boolean;
   systemPromptOverride: string | null;
   widgetAllowedOrigins: string[];
+  branding?: BusinessBranding | null;
   createdAt: string;
   updatedAt: string;
   /** The current caller's role in this business (null for platform staff). */

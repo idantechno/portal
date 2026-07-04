@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { businessesApi } from "../../api/businesses";
 import { useAuthStore } from "../../store/auth";
 import { NotificationBell } from "../../components/NotificationBell";
+import { businessThemeVars } from "../../lib/theme";
 
 interface NavItem {
   to: string;
@@ -32,6 +33,8 @@ export default function BusinessLayout() {
   });
 
   const viaStaff = biz.data?.viaPlatformStaff ?? false;
+  const branding = biz.data?.branding ?? null;
+  const themeVars = businessThemeVars(branding);
 
   // Sidebar = business "departments". Individual agents do NOT live here — they
   // are all reached from the single "סוכנים" hub (the agents page) so there is
@@ -91,40 +94,53 @@ export default function BusinessLayout() {
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm transition-colors ${
       isActive
-        ? "bg-brand-50 text-brand-700 font-medium"
-        : "text-navy-600 hover:bg-cream-50 hover:text-navy-900"
+        ? "bg-[var(--brand-accent)] text-[var(--brand-accent-contrast)] font-medium shadow-sm"
+        : "text-white/70 hover:bg-white/10 hover:text-white"
     }`;
 
   return (
-    <div className="h-dvh overflow-hidden bg-cream-50 grid grid-cols-[268px_1fr]">
-      <aside className="border-e border-navy-100 bg-white overflow-y-auto flex flex-col">
-        <div className="h-16 px-5 flex items-center border-b border-navy-100">
+    <div
+      className="h-dvh overflow-hidden bg-cream-50 grid grid-cols-[268px_1fr]"
+      style={themeVars}
+    >
+      <aside
+        className="text-white overflow-y-auto flex flex-col"
+        style={{ backgroundColor: "var(--brand-sidebar)" }}
+      >
+        <div className="px-5 py-4 flex items-center border-b border-white/10 min-h-16">
           <Link
-            to="/app"
-            className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
+            to={`/app/businesses/${businessId}/home`}
+            className="flex items-center gap-3 hover:opacity-90 transition-opacity min-w-0"
           >
-            <img src="/icon.png" alt="" className="h-7 w-7" />
-            <span className="font-display text-xl text-navy-900">
-              Portal Studio
-            </span>
+            {branding?.logoUrl ? (
+              <img
+                src={branding.logoUrl}
+                alt=""
+                className="h-9 w-9 rounded-xl object-contain bg-white/90 p-0.5 shrink-0"
+              />
+            ) : (
+              <img src="/icon.png" alt="" className="h-8 w-8 shrink-0" />
+            )}
+            <div className="min-w-0">
+              <div className="font-display text-lg leading-tight truncate">
+                {biz.data?.name ?? "Portal Studio"}
+              </div>
+              {branding?.slogan && (
+                <div className="text-[11px] text-white/50 truncate">
+                  {branding.slogan}
+                </div>
+              )}
+            </div>
           </Link>
         </div>
         <div className="p-4 flex-1">
-          <div className="rounded-2xl bg-cream-50 border border-navy-100 p-3.5 mb-5">
-            <div className="text-sm font-semibold text-navy-900 truncate">
-              {biz.data?.name ?? "—"}
-            </div>
-            <div className="text-xs text-navy-400 truncate" dir="ltr">
-              /{biz.data?.slug ?? ""}
-            </div>
-          </div>
           <nav className="space-y-5">
             {groups.map((group) => {
               const visible = group.items.filter((it) => it.show);
               if (visible.length === 0) return null;
               return (
                 <div key={group.title}>
-                  <div className="px-3 mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-navy-300">
+                  <div className="px-3 mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-white/40">
                     {group.title}
                   </div>
                   <div className="space-y-0.5">
@@ -147,12 +163,12 @@ export default function BusinessLayout() {
             })}
           </nav>
         </div>
-        <div className="px-4 pb-4 pt-4 border-t border-navy-100 text-sm">
-          <div className="px-3 py-1.5 text-navy-700 font-medium truncate">
+        <div className="px-4 pb-4 pt-4 border-t border-white/10 text-sm">
+          <div className="px-3 py-1.5 text-white/80 font-medium truncate">
             {user?.name}
           </div>
           <button
-            className="w-full text-start rounded-xl px-3 py-1.5 text-navy-400 hover:bg-cream-50 transition-colors"
+            className="w-full text-start rounded-xl px-3 py-1.5 text-white/50 hover:bg-white/10 hover:text-white transition-colors"
             onClick={() =>
               i18n.changeLanguage(i18n.language === "he" ? "en" : "he")
             }
@@ -160,7 +176,7 @@ export default function BusinessLayout() {
             {i18n.language === "he" ? "English" : "עברית"}
           </button>
           <button
-            className="w-full text-start rounded-xl px-3 py-1.5 text-navy-400 hover:bg-coral-50 hover:text-coral-600 transition-colors"
+            className="w-full text-start rounded-xl px-3 py-1.5 text-white/50 hover:bg-coral-500/20 hover:text-coral-200 transition-colors"
             onClick={() => {
               logout();
               navigate("/login");

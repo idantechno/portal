@@ -102,6 +102,10 @@ export class BusinessesService {
     if (dto.widgetAllowedOrigins !== undefined) {
       business.widgetAllowedOrigins = dto.widgetAllowedOrigins;
     }
+    if (dto.branding !== undefined) {
+      // Merge so a partial update (e.g. only colors) doesn't wipe the logo.
+      business.branding = { ...(business.branding ?? {}), ...dto.branding };
+    }
     return this.businesses.save(business);
   }
 

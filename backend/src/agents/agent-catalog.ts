@@ -23,6 +23,7 @@ export const AGENT_KEYS = [
   'analytics',
   'ideas',
   'designer',
+  'reminders',
 ] as const;
 
 export type AgentKey = (typeof AGENT_KEYS)[number];
@@ -162,6 +163,16 @@ export const AGENT_CATALOG: readonly AgentDefinition[] = [
     defaultEnabled: false,
     status: 'live',
     pillar: 'content',
+  },
+  {
+    key: 'reminders',
+    name: 'סוכן תזכורות',
+    description:
+      'שלא תשכח מעקבים ומשימות: תזכורות עם תאריך יעד — באיחור / היום / בקרוב.',
+    icon: '⏰',
+    defaultEnabled: true,
+    status: 'live',
+    pillar: 'growth',
   },
 ];
 

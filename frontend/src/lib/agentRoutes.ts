@@ -12,6 +12,7 @@ export function agentRoute(
   if (key === "documents") return "/app/agents/documents";
   if (key === "ideas") return "/app/agents/ideas";
   if (key === "designer") return "/app/agents/designer";
+  if (key === "reminders") return "/app/agents/reminders";
   if (key === "chat")
     return businessId ? `/app/businesses/${businessId}/inbox` : undefined;
   return businessId ? `/app/businesses/${businessId}/agents` : undefined;

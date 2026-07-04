@@ -29,6 +29,7 @@ function agentLink(
   if (key === "documents") return "/app/agents/documents";
   if (key === "ideas") return "/app/agents/ideas";
   if (key === "designer") return "/app/agents/designer";
+  if (key === "reminders") return "/app/agents/reminders";
   if (key === "chat")
     return businessId ? `/app/businesses/${businessId}/inbox` : undefined;
   // Every other (generative) agent opens the agent studio inside the business.

@@ -49,6 +49,7 @@ export default function BusinessLayout() {
       title: "עבודה",
       items: [
         { to: "agents", label: "סוכנים", icon: "🤖", show: true },
+        { to: "calendar", label: "יומן", icon: "📅", show: true },
         { to: "tasks", label: "משימות", icon: "✅", show: true },
       ],
     },

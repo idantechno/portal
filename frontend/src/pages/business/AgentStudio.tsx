@@ -16,6 +16,7 @@ const DEDICATED_KEYS = new Set([
   "documents",
   "ideas",
   "designer",
+  "reminders",
 ]);
 
 const PLACEHOLDER: Record<string, string> = {

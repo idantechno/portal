@@ -8,11 +8,13 @@ import AgentDocumentsPage from "./pages/AgentDocumentsPage";
 import AgentIdeasPage from "./pages/AgentIdeasPage";
 import AgentMainPage from "./pages/AgentMainPage";
 import AgentDesignerPage from "./pages/AgentDesignerPage";
+import AgentRemindersPage from "./pages/AgentRemindersPage";
 import BusinessLayout from "./pages/business/BusinessLayout";
 import Home from "./pages/business/Home";
 import Inbox from "./pages/business/Inbox";
 import Files from "./pages/business/Files";
 import Filing from "./pages/business/Filing";
+import Calendar from "./pages/business/Calendar";
 import Leads from "./pages/business/Leads";
 import Tasks from "./pages/business/Tasks";
 import Automations from "./pages/business/Automations";
@@ -91,6 +93,14 @@ export default function App() {
         }
       />
       <Route
+        path="/app/agents/reminders"
+        element={
+          <RequireAuth>
+            <AgentRemindersPage />
+          </RequireAuth>
+        }
+      />
+      <Route
         path="/app/admin"
         element={
           <RequireStaff>
@@ -120,6 +130,7 @@ export default function App() {
         <Route path="inbox" element={<Inbox />} />
         <Route path="files" element={<Files />} />
         <Route path="filing" element={<Filing />} />
+        <Route path="calendar" element={<Calendar />} />
         <Route path="leads" element={<Leads />} />
         <Route path="tasks" element={<Tasks />} />
         <Route path="agents" element={<AgentStudio />} />

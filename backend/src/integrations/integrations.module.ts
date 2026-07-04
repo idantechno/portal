@@ -4,13 +4,19 @@ import { BusinessesModule } from '../businesses/businesses.module';
 import { Integration } from './integration.entity';
 import { IntegrationsService } from './integrations.service';
 import { GmailService } from './gmail.service';
+import { CalendarService } from './calendar.service';
 import { IntegrationsController } from './integrations.controller';
 import { IntegrationsGoogleController } from './integrations-google.controller';
+import { CalendarController } from './calendar.controller';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Integration]), BusinessesModule],
-  controllers: [IntegrationsController, IntegrationsGoogleController],
-  providers: [IntegrationsService, GmailService],
-  exports: [IntegrationsService, GmailService],
+  controllers: [
+    IntegrationsController,
+    IntegrationsGoogleController,
+    CalendarController,
+  ],
+  providers: [IntegrationsService, GmailService, CalendarService],
+  exports: [IntegrationsService, GmailService, CalendarService],
 })
 export class IntegrationsModule {}

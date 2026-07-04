@@ -224,4 +224,78 @@ export class IntegrationsService {
     row.connectedAt = null;
     await this.integrations.save(row);
   }
+
+  /** True if the business has this provider connected with stored tokens. */
+  async isConnected(
+    businessId: string,
+    provider: IntegrationProvider,
+  ): Promise<boolean> {
+    const row = await this.integrations.findOne({
+      where: { businessId, provider },
+    });
+    return Boolean(row && row.status === 'connected' && row.encryptedTokens);
+  }
+
+  /** Current (possibly-expired) access token for a connected provider. */
+  async accessTokenFor(
+    businessId: string,
+    provider: IntegrationProvider,
+  ): Promise<string> {
+    const tokens = await this.decryptTokens(businessId, provider);
+    if (!tokens.access_token) throw new BadRequestException('NOT_CONNECTED');
+    return tokens.access_token;
+  }
+
+  /** Refresh the access token via the stored refresh_token, persist, return it. */
+  async refreshAccessTokenFor(
+    businessId: string,
+    provider: IntegrationProvider,
+  ): Promise<string> {
+    const row = await this.integrations.findOne({
+      where: { businessId, provider },
+    });
+    if (!row?.encryptedTokens) throw new BadRequestException('NOT_CONNECTED');
+    const tokens = JSON.parse(this.crypto.decrypt(row.encryptedTokens)) as {
+      access_token?: string;
+      refresh_token?: string;
+      [k: string]: unknown;
+    };
+    if (!tokens.refresh_token)
+      throw new BadRequestException('NO_REFRESH_TOKEN');
+    const body = new URLSearchParams({
+      client_id: this.config.get<string>('GOOGLE_CLIENT_ID')!,
+      client_secret: this.config.get<string>('GOOGLE_CLIENT_SECRET')!,
+      refresh_token: tokens.refresh_token,
+      grant_type: 'refresh_token',
+    });
+    const res = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+    });
+    if (!res.ok) throw new BadRequestException('TOKEN_REFRESH_FAILED');
+    const json = (await res.json()) as { access_token?: string };
+    if (!json.access_token)
+      throw new BadRequestException('TOKEN_REFRESH_FAILED');
+    tokens.access_token = json.access_token;
+    row.encryptedTokens = this.crypto.encrypt(JSON.stringify(tokens));
+    await this.integrations.save(row);
+    return json.access_token;
+  }
+
+  private async decryptTokens(
+    businessId: string,
+    provider: IntegrationProvider,
+  ): Promise<{ access_token?: string; refresh_token?: string }> {
+    const row = await this.integrations.findOne({
+      where: { businessId, provider },
+    });
+    if (!row || row.status !== 'connected' || !row.encryptedTokens) {
+      throw new BadRequestException('NOT_CONNECTED');
+    }
+    return JSON.parse(this.crypto.decrypt(row.encryptedTokens)) as {
+      access_token?: string;
+      refresh_token?: string;
+    };
+  }
 }

@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -61,7 +57,9 @@ export class GmailService {
 
     if (!res.ok) {
       const detail = await res.text().catch(() => '');
-      this.log.error(`[gmail] send failed ${res.status}: ${detail.slice(0, 200)}`);
+      this.log.error(
+        `[gmail] send failed ${res.status}: ${detail.slice(0, 200)}`,
+      );
       throw new BadRequestException(`GMAIL_SEND_FAILED_${res.status}`);
     }
     return { ok: true, from };
@@ -98,7 +96,8 @@ export class GmailService {
     });
     if (!res.ok) throw new BadRequestException('GMAIL_REFRESH_FAILED');
     const json = (await res.json()) as { access_token?: string };
-    if (!json.access_token) throw new BadRequestException('GMAIL_REFRESH_FAILED');
+    if (!json.access_token)
+      throw new BadRequestException('GMAIL_REFRESH_FAILED');
     return json.access_token;
   }
 

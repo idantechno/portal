@@ -36,6 +36,7 @@ import { MainAgentModule } from './main-agent/main-agent.module';
 import { DesignerModule } from './designer/designer.module';
 import { FilingModule } from './filing/filing.module';
 import { RemindersAgentModule } from './reminders-agent/reminders-agent.module';
+import { OverviewModule } from './overview/overview.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 
@@ -107,6 +108,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
     DesignerModule,
     FilingModule,
     RemindersAgentModule,
+    OverviewModule,
   ],
   controllers: [AppController, HealthController],
   providers: [

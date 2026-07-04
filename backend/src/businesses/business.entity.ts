@@ -30,6 +30,8 @@ export interface BusinessOnboarding {
   differentiators?: string;
   /** Anything to emphasize or avoid saying. */
   notes?: string;
+  /** City — used for the daily weather widget on the home dashboard. */
+  city?: string;
 }
 
 /** Per-business look & feel applied across the cockpit UI. All optional. */

@@ -3,11 +3,12 @@ import type { CSSProperties } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { tasksApi } from "../../api/tasks";
-import { leadsApi } from "../../api/leads";
 import { notificationsApi } from "../../api/notifications";
 import { businessesApi } from "../../api/businesses";
+import { billingApi } from "../../api/billing";
+import { overviewApi } from "../../api/overview";
 import { useAuthStore } from "../../store/auth";
-import { Button, Card } from "../../components/ui";
+import { Button, Card, Spinner } from "../../components/ui";
 import BusinessProfileForm from "../../components/BusinessProfileForm";
 
 function greeting(): string {
@@ -17,15 +18,17 @@ function greeting(): string {
   return "ערב טוב";
 }
 
-/** A soft tinted fill of a brand CSS variable, for stat icon circles. */
 function tint(varName: string, pct = 14): CSSProperties {
   return { backgroundColor: `color-mix(in srgb, var(${varName}) ${pct}%, white)` };
+}
+
+function shekels(cents: number): string {
+  return `₪${Math.round(cents / 100).toLocaleString("he-IL")}`;
 }
 
 export default function Home() {
   const { businessId = "" } = useParams<{ businessId: string }>();
   const user = useAuthStore((s) => s.user);
-  const base = `/app/businesses/${businessId}`;
 
   const biz = useQuery({
     queryKey: ["business", businessId],
@@ -37,35 +40,63 @@ export default function Home() {
     queryFn: () => tasksApi.list(businessId),
     enabled: Boolean(businessId),
   });
-  const leads = useQuery({
-    queryKey: ["leads", businessId],
-    queryFn: () => leadsApi.list(businessId),
-    enabled: Boolean(businessId),
-  });
   const notifs = useQuery({
     queryKey: ["notifications", businessId],
     queryFn: () => notificationsApi.list(businessId),
     enabled: Boolean(businessId),
   });
+  const invoices = useQuery({
+    queryKey: ["billing", "invoices", businessId],
+    queryFn: () => billingApi.invoices(businessId),
+    enabled: Boolean(businessId),
+  });
+  const overview = useQuery({
+    queryKey: ["overview", businessId],
+    queryFn: () => overviewApi.get(businessId),
+    enabled: Boolean(businessId),
+    staleTime: 1000 * 60 * 30,
+  });
 
   const allTasks = useMemo(() => tasks.data ?? [], [tasks.data]);
-  const openTasks = allTasks.filter((t) => t.status !== "done").length;
-  const leadCount = (leads.data ?? []).length;
   const weekEvents = useMemo(() => {
     const now = new Date().getTime();
     const weekAhead = now + 7 * 24 * 60 * 60 * 1000;
-    return allTasks.filter((t) => {
-      if (!t.dueAt || t.status === "done") return false;
-      const due = new Date(t.dueAt).getTime();
-      return due >= now && due <= weekAhead;
-    }).length;
+    return allTasks
+      .filter((t) => {
+        if (!t.dueAt || t.status === "done") return false;
+        const due = new Date(t.dueAt).getTime();
+        return due >= now && due <= weekAhead;
+      })
+      .sort(
+        (a, b) =>
+          new Date(a.dueAt as string).getTime() -
+          new Date(b.dueAt as string).getTime(),
+      );
   }, [allTasks]);
-  const recent = (notifs.data ?? []).slice(0, 6);
 
+  const paidInvoices = useMemo(
+    () => (invoices.data ?? []).filter((i) => i.status === "paid"),
+    [invoices.data],
+  );
+  const monthIncome = useMemo(() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth();
+    return paidInvoices
+      .filter((i) => {
+        const d = i.paidAt ? new Date(i.paidAt) : null;
+        return d && d.getFullYear() === y && d.getMonth() === m;
+      })
+      .reduce((sum, i) => sum + i.amountCents, 0);
+  }, [paidInvoices]);
+
+  const recent = (notifs.data ?? []).slice(0, 5);
   const branding = biz.data?.branding ?? null;
   const firstName = user?.name ? user.name.split(" ")[0] : "";
   const [showProfile, setShowProfile] = useState(false);
   const needsOnboarding = Boolean(biz.data) && !biz.data?.onboarding?.completed;
+
+  const ex = overview.data;
 
   return (
     <div className="p-6 md:p-8 max-w-5xl mx-auto">
@@ -128,61 +159,132 @@ export default function Home() {
         </Card>
       )}
 
-      {/* Stat cards */}
+      {/* Snapshot: deals / income / week's events */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <Stat
-          label="משימות פתוחות"
-          sub="ממתינות לטיפול"
-          value={openTasks}
-          icon="✅"
-          brand="--brand-primary"
-          to={`${base}/tasks`}
-        />
-        <Stat
-          label="לידים"
-          sub="פניות שנאספו"
-          value={leadCount}
+          label="עסקאות שנסגרו"
+          sub="חשבוניות ששולמו"
+          value={paidInvoices.length}
           icon="🤝"
-          brand="--brand-secondary"
-          to={`${base}/leads`}
+          brand="--brand-primary"
+          to={`/app/businesses/${businessId}/billing`}
         />
         <Stat
-          label="אירועים השבוע"
+          label="הכנסות החודש"
+          sub="מתוך חשבוניות ששולמו"
+          value={shekels(monthIncome)}
+          icon="💰"
+          brand="--brand-secondary"
+          to={`/app/businesses/${businessId}/billing`}
+        />
+        <Stat
+          label="אירועי השבוע"
           sub="7 הימים הקרובים"
-          value={weekEvents}
+          value={weekEvents.length}
           icon="🗓️"
           brand="--brand-accent"
-          to={`${base}/calendar`}
+          to={`/app/businesses/${businessId}/calendar`}
         />
       </div>
 
-      {/* Activity + AI assistant */}
-      <div className="grid lg:grid-cols-3 gap-4">
+      {/* Daily trio: AI tip + weather */}
+      <div className="grid lg:grid-cols-3 gap-4 mb-4">
+        <Card className="lg:col-span-2 p-5">
+          <div className="text-xs font-semibold text-brand-600 mb-1">
+            💡 הטיפ היומי שלך
+          </div>
+          {overview.isLoading ? (
+            <div className="flex items-center gap-2 text-navy-400 text-sm py-2">
+              <Spinner /> מכין לך טיפ...
+            </div>
+          ) : ex?.tip ? (
+            <p className="text-navy-800 leading-relaxed">{ex.tip}</p>
+          ) : (
+            <p className="text-navy-400 text-sm">
+              הטיפ היומי ייטען כאן. מלא את אפיון העסק כדי שיהיה מדויק יותר.
+            </p>
+          )}
+        </Card>
+
+        <Card className="p-5 flex flex-col justify-center">
+          {overview.isLoading ? (
+            <div className="flex items-center gap-2 text-navy-400 text-sm">
+              <Spinner /> מזג אוויר...
+            </div>
+          ) : ex?.weather ? (
+            <div className="flex items-center gap-4">
+              <div className="text-4xl">{ex.weather.emoji}</div>
+              <div>
+                <div className="text-2xl font-bold text-navy-900">
+                  {ex.weather.tempC}°
+                </div>
+                <div className="text-xs text-navy-500">
+                  {ex.weather.description} · {ex.weather.city}
+                </div>
+                <div className="text-[11px] text-navy-400 mt-0.5">
+                  {ex.weather.hi}° / {ex.weather.lo}°
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-sm text-navy-400">
+              מזג אוויר — הוסף עיר באפיון העסק.
+            </div>
+          )}
+        </Card>
+      </div>
+
+      {/* News from the field */}
+      {ex?.news && (
+        <a
+          href={ex.news.link}
+          target="_blank"
+          rel="noreferrer"
+          className="block mb-6"
+        >
+          <Card className="p-4 hover:border-brand-200 transition-colors">
+            <div className="flex items-center gap-3">
+              <span className="text-lg shrink-0">📰</span>
+              <div className="min-w-0">
+                <div className="text-sm font-medium text-navy-900 truncate">
+                  {ex.news.title}
+                </div>
+                {ex.news.source && (
+                  <div className="text-[11px] text-navy-400">
+                    {ex.news.source} · חדשה מהתחום שלך
+                  </div>
+                )}
+              </div>
+            </div>
+          </Card>
+        </a>
+      )}
+
+      {/* Week's events + AI assistant */}
+      <div className="grid lg:grid-cols-3 gap-4 mb-4">
         <div className="lg:col-span-2">
           <h2 className="text-sm font-semibold text-navy-700 mb-3">
-            פעילות אחרונה
+            השבוע הקרוב
           </h2>
-          {recent.length === 0 ? (
-            <Card className="p-8 text-center text-navy-400 text-sm">
-              עדיין שקט. ברגע שיקרה משהו — ליד, הודעה או מסמך — זה יופיע כאן.
+          {weekEvents.length === 0 ? (
+            <Card className="p-6 text-center text-navy-400 text-sm">
+              אין אירועים בשבוע הקרוב.
             </Card>
           ) : (
             <Card className="divide-y divide-navy-50">
-              {recent.map((n) => (
-                <div key={n.id} className="px-4 py-3 flex items-start gap-3">
-                  <span
-                    className="mt-1.5 h-2 w-2 rounded-full shrink-0"
-                    style={{ backgroundColor: "var(--brand-accent)" }}
-                  />
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium text-navy-900">
-                      {n.title}
-                    </div>
-                    {n.body && (
-                      <div className="text-xs text-navy-400 mt-0.5">
-                        {n.body}
-                      </div>
-                    )}
+              {weekEvents.slice(0, 6).map((t) => (
+                <div key={t.id} className="px-4 py-3 flex items-center gap-3">
+                  <div
+                    className="text-xs text-navy-500 tabular-nums w-16 shrink-0"
+                    dir="ltr"
+                  >
+                    {new Date(t.dueAt as string).toLocaleDateString("he-IL", {
+                      day: "2-digit",
+                      month: "2-digit",
+                    })}
+                  </div>
+                  <div className="flex-1 min-w-0 text-sm text-navy-800 truncate">
+                    {t.title}
                   </div>
                 </div>
               ))}
@@ -206,7 +308,7 @@ export default function Home() {
               איך אפשר לעזור לך היום?
             </div>
             <p className="text-white/70 text-sm mt-2 flex-1">
-              שאל אותי כל דבר על העסק — אני אנתב אותך לסוכן הנכון ואטפל בבקשות.
+              שאל אותי כל דבר על העסק — אני אנתב אותך לסוכן הנכון.
             </p>
             <Link
               to="/app/agents/main"
@@ -217,6 +319,33 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* Recent activity */}
+      {recent.length > 0 && (
+        <>
+          <h2 className="text-sm font-semibold text-navy-700 mb-3 mt-2">
+            פעילות אחרונה
+          </h2>
+          <Card className="divide-y divide-navy-50">
+            {recent.map((n) => (
+              <div key={n.id} className="px-4 py-3 flex items-start gap-3">
+                <span
+                  className="mt-1.5 h-2 w-2 rounded-full shrink-0"
+                  style={{ backgroundColor: "var(--brand-accent)" }}
+                />
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-navy-900">
+                    {n.title}
+                  </div>
+                  {n.body && (
+                    <div className="text-xs text-navy-400 mt-0.5">{n.body}</div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </Card>
+        </>
+      )}
     </div>
   );
 }
@@ -231,7 +360,7 @@ function Stat({
 }: {
   label: string;
   sub: string;
-  value: number;
+  value: number | string;
   icon: string;
   brand: string;
   to: string;
@@ -240,9 +369,11 @@ function Stat({
     <Link to={to} className="block group">
       <Card className="p-5 h-full transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-22px_rgba(1,20,39,0.4)]">
         <div className="flex items-start justify-between">
-          <div>
+          <div className="min-w-0">
             <div className="text-xs text-navy-400 mb-1">{label}</div>
-            <div className="text-3xl font-bold text-navy-900">{value}</div>
+            <div className="text-2xl font-bold text-navy-900 truncate">
+              {value}
+            </div>
             <div className="text-[11px] text-navy-400 mt-1">{sub}</div>
           </div>
           <div

@@ -33,6 +33,7 @@ export default function BusinessProfileForm({
     o.differentiators ?? "",
   );
   const [notes, setNotes] = useState(o.notes ?? "");
+  const [city, setCity] = useState(o.city ?? "");
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
@@ -48,6 +49,7 @@ export default function BusinessProfileForm({
           goals: goals.trim() || undefined,
           differentiators: differentiators.trim() || undefined,
           notes: notes.trim() || undefined,
+          city: city.trim() || undefined,
         },
       }),
     onSuccess: () => {
@@ -125,15 +127,26 @@ export default function BusinessProfileForm({
         />
       </div>
 
-      <div>
-        <Label htmlFor="ob-notes">דגשים / מה לא לומר</Label>
-        <Textarea
-          id="ob-notes"
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          rows={2}
-          placeholder="משהו שחשוב להדגיש, או דברים שעדיף להימנע מהם"
-        />
+      <div className="grid sm:grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="ob-notes">דגשים / מה לא לומר</Label>
+          <Textarea
+            id="ob-notes"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={2}
+            placeholder="משהו שחשוב להדגיש, או דברים שעדיף להימנע מהם"
+          />
+        </div>
+        <div>
+          <Label htmlFor="ob-city">עיר (לתחזית מזג האוויר בדף הבית)</Label>
+          <Input
+            id="ob-city"
+            value={city}
+            onChange={(e) => setCity(e.target.value)}
+            placeholder="לדוגמה: תל אביב"
+          />
+        </div>
       </div>
 
       <FormError message={error} />

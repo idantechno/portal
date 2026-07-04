@@ -75,6 +75,11 @@ export class OnboardingDto {
   @IsString()
   @MaxLength(1000)
   notes?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  city?: string;
 }
 
 export class UpdateBusinessDto {

@@ -35,6 +35,7 @@ export interface BusinessOnboarding {
   goals?: string;
   differentiators?: string;
   notes?: string;
+  city?: string;
 }
 
 export interface Business {

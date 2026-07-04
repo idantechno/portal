@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import type { CSSProperties } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -8,6 +9,51 @@ import { billingApi } from "../../api/billing";
 import { Card, Spinner } from "../../components/ui";
 
 const PLAN_ORDER = ["free", "growth", "scale"];
+
+/**
+ * A single motivational "next move" that scales with the business's monthly
+ * revenue: small/starting businesses get short, concrete, do-it-now actions;
+ * as revenue grows the ambition escalates toward bolder, ceiling-breaking
+ * moves — always oriented to using the system + Portal Studio's help.
+ * Thresholds are monthly income in agorot (₪ × 100).
+ */
+interface MoveTier {
+  maxCents: number;
+  title: string;
+  line: string;
+  ctaLabel: string;
+  ctaPath: string;
+}
+const MOVE_TIERS: MoveTier[] = [
+  {
+    maxCents: 1,
+    title: "המהלך הראשון שלך",
+    line: "כל עסק גדול התחיל מפעולה אחת קטנה. הגדר היום יעד אחד קצר — ואני אזכיר לך עליו. שתי דקות, ואתה בתנועה.",
+    ctaLabel: "להגדיר תזכורת",
+    ctaPath: "/app/agents/reminders",
+  },
+  {
+    maxCents: 500000,
+    title: "המהלך הבא שלך",
+    line: "יש לך תנועה — עכשיו נהפוך אותה לקצב. בחר פעולה קטנה אחת לשבוע, והמערכת תדאג שתקרה בזמן.",
+    ctaLabel: "לפתוח משימות",
+    ctaPath: "/app/businesses/{id}/tasks",
+  },
+  {
+    maxCents: 3000000,
+    title: "אתה בצמיחה — כדאי להאיץ",
+    line: "צמיחה אמיתית מבקשת מהלך גדול יותר. תן לסוכנים להפיק לך תוכן ומסמכים ולפנות לך זמן לגדול — במקום לרדוף אחרי הפרטים.",
+    ctaLabel: "לצוות הסוכנים",
+    ctaPath: "/app/businesses/{id}/agents",
+  },
+  {
+    maxCents: Number.MAX_SAFE_INTEGER,
+    title: "זה הזמן לנפץ תקרות",
+    line: "אתה מגלגל ברצינות — עכשיו לוקחים סיכון מחושב. בוא נבנה מהלך נועז יחד; Portal Studio כאן כדי להפוך רעיון שאפתני לתוצאה.",
+    ctaLabel: "לתכנן מהלך עם הסוכן הראשי",
+    ctaPath: "/app/agents/main",
+  },
+];
 
 function tint(varName: string, pct = 14): CSSProperties {
   return { backgroundColor: `color-mix(in srgb, var(${varName}) ${pct}%, white)` };
@@ -45,6 +91,28 @@ export default function Growth() {
     queryFn: () => billingApi.plans(businessId),
     enabled: Boolean(businessId),
   });
+  const invoices = useQuery({
+    queryKey: ["billing", "invoices", businessId],
+    queryFn: () => billingApi.invoices(businessId),
+    enabled: Boolean(businessId),
+  });
+
+  // Monthly revenue (paid invoices this month) drives the scaled "next move".
+  const monthIncome = useMemo(() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth();
+    return (invoices.data ?? [])
+      .filter((i) => {
+        if (i.status !== "paid" || !i.paidAt) return false;
+        const d = new Date(i.paidAt);
+        return d.getFullYear() === y && d.getMonth() === m;
+      })
+      .reduce((sum, i) => sum + i.amountCents, 0);
+  }, [invoices.data]);
+  const move =
+    MOVE_TIERS.find((t) => monthIncome < t.maxCents) ??
+    MOVE_TIERS[MOVE_TIERS.length - 1];
 
   const leadCount = (leads.data ?? []).length;
   const convoCount = (convos.data ?? []).length;
@@ -109,6 +177,30 @@ export default function Growth() {
           loading={convos.isLoading}
         />
       </div>
+
+      {/* Scaled motivational "next move" — grows bolder with revenue */}
+      <Card
+        className="p-6 mb-8 border-r-4"
+        style={{ borderRightColor: "var(--brand-accent)" }}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="min-w-0">
+            <div className="text-xs font-semibold text-brand-600 mb-1">
+              🎯 {move.title}
+            </div>
+            <p className="text-navy-800 leading-relaxed max-w-2xl">
+              {move.line}
+            </p>
+          </div>
+          <Link
+            to={move.ctaPath.replace("{id}", businessId)}
+            className="inline-flex items-center justify-center rounded-xl px-5 py-2.5 text-sm font-semibold text-white shrink-0 transition-opacity hover:opacity-90"
+            style={{ backgroundColor: "var(--brand-accent)" }}
+          >
+            {move.ctaLabel}
+          </Link>
+        </div>
+      </Card>
 
       {/* Upgrade */}
       <h2 className="text-sm font-semibold text-navy-700 mb-3">

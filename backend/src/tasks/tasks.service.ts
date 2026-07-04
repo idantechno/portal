@@ -73,6 +73,21 @@ export class TasksService {
     if (!res.affected) throw new NotFoundException('Task not found');
   }
 
+  /**
+   * True if any task (in any status) is already linked to this related entity.
+   * Used by automations to avoid raising the same reminder twice for a doc.
+   */
+  async existsForRelated(
+    businessId: string,
+    relatedType: string,
+    relatedId: string,
+  ): Promise<boolean> {
+    const n = await this.tasks.count({
+      where: { businessId, relatedType, relatedId },
+    });
+    return n > 0;
+  }
+
   /** Count of not-yet-done tasks — feeds the cockpit briefing. */
   openCount(businessId: string): Promise<number> {
     return this.tasks

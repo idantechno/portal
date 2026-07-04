@@ -18,6 +18,7 @@ import Calendar from "./pages/business/Calendar";
 import Leads from "./pages/business/Leads";
 import Tasks from "./pages/business/Tasks";
 import Automations from "./pages/business/Automations";
+import Growth from "./pages/business/Growth";
 import AgentStudio from "./pages/business/AgentStudio";
 import Integrations from "./pages/business/Integrations";
 import Billing from "./pages/business/Billing";
@@ -135,6 +136,7 @@ export default function App() {
         <Route path="tasks" element={<Tasks />} />
         <Route path="agents" element={<AgentStudio />} />
         <Route path="automations" element={<Automations />} />
+        <Route path="growth" element={<Growth />} />
         <Route path="integrations" element={<Integrations />} />
         <Route path="billing" element={<Billing />} />
         <Route path="members" element={<Members />} />

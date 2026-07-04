@@ -2,6 +2,7 @@ import { SYSTEM_PROMPT_DYNAMIC_BOUNDARY } from '@anthropic-ai/claude-agent-sdk';
 import { Business } from '../businesses/business.entity';
 import { Message } from '../conversations/message.entity';
 import { MessageRole } from '../common/enums/message-role.enum';
+import { renderOnboardingProfile } from '../agents/onboarding-context';
 
 // Static prefix — identical for every invocation, every business. Lives before
 // SYSTEM_PROMPT_DYNAMIC_BOUNDARY so the SDK can prompt-cache it.
@@ -37,6 +38,8 @@ function roleLabel(role: MessageRole): string {
 
 export function buildSystemPrompt(business: Business): string[] {
   const dynamicParts = [`You are assisting customers of ${business.name}.`];
+  const profile = renderOnboardingProfile(business);
+  if (profile) dynamicParts.push(profile);
   const override = business.systemPromptOverride?.trim();
   if (override) {
     dynamicParts.push(`--- Business-specific instructions ---\n${override}`);

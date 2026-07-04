@@ -1,6 +1,7 @@
 import { SYSTEM_PROMPT_DYNAMIC_BOUNDARY } from '@anthropic-ai/claude-agent-sdk';
 import { Business } from '../../businesses/business.entity';
 import { Task } from '../../tasks/task.entity';
+import { renderOnboardingProfile } from '../../agents/onboarding-context';
 import { bucketFor } from '../buckets';
 
 export interface ChatTurn {
@@ -51,6 +52,8 @@ export function buildRemindersSystemPrompt(
 ): string[] {
   const now = new Date();
   const dynamicLines = [`The business you are serving is: ${business.name}.`];
+  const profile = renderOnboardingProfile(business);
+  if (profile) dynamicLines.push(profile);
 
   if (reminders.length === 0) {
     dynamicLines.push('There are no open reminders right now.');

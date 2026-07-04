@@ -3,6 +3,7 @@ import type {
   Business,
   BusinessBranding,
   BusinessMember,
+  BusinessOnboarding,
   BusinessRole,
 } from "./types";
 
@@ -20,6 +21,7 @@ export const businessesApi = {
       publicKeyEnabled?: boolean;
       widgetAllowedOrigins?: string[];
       branding?: BusinessBranding;
+      onboarding?: BusinessOnboarding;
     },
   ) => api.patch<Business>(`/businesses/${id}`, input).then((r) => r.data),
 

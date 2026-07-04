@@ -16,6 +16,7 @@ import {
   Textarea,
 } from "../../components/ui";
 import BrandingCard from "../../components/BrandingCard";
+import BusinessProfileForm from "../../components/BusinessProfileForm";
 
 function buildSnippet(publicKey: string): string {
   const origin =
@@ -105,6 +106,14 @@ function SettingsForm({ businessId, business }: SettingsFormProps) {
       <header className="mb-6">
         <h1 className="text-2xl font-bold">{t("settings.title")}</h1>
       </header>
+
+      <Card className="p-6 mb-6">
+        <h2 className="font-semibold mb-1">אפיון העסק</h2>
+        <p className="text-xs text-navy-400 mb-4">
+          המידע כאן מוזרם לכל הסוכנים כדי שידברו ויפעלו בקו של העסק.
+        </p>
+        <BusinessProfileForm businessId={businessId} business={business} />
+      </Card>
 
       <BrandingCard businessId={businessId} business={business} />
 

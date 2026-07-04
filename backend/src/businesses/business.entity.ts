@@ -8,6 +8,30 @@ import {
 } from 'typeorm';
 import { AccountStatus } from '../common/enums/account-status.enum';
 
+/**
+ * Owner-supplied characterization of the business, captured once in an
+ * onboarding questionnaire and injected into every agent's context so all
+ * agents speak and act in line with the business. All fields optional.
+ */
+export interface BusinessOnboarding {
+  /** Marks the questionnaire as answered so we stop prompting for it. */
+  completed?: boolean;
+  /** What the business does / its field (e.g. "מסעדה איטלקית"). */
+  industry?: string;
+  /** Who the customers are. */
+  audience?: string;
+  /** Main products / services offered. */
+  offerings?: string;
+  /** Desired tone of voice toward customers (affects agent outputs). */
+  tone?: string;
+  /** Business goals for the coming period. */
+  goals?: string;
+  /** What sets the business apart from competitors. */
+  differentiators?: string;
+  /** Anything to emphasize or avoid saying. */
+  notes?: string;
+}
+
 /** Per-business look & feel applied across the cockpit UI. All optional. */
 export interface BusinessBranding {
   /** Main brand color — base for the sidebar/header. Hex `#rrggbb`. */
@@ -59,6 +83,9 @@ export class Business {
 
   @Column({ type: 'jsonb', name: 'branding', nullable: true })
   branding!: BusinessBranding | null;
+
+  @Column({ type: 'jsonb', name: 'onboarding', nullable: true })
+  onboarding!: BusinessOnboarding | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;

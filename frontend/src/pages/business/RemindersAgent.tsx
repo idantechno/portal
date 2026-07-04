@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiErrorMessage } from "../../api/client";
 import { type ChatTurn, remindersApi } from "../../api/reminders";
@@ -35,6 +36,15 @@ export default function RemindersAgent({ businessId }: { businessId: string }) {
     queryFn: () => tasksApi.list(businessId),
     enabled: Boolean(businessId),
   });
+
+  const ent = useQuery({
+    queryKey: ["reminders", "entitlement", businessId],
+    queryFn: () => remindersApi.entitlement(businessId),
+    enabled: Boolean(businessId),
+  });
+  const locked = ent.data?.locked ?? false;
+  const onTrial = Boolean(ent.data?.onTrial) && !ent.data?.paid;
+  const daysLeft = ent.data?.daysLeft ?? 0;
 
   const chat = useMutation({
     mutationFn: (history: ChatTurn[]) => remindersApi.chat(businessId, history),
@@ -79,6 +89,8 @@ export default function RemindersAgent({ businessId }: { businessId: string }) {
   const byBucket = (b: ReminderBucket) =>
     open.filter((t) => bucketOf(t.dueAt) === b);
 
+  if (locked) return <RemindersLocked businessId={businessId} />;
+
   return (
     <div className="h-full grid grid-cols-1 lg:grid-cols-[1fr_320px]">
       <div className="flex flex-col h-full min-h-0">
@@ -101,6 +113,16 @@ export default function RemindersAgent({ businessId }: { businessId: string }) {
             שיחה חדשה
           </Button>
         </header>
+
+        {onTrial && (
+          <Link
+            to={`/app/businesses/${businessId}/billing`}
+            className="block bg-amber-50 border-b border-amber-200 px-8 py-2.5 text-sm text-amber-800 hover:bg-amber-100 transition-colors"
+          >
+            ⏳ תקופת ניסיון — נותרו {daysLeft} ימים לסוכן התזכורות.{" "}
+            <span className="font-semibold underline">שדרג כדי להמשיך</span>
+          </Link>
+        )}
 
         <div className="flex-1 overflow-y-auto px-8 py-6 space-y-4">
           {messages.length === 0 && !chat.isPending && <EmptyState />}
@@ -241,6 +263,29 @@ function Message({ message }: { message: UIMessage }) {
           {message.content}
         </div>
       </div>
+    </div>
+  );
+}
+
+function RemindersLocked({ businessId }: { businessId: string }) {
+  return (
+    <div className="h-full flex items-center justify-center p-8">
+      <Card className="p-8 text-center max-w-md">
+        <div className="text-4xl mb-3">🔒</div>
+        <h2 className="text-lg font-bold text-navy-900 mb-2">
+          תקופת הניסיון של סוכן התזכורות הסתיימה
+        </h2>
+        <p className="text-sm text-navy-500 mb-5">
+          כדי להמשיך לקבל תזכורות חכמות שלא תפספס אף מעקב, שדרג לתוכנית בתשלום.
+          המשימות הקיימות שלך נשמרות.
+        </p>
+        <Link
+          to={`/app/businesses/${businessId}/billing`}
+          className="inline-flex items-center justify-center rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 transition-colors"
+        >
+          לצפייה בתוכניות ולשדרוג
+        </Link>
+      </Card>
     </div>
   );
 }

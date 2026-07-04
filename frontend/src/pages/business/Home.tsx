@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -7,7 +7,8 @@ import { leadsApi } from "../../api/leads";
 import { notificationsApi } from "../../api/notifications";
 import { businessesApi } from "../../api/businesses";
 import { useAuthStore } from "../../store/auth";
-import { Card } from "../../components/ui";
+import { Button, Card } from "../../components/ui";
+import BusinessProfileForm from "../../components/BusinessProfileForm";
 
 function greeting(): string {
   const h = new Date().getHours();
@@ -63,6 +64,8 @@ export default function Home() {
 
   const branding = biz.data?.branding ?? null;
   const firstName = user?.name ? user.name.split(" ")[0] : "";
+  const [showProfile, setShowProfile] = useState(false);
+  const needsOnboarding = Boolean(biz.data) && !biz.data?.onboarding?.completed;
 
   return (
     <div className="p-6 md:p-8 max-w-5xl mx-auto">
@@ -96,6 +99,34 @@ export default function Home() {
           </p>
         </div>
       </div>
+
+      {/* First-run: get to know the business (feeds all agents) */}
+      {needsOnboarding && biz.data && (
+        <Card className="p-5 mb-6 border-brand-200 bg-brand-50/50">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <div className="font-semibold text-navy-900">
+                בוא נכיר את העסק שלך ✨
+              </div>
+              <p className="text-sm text-navy-500 mt-0.5">
+                כמה שאלות קצרות — וכל הסוכנים יעבדו בול לפי העסק שלך.
+              </p>
+            </div>
+            <Button size="sm" onClick={() => setShowProfile((v) => !v)}>
+              {showProfile ? "סגור" : "בוא נתחיל"}
+            </Button>
+          </div>
+          {showProfile && (
+            <div className="mt-5 pt-5 border-t border-brand-100">
+              <BusinessProfileForm
+                businessId={businessId}
+                business={biz.data}
+                onSaved={() => setShowProfile(false)}
+              />
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">

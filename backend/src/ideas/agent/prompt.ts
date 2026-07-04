@@ -1,6 +1,7 @@
 import { SYSTEM_PROMPT_DYNAMIC_BOUNDARY } from '@anthropic-ai/claude-agent-sdk';
 import { Business } from '../../businesses/business.entity';
 import { Idea } from '../idea.entity';
+import { renderOnboardingProfile } from '../../agents/onboarding-context';
 
 export interface ChatTurn {
   role: 'user' | 'assistant';
@@ -37,6 +38,8 @@ export function buildIdeasSystemPrompt(
   ideas: Idea[],
 ): string[] {
   const dynamicLines = [`The business you are serving is: ${business.name}.`];
+  const profile = renderOnboardingProfile(business);
+  if (profile) dynamicLines.push(profile);
 
   if (ideas.length === 0) {
     dynamicLines.push('This business has no saved ideas yet.');

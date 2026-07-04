@@ -70,6 +70,7 @@ export default function BusinessLayout() {
     {
       title: "צמיחה",
       items: [
+        { to: "growth", label: "סטטוס וצמיחה", icon: "📈", show: true },
         { to: "automations", label: "אוטומציות", icon: "⚡", show: true },
         { to: "integrations", label: "אינטגרציות", icon: "🔗", show: true },
       ],

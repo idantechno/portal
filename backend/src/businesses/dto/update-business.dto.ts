@@ -36,6 +36,47 @@ export class BrandingDto {
   slogan?: string;
 }
 
+export class OnboardingDto {
+  @IsOptional()
+  @IsBoolean()
+  completed?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  industry?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  audience?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  offerings?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  tone?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  goals?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  differentiators?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  notes?: string;
+}
+
 export class UpdateBusinessDto {
   @IsOptional()
   @IsString()
@@ -69,4 +110,9 @@ export class UpdateBusinessDto {
   @ValidateNested()
   @Type(() => BrandingDto)
   branding?: BrandingDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => OnboardingDto)
+  onboarding?: OnboardingDto;
 }

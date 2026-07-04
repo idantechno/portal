@@ -26,6 +26,17 @@ export interface BusinessBranding {
   slogan?: string;
 }
 
+export interface BusinessOnboarding {
+  completed?: boolean;
+  industry?: string;
+  audience?: string;
+  offerings?: string;
+  tone?: string;
+  goals?: string;
+  differentiators?: string;
+  notes?: string;
+}
+
 export interface Business {
   id: string;
   name: string;
@@ -37,6 +48,7 @@ export interface Business {
   systemPromptOverride: string | null;
   widgetAllowedOrigins: string[];
   branding?: BusinessBranding | null;
+  onboarding?: BusinessOnboarding | null;
   createdAt: string;
   updatedAt: string;
   /** The current caller's role in this business (null for platform staff). */

@@ -106,6 +106,12 @@ export class BusinessesService {
       // Merge so a partial update (e.g. only colors) doesn't wipe the logo.
       business.branding = { ...(business.branding ?? {}), ...dto.branding };
     }
+    if (dto.onboarding !== undefined) {
+      business.onboarding = {
+        ...(business.onboarding ?? {}),
+        ...dto.onboarding,
+      };
+    }
     return this.businesses.save(business);
   }
 

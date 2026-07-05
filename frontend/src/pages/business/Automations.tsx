@@ -66,8 +66,8 @@ export default function Automations() {
   const items = rules.data ?? [];
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
-      <header className="mb-6 flex items-start justify-between">
+    <div className="p-4 sm:p-8 max-w-4xl mx-auto">
+      <header className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-navy-900 mb-1">אוטומציות</h1>
           <p className="text-navy-500 text-sm">
@@ -102,7 +102,7 @@ export default function Automations() {
       <div className="space-y-3">
         {items.map((rule) => (
           <Card key={rule.id} className="p-4">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <button
                 onClick={() => toggleMut.mutate(rule)}
                 className={`relative h-6 w-11 rounded-full transition-colors shrink-0 ${

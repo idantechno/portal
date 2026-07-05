@@ -16,7 +16,7 @@ export default function Leads() {
   const items = leads.data ?? [];
 
   return (
-    <div className="p-8 max-w-5xl mx-auto">
+    <div className="px-4 sm:px-6 py-6 sm:py-8 max-w-5xl mx-auto">
       <header className="mb-6">
         <h1 className="text-2xl font-bold mb-1">{t("leads.title")}</h1>
         <p className="text-neutral-600 text-sm">{t("leads.subtitle")}</p>
@@ -32,7 +32,8 @@ export default function Leads() {
       )}
       {items.length > 0 && (
         <Card className="overflow-hidden">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[720px]">
             <thead className="bg-neutral-50 text-neutral-500 text-xs uppercase">
               <tr>
                 <th className="text-start px-4 py-3">{t("leads.name")}</th>
@@ -66,6 +67,7 @@ export default function Leads() {
               ))}
             </tbody>
           </table>
+          </div>
         </Card>
       )}
     </div>

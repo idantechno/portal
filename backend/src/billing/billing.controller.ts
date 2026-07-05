@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Param,
   ParseUUIDPipe,
@@ -9,6 +10,9 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { BusinessScopeGuard } from '../businesses/guards/business-scope.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { AuthenticatedUser } from '../auth/auth.types';
+import { isPlatformStaff } from '../common/enums/user-role.enum';
 import { BillingService } from './billing.service';
 import { StripeService } from './stripe.service';
 import { SetPlanDto } from './dto/set-plan.dto';
@@ -54,11 +58,23 @@ export class BillingController {
     return this.billing.getSubscription(businessId);
   }
 
+  /**
+   * Manually set a plan WITHOUT payment. This bypasses Stripe checkout, so it
+   * is restricted to platform staff (the operator) — a business member must go
+   * through /checkout. Otherwise any member could self-upgrade to a paid plan
+   * for free and defeat every paywall (reminders trial, entitlements).
+   */
   @Put('subscription')
   setPlan(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Body() dto: SetPlanDto,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
+    if (!isPlatformStaff(user.role)) {
+      throw new ForbiddenException(
+        'PLAN_CHANGE_REQUIRES_CHECKOUT: use the checkout flow to change plans',
+      );
+    }
     return this.billing.setPlan(businessId, dto.planCode);
   }
 

@@ -11,6 +11,7 @@ import { CustomerContactsService } from '../conversations/customer-contacts.serv
 import { Channel } from '../common/enums/channel.enum';
 import { MessageRole } from '../common/enums/message-role.enum';
 import { ConversationStatus } from '../common/enums/conversation-status.enum';
+import { AccountStatus } from '../common/enums/account-status.enum';
 import { Conversation } from '../conversations/conversation.entity';
 import { Message } from '../conversations/message.entity';
 
@@ -47,6 +48,10 @@ export class WidgetService {
   }> {
     const business = await this.businesses.findByPublicKey(publicKey);
     if (!business) {
+      throw new NotFoundException('Unknown widget public key');
+    }
+    // A suspended tenant's widget must not keep generating billable agent runs.
+    if (business.status === AccountStatus.Suspended) {
       throw new NotFoundException('Unknown widget public key');
     }
     const sessionToken = generateSessionToken();
@@ -86,7 +91,10 @@ export class WidgetService {
     sessionToken: string,
     content: string,
   ): Promise<Message> {
-    const { conversation } = await this.resolve(sessionToken);
+    const { business, conversation } = await this.resolve(sessionToken);
+    if (business.status === AccountStatus.Suspended) {
+      throw new UnauthorizedException('This chat is not available');
+    }
     if (conversation.status === ConversationStatus.Closed) {
       throw new UnauthorizedException('Conversation is closed');
     }

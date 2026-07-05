@@ -42,7 +42,7 @@ export default function Settings() {
   });
 
   if (biz.isLoading || !biz.data) {
-    return <div className="p-8 text-neutral-500 text-sm">{t("common.loading")}</div>;
+    return <div className="p-4 sm:p-8 text-neutral-500 text-sm">{t("common.loading")}</div>;
   }
 
   return <SettingsForm businessId={businessId} business={biz.data} />;
@@ -102,7 +102,7 @@ function SettingsForm({ businessId, business }: SettingsFormProps) {
   }
 
   return (
-    <div className="p-8 max-w-3xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-3xl mx-auto">
       <header className="mb-6">
         <h1 className="text-2xl font-bold">{t("settings.title")}</h1>
       </header>

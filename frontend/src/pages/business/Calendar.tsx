@@ -172,9 +172,9 @@ export default function Calendar() {
   const selectedItems = itemsOn(selected);
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
-      <header className="mb-4 flex items-center justify-between gap-4">
-        <div>
+    <div className="px-4 sm:px-6 py-6 sm:py-8 max-w-4xl mx-auto">
+      <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-navy-900">יומן</h1>
           <p className="text-navy-500 text-sm">
             {connected
@@ -211,13 +211,13 @@ export default function Calendar() {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="אירוע חדש..."
-            className="flex-1 min-w-[160px] rounded-lg border border-navy-200 bg-white px-3 py-1.5 text-sm focus:border-brand-400 focus:ring-2 focus:ring-brand-100 focus:outline-none"
+            className="flex-1 w-full sm:w-auto sm:min-w-[160px] rounded-lg border border-navy-200 bg-white px-3 py-1.5 text-sm focus:border-brand-400 focus:ring-2 focus:ring-brand-100 focus:outline-none"
           />
           <input
             type="datetime-local"
             value={when}
             onChange={(e) => setWhen(e.target.value)}
-            className="rounded-lg border border-navy-200 bg-white px-3 py-1.5 text-sm focus:border-brand-400 focus:ring-2 focus:ring-brand-100 focus:outline-none"
+            className="w-full sm:w-auto min-w-0 rounded-lg border border-navy-200 bg-white px-3 py-1.5 text-sm focus:border-brand-400 focus:ring-2 focus:ring-brand-100 focus:outline-none"
           />
           <Button
             type="submit"
@@ -251,7 +251,7 @@ export default function Calendar() {
               <button
                 key={d.toISOString()}
                 onClick={() => setSelected(new Date(d))}
-                className={`min-h-[76px] border-b border-e border-navy-50 p-1.5 text-start align-top transition-colors ${
+                className={`min-w-0 min-h-[60px] sm:min-h-[76px] border-b border-e border-navy-50 p-1 sm:p-1.5 text-start align-top transition-colors ${
                   inMonth ? "bg-white" : "bg-neutral-50/60"
                 } ${isSel ? "ring-2 ring-brand-300 ring-inset" : "hover:bg-cream-50"}`}
               >

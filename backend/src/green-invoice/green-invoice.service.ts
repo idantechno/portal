@@ -135,7 +135,9 @@ export class GreenInvoiceService {
     });
     if (!res.ok) {
       const detail = await res.text().catch(() => '');
-      this.log.error(`[green-invoice] document failed ${res.status}: ${detail.slice(0, 300)}`);
+      this.log.error(
+        `[green-invoice] document failed ${res.status}: ${detail.slice(0, 300)}`,
+      );
       throw new BadRequestException(`GREEN_INVOICE_ISSUE_FAILED_${res.status}`);
     }
     const doc = (await res.json()) as {
@@ -144,7 +146,7 @@ export class GreenInvoiceService {
       url?: { origin?: string } | string;
     };
     const url =
-      typeof doc.url === 'string' ? doc.url : doc.url?.origin ?? undefined;
+      typeof doc.url === 'string' ? doc.url : (doc.url?.origin ?? undefined);
     return { id: doc.id ?? '', number: doc.number, url };
   }
 

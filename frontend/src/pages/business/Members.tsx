@@ -89,14 +89,15 @@ export default function Members() {
   const ownerUserId = biz.data?.ownerUserId;
 
   return (
-    <div className="p-8 max-w-3xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-3xl mx-auto">
       <header className="mb-6">
         <h1 className="text-2xl font-bold">{t("members.title")}</h1>
         <p className="text-sm text-neutral-500 mt-1">{t("members.subtitle")}</p>
       </header>
 
       <Card className="overflow-hidden mb-6">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full text-sm min-w-[28rem]">
           <thead className="bg-neutral-50 text-neutral-500 text-xs uppercase">
             <tr>
               <th className="text-start font-medium px-4 py-3">{t("members.name")}</th>
@@ -177,6 +178,7 @@ export default function Members() {
             })}
           </tbody>
         </table>
+        </div>
         {members.isLoading && (
           <div className="p-6 text-sm text-neutral-500">{t("common.loading")}</div>
         )}

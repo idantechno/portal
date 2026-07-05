@@ -94,8 +94,8 @@ export default function RemindersAgent({ businessId }: { businessId: string }) {
   return (
     <div className="h-full grid grid-cols-1 lg:grid-cols-[1fr_320px]">
       <div className="flex flex-col h-full min-h-0">
-        <header className="px-8 py-5 border-b border-neutral-200 bg-white flex items-center justify-between">
-          <div>
+        <header className="px-4 sm:px-8 py-5 border-b border-neutral-200 bg-white flex items-center justify-between gap-3">
+          <div className="min-w-0">
             <h1 className="text-xl font-bold">סוכן תזכורות</h1>
             <p className="text-sm text-neutral-500">
               שלא תשכח כלום — בקש ממני להזכיר, לדחות, לסמן כבוצע, או לשאול "מה
@@ -105,6 +105,7 @@ export default function RemindersAgent({ businessId }: { businessId: string }) {
           <Button
             variant="secondary"
             size="sm"
+            className="shrink-0"
             onClick={() => {
               setMessages([]);
               setError(null);
@@ -117,14 +118,14 @@ export default function RemindersAgent({ businessId }: { businessId: string }) {
         {onTrial && (
           <Link
             to={`/app/businesses/${businessId}/billing`}
-            className="block bg-amber-50 border-b border-amber-200 px-8 py-2.5 text-sm text-amber-800 hover:bg-amber-100 transition-colors"
+            className="block bg-amber-50 border-b border-amber-200 px-4 sm:px-8 py-2.5 text-sm text-amber-800 hover:bg-amber-100 transition-colors"
           >
             ⏳ תקופת ניסיון — נותרו {daysLeft} ימים לסוכן התזכורות.{" "}
             <span className="font-semibold underline">שדרג כדי להמשיך</span>
           </Link>
         )}
 
-        <div className="flex-1 overflow-y-auto px-8 py-6 space-y-4">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-6 space-y-4">
           {messages.length === 0 && !chat.isPending && <EmptyState />}
           {messages.map((m, i) => (
             <Message key={i} message={m} />
@@ -139,7 +140,7 @@ export default function RemindersAgent({ businessId }: { businessId: string }) {
 
         <form
           onSubmit={onSend}
-          className="border-t border-neutral-200 bg-white px-8 py-4"
+          className="border-t border-neutral-200 bg-white px-4 sm:px-8 py-4"
         >
           <FormError message={error} />
           <div className="flex gap-2 items-end mt-2">
@@ -155,12 +156,13 @@ export default function RemindersAgent({ businessId }: { businessId: string }) {
               disabled={chat.isPending}
               rows={2}
               placeholder="לדוגמה: 'תזכיר לי להתקשר לדנה מחר ב-10' או 'מה יש לי היום?'"
-              className="flex-1 block rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm focus:bg-white focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none resize-none"
+              className="flex-1 min-w-0 block rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm focus:bg-white focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none resize-none"
             />
             <Button
               type="submit"
               disabled={!draft.trim() || chat.isPending}
               size="md"
+              className="shrink-0"
             >
               שלח
             </Button>
@@ -239,7 +241,7 @@ function ReminderItem({
         <button
           onClick={onDone}
           disabled={doing}
-          className="text-[10px] font-medium text-brand-600 hover:underline disabled:opacity-50"
+          className="text-xs font-medium text-brand-600 hover:underline disabled:opacity-50 px-2 py-1 -me-2"
         >
           {doing ? "..." : "בוצע ✓"}
         </button>
@@ -255,8 +257,8 @@ function Message({ message }: { message: UIMessage }) {
       <div
         className={
           isUser
-            ? "max-w-[80%] rounded-2xl rounded-tr-sm bg-brand-600 text-white px-4 py-3 text-sm"
-            : "max-w-[80%] rounded-2xl rounded-tl-sm bg-white border border-neutral-200 text-neutral-900 px-4 py-3 text-sm shadow-sm"
+            ? "max-w-[85%] sm:max-w-[75%] rounded-2xl rounded-se-sm bg-brand-600 text-white px-4 py-3 text-sm"
+            : "max-w-[85%] sm:max-w-[75%] rounded-2xl rounded-ss-sm bg-white border border-neutral-200 text-neutral-900 px-4 py-3 text-sm shadow-sm"
         }
       >
         <div className="whitespace-pre-wrap leading-relaxed">

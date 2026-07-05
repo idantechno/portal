@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AutomationsService } from '../automations/automations.service';
@@ -68,5 +68,21 @@ export class LeadsService {
       where: { businessId },
       order: { createdAt: 'DESC' },
     });
+  }
+
+  findByIdScoped(businessId: string, id: string): Promise<Lead | null> {
+    return this.leads.findOne({ where: { id, businessId } });
+  }
+
+  /** CRM edits: update the free-text notes on a lead (scoped by business). */
+  async updateNotes(
+    businessId: string,
+    id: string,
+    notes: string,
+  ): Promise<Lead> {
+    const lead = await this.leads.findOne({ where: { id, businessId } });
+    if (!lead) throw new NotFoundException('Lead not found');
+    lead.notes = notes;
+    return this.leads.save(lead);
   }
 }

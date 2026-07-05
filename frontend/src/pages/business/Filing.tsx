@@ -61,7 +61,7 @@ export default function Filing() {
   ];
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
+    <div className="px-4 sm:px-6 py-6 sm:py-8 max-w-4xl mx-auto">
       <header className="mb-6">
         <h1 className="text-2xl font-bold text-navy-900 mb-1">מסמכים</h1>
         <p className="text-navy-500 text-sm">
@@ -206,7 +206,7 @@ function FileRow({
       <select
         value={doc.folder}
         onChange={(e) => onMove(e.target.value)}
-        className="text-xs rounded-md border border-navy-200 bg-white px-2 py-1 text-navy-600"
+        className="text-xs rounded-md border border-navy-200 bg-white px-2 py-1 text-navy-600 shrink-0 max-w-[100px] sm:max-w-none"
         title="העבר לתיקייה"
       >
         {folders.map((f) => (
@@ -218,7 +218,7 @@ function FileRow({
       <button
         onClick={onRemove}
         disabled={removing}
-        className="text-xs text-navy-400 hover:text-red-600 disabled:opacity-50"
+        className="text-xs text-navy-400 hover:text-red-600 disabled:opacity-50 shrink-0"
       >
         {removing ? "מוחק..." : "מחק"}
       </button>

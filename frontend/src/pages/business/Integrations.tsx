@@ -47,7 +47,7 @@ export default function Integrations() {
     items.find((i) => i.provider === "gmail")?.status === "connected";
 
   return (
-    <div className="p-8 max-w-3xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-3xl mx-auto">
       <header className="mb-6">
         <h1 className="text-2xl font-bold text-navy-900 mb-1">אינטגרציות</h1>
         <p className="text-navy-500 text-sm">
@@ -121,7 +121,7 @@ function ProviderRow({
       </div>
       <div className="flex-1 min-w-0">
         <div className="font-semibold text-navy-900 text-sm">{it.name}</div>
-        <div className="text-xs text-navy-400">
+        <div className="text-xs text-navy-400 truncate">
           {connected
             ? `מחובר${it.accountEmail ? ` · ${it.accountEmail}` : ""}`
             : it.description}

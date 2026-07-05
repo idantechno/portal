@@ -52,6 +52,21 @@ export function buildRemindersSystemPrompt(
 ): string[] {
   const now = new Date();
   const dynamicLines = [`The business you are serving is: ${business.name}.`];
+  // The agent MUST know "today" to resolve relative dates ("מחר", "יום ראשון").
+  // Give it the current Israel date + weekday explicitly — never make it guess.
+  const israelNow = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Jerusalem',
+    weekday: 'long',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(now);
+  dynamicLines.push(
+    `Current date & time in Israel (Asia/Jerusalem): ${israelNow}. Resolve every relative day ("מחר", "יום ראשון הבא") against THIS date.`,
+  );
   const profile = renderOnboardingProfile(business);
   if (profile) dynamicLines.push(profile);
 

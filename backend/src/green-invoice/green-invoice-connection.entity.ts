@@ -34,7 +34,12 @@ export class GreenInvoiceConnection {
   @Column({ type: 'varchar', length: 16, default: 'disconnected' })
   status!: GreenInvoiceStatus;
 
-  @Column({ type: 'varchar', length: 255, name: 'account_name', nullable: true })
+  @Column({
+    type: 'varchar',
+    length: 255,
+    name: 'account_name',
+    nullable: true,
+  })
   accountName!: string | null;
 
   @Column({ type: 'timestamptz', name: 'connected_at', nullable: true })

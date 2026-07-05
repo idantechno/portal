@@ -57,7 +57,7 @@ export const AGENT_CATALOG: readonly AgentDefinition[] = [
     description:
       'הכניסה למערכת: מכיר את כל הסוכנים, מפנה אותך לְמה שאתה צריך, ומעביר פניות לצוות.',
     icon: '🧭',
-    defaultEnabled: true,
+    defaultEnabled: false,
     status: 'live',
     pillar: 'orchestration',
   },
@@ -66,7 +66,7 @@ export const AGENT_CATALOG: readonly AgentDefinition[] = [
     name: 'סוכן צ׳אט',
     description: 'מענה אוטומטי ללקוחות ב-WhatsApp ובווידג׳ט האתר.',
     icon: '💬',
-    defaultEnabled: true,
+    defaultEnabled: false,
     status: 'live',
     pillar: 'conversations',
   },
@@ -76,8 +76,10 @@ export const AGENT_CATALOG: readonly AgentDefinition[] = [
     description:
       'הלב של המערכת: קורא את ההקשר העסקי ומנתב כל משימה לסוכן המתאים.',
     icon: '🧭',
-    defaultEnabled: false,
-    status: 'soon',
+    // The router is the always-available entry point — never admin-gated, so a
+    // business always has somewhere to start and get pointed to the right agent.
+    defaultEnabled: true,
+    status: 'live',
     pillar: 'orchestration',
   },
   {
@@ -86,7 +88,7 @@ export const AGENT_CATALOG: readonly AgentDefinition[] = [
     description: 'מעקב אחרי לידים, נרצ׳רינג ודחיפת עסקאות לסגירה.',
     icon: '🤝',
     defaultEnabled: false,
-    status: 'soon',
+    status: 'live',
     pillar: 'sales',
   },
   {
@@ -96,7 +98,7 @@ export const AGENT_CATALOG: readonly AgentDefinition[] = [
       'תחזוקת רשומות לקוח: העשרה, תיוג, עדכון סטטוס ומניעת כפילויות.',
     icon: '🗂️',
     defaultEnabled: false,
-    status: 'soon',
+    status: 'live',
     pillar: 'sales',
   },
   {
@@ -114,7 +116,7 @@ export const AGENT_CATALOG: readonly AgentDefinition[] = [
     description: 'בניית הצעות מחיר מתומחרות מתוך בקשת הלקוח.',
     icon: '💰',
     defaultEnabled: false,
-    status: 'soon',
+    status: 'live',
     pillar: 'documents',
   },
   {
@@ -123,7 +125,7 @@ export const AGENT_CATALOG: readonly AgentDefinition[] = [
     description: 'חשבוניות, מעקב תשלומים והוצאות עבור עסקאות שנסגרו.',
     icon: '🧾',
     defaultEnabled: false,
-    status: 'soon',
+    status: 'live',
     pillar: 'finance',
   },
   {
@@ -131,7 +133,7 @@ export const AGENT_CATALOG: readonly AgentDefinition[] = [
     name: 'סוכן שיווק',
     description: 'ניסוח תוכן, פוסטים לרשתות, קמפיינים וקופי מותג.',
     icon: '📣',
-    defaultEnabled: true,
+    defaultEnabled: false,
     status: 'live',
     pillar: 'content',
   },
@@ -140,7 +142,7 @@ export const AGENT_CATALOG: readonly AgentDefinition[] = [
     name: 'סוכן אנליטיקה',
     description: 'תובנות והמלצות "מה לשפר השבוע" מתוך נתוני העסק.',
     icon: '📊',
-    defaultEnabled: true,
+    defaultEnabled: false,
     status: 'live',
     pillar: 'growth',
   },
@@ -170,7 +172,7 @@ export const AGENT_CATALOG: readonly AgentDefinition[] = [
     description:
       'שלא תשכח מעקבים ומשימות: תזכורות עם תאריך יעד — באיחור / היום / בקרוב.',
     icon: '⏰',
-    defaultEnabled: true,
+    defaultEnabled: false,
     status: 'live',
     pillar: 'growth',
   },

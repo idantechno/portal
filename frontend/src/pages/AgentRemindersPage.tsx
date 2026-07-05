@@ -26,15 +26,15 @@ export default function AgentRemindersPage() {
   return (
     <div className="h-screen flex flex-col bg-neutral-50">
       <header className="border-b border-neutral-200 bg-white shrink-0">
-        <div className="px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link to="/app" className="font-semibold text-brand-700">
+        <div className="px-4 sm:px-6 h-14 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+            <Link to="/app" className="font-semibold text-brand-700 shrink-0">
               {t("appName")}
             </Link>
-            <span className="text-neutral-300">/</span>
-            <span className="text-sm font-medium">סוכן תזכורות</span>
+            <span className="text-neutral-300 hidden sm:inline">/</span>
+            <span className="text-sm font-medium truncate hidden sm:inline">סוכן תזכורות</span>
           </div>
-          <div className="flex items-center gap-3 text-sm">
+          <div className="flex items-center gap-2 sm:gap-3 text-sm shrink-0">
             {list.length > 1 && activeBusiness && (
               <select
                 value={activeBusiness.id}
@@ -48,7 +48,7 @@ export default function AgentRemindersPage() {
                 ))}
               </select>
             )}
-            <span className="text-neutral-600">{user?.name}</span>
+            <span className="text-neutral-600 hidden sm:inline truncate max-w-32">{user?.name}</span>
             <button
               className="text-neutral-500 hover:text-neutral-800"
               onClick={() =>

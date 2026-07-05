@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { BillingService } from './billing.service';
 import { getPlan } from './billing-plans';
@@ -69,7 +65,9 @@ export class StripeService {
     });
     if (!res.ok) {
       const detail = await res.text().catch(() => '');
-      this.log.error(`[stripe] ${method} ${path} -> ${res.status}: ${detail.slice(0, 300)}`);
+      this.log.error(
+        `[stripe] ${method} ${path} -> ${res.status}: ${detail.slice(0, 300)}`,
+      );
       throw new BadRequestException(`STRIPE_ERROR_${res.status}`);
     }
     return (await res.json()) as T;

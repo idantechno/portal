@@ -6,9 +6,14 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 import { CryptoService } from '../common/crypto/crypto.service';
 import { Integration, IntegrationProvider } from './integration.entity';
 import { getProviderDef, INTEGRATION_PROVIDERS } from './integration.constants';
+
+/** OAuth state is valid for 15 minutes — long enough to consent, short enough
+ * to bound replay of a signed state. */
+const OAUTH_STATE_TTL_MS = 15 * 60 * 1000;
 
 /** Subset of Google's token endpoint response we care about. */
 interface GoogleTokenResponse {
@@ -65,7 +70,7 @@ export class IntegrationsService {
 
   /** Absolute frontend URL to bounce back to on a failed/denied consent. */
   errorRedirectUrl(state: string | undefined, reason: string): string {
-    const [businessId] = (state ?? '').split(':');
+    const businessId = this.verifyState(state)?.businessId;
     const base = businessId
       ? `${this.frontendUrl()}/app/businesses/${businessId}/integrations`
       : `${this.frontendUrl()}/app`;
@@ -97,7 +102,66 @@ export class IntegrationsService {
    * configured — the operator must set GOOGLE_CLIENT_ID/SECRET and a redirect
    * URI first. The token exchange in the callback is handled separately.
    */
-  authUrl(businessId: string, provider: IntegrationProvider): string {
+  /** Secret used to sign OAuth state. Reuses the app encryption key. */
+  private stateSecret(): string {
+    const key = this.config.get<string>('APP_ENCRYPTION_KEY');
+    if (!key) throw new BadRequestException('APP_ENCRYPTION_KEY not set');
+    return key;
+  }
+
+  /**
+   * Signs OAuth state so the callback can only accept states WE issued from an
+   * authenticated, membership-checked authUrl call. Without this, the callback
+   * (necessarily public — Google redirects a browser to it) would trust a
+   * hand-crafted `state=<victimBusinessId>:gmail`, letting an attacker bind
+   * their own Google account to someone else's business.
+   * Format: base64url(businessId:provider:userId:issuedAtMs).hmacHex
+   */
+  private signState(
+    businessId: string,
+    provider: IntegrationProvider,
+    userId: string,
+  ): string {
+    const payload = Buffer.from(
+      `${businessId}:${provider}:${userId}:${Date.now()}`,
+    ).toString('base64url');
+    const sig = createHmac('sha256', this.stateSecret())
+      .update(payload)
+      .digest('hex');
+    return `${payload}.${sig}`;
+  }
+
+  /** Verifies a signed state; returns its parts or null if forged/expired. */
+  verifyState(state: string | undefined): {
+    businessId: string;
+    provider: string;
+    userId: string;
+  } | null {
+    if (!state || !state.includes('.')) return null;
+    const [payload, sig] = state.split('.');
+    if (!payload || !sig) return null;
+    const expected = createHmac('sha256', this.stateSecret())
+      .update(payload)
+      .digest('hex');
+    const a = Buffer.from(sig);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
+    const [businessId, provider, userId, issuedAt] = Buffer.from(
+      payload,
+      'base64url',
+    )
+      .toString('utf8')
+      .split(':');
+    if (!businessId || !provider || !userId || !issuedAt) return null;
+    if (Date.now() - Number(issuedAt) > OAUTH_STATE_TTL_MS) return null;
+    return { businessId, provider, userId };
+  }
+
+  authUrl(
+    businessId: string,
+    provider: IntegrationProvider,
+    userId: string,
+  ): string {
     if (!this.googleConfigured()) {
       throw new BadRequestException('GOOGLE_OAUTH_NOT_CONFIGURED');
     }
@@ -113,8 +177,8 @@ export class IntegrationsService {
       include_granted_scopes: 'true',
       // openid+email let us identify which Google account connected.
       scope: ['openid', 'email', ...def.scopes].join(' '),
-      // Carries which business + provider this consent is for.
-      state: `${businessId}:${provider}`,
+      // Signed so the public callback can't be fed a forged business id.
+      state: this.signState(businessId, provider, userId),
     });
     return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
   }
@@ -125,11 +189,16 @@ export class IntegrationsService {
    * the frontend URL to redirect the browser back to.
    */
   async handleCallback(code: string, state: string): Promise<string> {
-    const [businessId, provider] = (state ?? '').split(':');
+    // Reject any state we didn't sign (forged/expired) BEFORE touching tokens.
+    const verified = this.verifyState(state);
+    if (!verified) {
+      return `${this.frontendUrl()}/app?error=bad_state`;
+    }
+    const { businessId, provider } = verified;
     const def = getProviderDef(provider);
     const fail = (reason: string) =>
       `${this.frontendUrl()}/app/businesses/${businessId}/integrations?error=${reason}`;
-    if (!businessId || !def) return fail('bad_state');
+    if (!def) return fail('bad_state');
     if (!this.googleConfigured()) return fail('not_configured');
 
     try {

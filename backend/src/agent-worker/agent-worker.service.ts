@@ -103,6 +103,15 @@ export class AgentWorkerService {
       conversation.id,
     );
 
+    // A human may have taken the conversation over while the LLM was running.
+    // Don't talk over the human agent — drop the generated reply.
+    if (refreshed.status !== ConversationStatus.Bot) {
+      this.log.log(
+        `Conversation ${conversation.id} left bot status mid-run (status=${refreshed.status}); dropping reply.`,
+      );
+      return;
+    }
+
     const reply = await this.conversations.appendMessage({
       businessId: business.id,
       conversationId: conversation.id,
@@ -112,12 +121,21 @@ export class AgentWorkerService {
 
     try {
       const result = await this.channels.dispatch(refreshed, reply);
-      if (result.externalMessageId) {
-        reply.externalMessageId = result.externalMessageId;
-      }
+      await this.conversations.markDelivery(
+        reply,
+        'sent',
+        result.externalMessageId,
+      );
     } catch (err) {
-      this.log.warn(
-        `Channel dispatch skipped for ${refreshed.channel}: ${(err as Error).message}`,
+      // The reply is stored but never reached the customer. Mark it failed so
+      // the inbox surfaces it as undelivered rather than silently pretending it
+      // was sent. We deliberately do NOT rethrow: a BullMQ retry would re-run
+      // the LLM and append a *second* bot reply. Redispatching the existing
+      // reply is a follow-up; for now a failed dispatch is a visible, logged,
+      // operator-actionable state instead of silent data loss.
+      await this.conversations.markDelivery(reply, 'failed');
+      this.log.error(
+        `Channel dispatch FAILED for ${refreshed.channel} on conversation ${conversation.id}: ${(err as Error).message}`,
       );
     }
   }

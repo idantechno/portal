@@ -1,19 +1,14 @@
 /**
- * Maps an agent key to the in-app route that opens it. Standalone agents have
- * their own top-level page; chat opens the business inbox; other generative
- * agents open the agent studio inside the business. Returns undefined when a
- * business-scoped agent has no business to route to.
+ * Uniform routing: every agent opens its OWN page under the business cockpit at
+ * /app/businesses/:id/agents/:key. The one exception is `chat` — the WhatsApp/
+ * widget bot — whose "page" is the live inbox. Returns undefined when there is
+ * no business to scope to.
  */
 export function agentRoute(
   key: string,
   businessId?: string,
 ): string | undefined {
-  if (key === "main") return "/app/agents/main";
-  if (key === "documents") return "/app/agents/documents";
-  if (key === "ideas") return "/app/agents/ideas";
-  if (key === "designer") return "/app/agents/designer";
-  if (key === "reminders") return "/app/agents/reminders";
-  if (key === "chat")
-    return businessId ? `/app/businesses/${businessId}/inbox` : undefined;
-  return businessId ? `/app/businesses/${businessId}/agents` : undefined;
+  if (!businessId) return undefined;
+  if (key === "chat") return `/app/businesses/${businessId}/inbox`;
+  return `/app/businesses/${businessId}/agents/${key}`;
 }

@@ -194,9 +194,14 @@ export default function Inbox() {
   ];
 
   return (
-    <div className="grid grid-cols-[360px_1fr] h-full">
-      {/* Conversation list */}
-      <div className="border-e border-neutral-200 bg-white flex flex-col min-h-0">
+    <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] h-full">
+      {/* Conversation list — full width on mobile; hidden once a thread is open
+          (the thread takes over), always visible on lg+. */}
+      <div
+        className={`border-e border-neutral-200 bg-white flex-col min-h-0 ${
+          selectedId ? "hidden lg:flex" : "flex"
+        }`}
+      >
         <header className="px-5 py-4 border-b border-neutral-100">
           <div className="flex items-center justify-between mb-3">
             <h1 className="text-lg font-bold">{t("inbox.title")}</h1>
@@ -269,8 +274,13 @@ export default function Inbox() {
         </div>
       </div>
 
-      {/* Thread + composer */}
-      <div className="flex flex-col min-h-0 bg-neutral-50">
+      {/* Thread + composer — full width on mobile when a thread is selected,
+          otherwise hidden there; always visible on lg+. */}
+      <div
+        className={`flex-col min-h-0 bg-neutral-50 ${
+          selectedId ? "flex" : "hidden lg:flex"
+        }`}
+      >
         {!selected && (
           <div className="flex-1 grid place-items-center text-neutral-400 text-sm">
             {t("inbox.selectConversation")}
@@ -278,7 +288,31 @@ export default function Inbox() {
         )}
         {selected && (
           <>
-            <header className="border-b border-neutral-200 bg-white px-6 py-4 flex items-center gap-3">
+            <header className="border-b border-neutral-200 bg-white px-4 sm:px-6 py-4 flex items-center gap-3">
+              {/* Back to list — mobile only. */}
+              <button
+                type="button"
+                onClick={() => setSelectedId(null)}
+                aria-label="חזרה לרשימה"
+                className="lg:hidden -ms-1 rounded-lg p-1.5 text-neutral-500 hover:bg-neutral-100 shrink-0"
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  aria-hidden
+                  className="rtl:rotate-180"
+                >
+                  <path
+                    d="M12 4l-6 6 6 6"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
               <span className="text-xl">{channelIcon(selected.channel)}</span>
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-sm truncate" dir="ltr">
@@ -311,7 +345,7 @@ export default function Inbox() {
               )}
             </header>
 
-            <div className="flex-1 overflow-y-auto min-h-0 px-6 py-4">
+            <div className="flex-1 overflow-y-auto min-h-0 px-4 sm:px-6 py-4">
               <div className="flex flex-col gap-2 max-w-3xl mx-auto">
                 {messages.isLoading && (
                   <div className="text-sm text-neutral-500">
@@ -338,7 +372,7 @@ export default function Inbox() {
             {selected.status !== "closed" && (
               <form
                 onSubmit={submitReply}
-                className="border-t border-neutral-200 bg-white px-6 py-3"
+                className="border-t border-neutral-200 bg-white px-4 sm:px-6 py-3"
               >
                 {error && (
                   <div className="text-xs text-red-700 mb-2">{error}</div>

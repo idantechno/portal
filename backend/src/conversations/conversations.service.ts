@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { LessThan, Repository } from 'typeorm';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { Conversation } from './conversation.entity';
@@ -143,6 +143,10 @@ export class ConversationsService {
           latestMessageId: message.id,
         },
         {
+          // Idempotent enqueue: one run per inbound message. If the same
+          // customer message is appended twice (Meta retry that slips past the
+          // wamid dedupe), BullMQ collapses both to a single job.
+          jobId: `run:${message.id}`,
           // Retry transient failures (LLM 429/5xx, network) with exponential
           // backoff: ~5s, 10s, 20s. A persistently failing run lands in failed.
           attempts: 3,
@@ -158,16 +162,45 @@ export class ConversationsService {
     }
   }
 
-  listMessages(
+  /**
+   * Returns the most recent messages in chronological (oldest→newest) order.
+   * We query newest-first so a `take` window keeps the *latest* N messages —
+   * including the customer's newest one — then reverse for prompt/display use.
+   * Fetching oldest-first would freeze the agent's context on stale history.
+   */
+  async listMessages(
     businessId: string,
     conversationId: string,
     options: { limit?: number; before?: Date } = {},
   ): Promise<Message[]> {
-    return this.messages.find({
-      where: { businessId, conversationId },
-      order: { createdAt: 'ASC' },
+    const where: Record<string, unknown> = { businessId, conversationId };
+    if (options.before) {
+      where.createdAt = LessThan(options.before);
+    }
+    const rows = await this.messages.find({
+      where,
+      order: { createdAt: 'DESC' },
       take: options.limit ?? 200,
     });
+    return rows.reverse();
+  }
+
+  /**
+   * Records the outcome of an outbound dispatch: persists the provider message
+   * id (wamid) for delivery-receipt correlation and marks the message
+   * 'sent' or 'failed'. Emits an inbox update so a failed reply is visible.
+   */
+  async markDelivery(
+    message: Message,
+    status: 'sent' | 'failed',
+    externalMessageId?: string | null,
+  ): Promise<void> {
+    message.deliveryStatus = status;
+    if (externalMessageId) {
+      message.externalMessageId = externalMessageId;
+    }
+    await this.messages.save(message);
+    this.inbox.messageCreated(message);
   }
 
   /**

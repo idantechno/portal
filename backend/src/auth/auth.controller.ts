@@ -7,6 +7,7 @@ import {
   NotFoundException,
   Post,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -22,6 +23,9 @@ export class AuthController {
     private readonly users: UsersService,
   ) {}
 
+  // Tight limit to blunt password brute-force / credential stuffing:
+  // 10 attempts / minute / IP.
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   @Public()
   @HttpCode(HttpStatus.OK)
   @Post('login')

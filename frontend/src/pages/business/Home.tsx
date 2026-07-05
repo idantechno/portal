@@ -9,6 +9,7 @@ import { billingApi } from "../../api/billing";
 import { expensesApi } from "../../api/expenses";
 import { overviewApi } from "../../api/overview";
 import { useAuthStore } from "../../store/auth";
+import { billingKeys } from "../../lib/queryKeys";
 import { Button, Card, Spinner } from "../../components/ui";
 import BusinessProfileForm from "../../components/BusinessProfileForm";
 
@@ -47,7 +48,7 @@ export default function Home() {
     enabled: Boolean(businessId),
   });
   const invoices = useQuery({
-    queryKey: ["billing", "invoices", businessId],
+    queryKey: billingKeys.invoices(businessId),
     queryFn: () => billingApi.invoices(businessId),
     enabled: Boolean(businessId),
   });
@@ -96,6 +97,11 @@ export default function Home() {
       .reduce((sum, i) => sum + i.amountCents, 0);
   }, [paidInvoices]);
 
+  // Money screens must not render a real-looking ₪0 when the finance data
+  // failed to load. Guard the month-balance / deals cards on query errors.
+  const invoicesError = invoices.isError;
+  const balanceError = invoices.isError || expenses.isError;
+
   const recent = (notifs.data ?? []).slice(0, 5);
   const branding = biz.data?.branding ?? null;
   const firstName = user?.name ? user.name.split(" ")[0] : "";
@@ -105,7 +111,7 @@ export default function Home() {
   const ex = overview.data;
 
   return (
-    <div className="p-6 md:p-8 max-w-5xl mx-auto">
+    <div className="px-4 sm:px-6 md:px-8 py-6 md:py-8 max-w-5xl mx-auto">
       {/* Greeting band */}
       <div className="rounded-3xl bg-white border border-navy-100 shadow-sm p-6 md:p-7 mb-6 flex items-center gap-5">
         {branding?.logoUrl ? (
@@ -174,16 +180,22 @@ export default function Home() {
           icon="🤝"
           brand="--brand-primary"
           to={`/app/businesses/${businessId}/billing`}
+          error={invoicesError}
         />
         <Stat
           label="מאזן החודש"
-          sub={`הכנסות ${shekels(monthIncome)} · הוצאות ${shekels(
-            expenses.data?.monthlyTotalCents ?? 0,
-          )}`}
+          sub={
+            balanceError
+              ? "לא ניתן לטעון נתונים כרגע"
+              : `הכנסות ${shekels(monthIncome)} · הוצאות ${shekels(
+                  expenses.data?.monthlyTotalCents ?? 0,
+                )}`
+          }
           value={shekels(monthIncome - (expenses.data?.monthlyTotalCents ?? 0))}
           icon="💰"
           brand="--brand-secondary"
           to={`/app/businesses/${businessId}/expenses`}
+          error={balanceError}
         />
         <Stat
           label="אירועי השבוע"
@@ -319,7 +331,7 @@ export default function Home() {
               שאל אותי כל דבר על העסק — אני אנתב אותך לסוכן הנכון.
             </p>
             <Link
-              to="/app/agents/main"
+              to={`/app/businesses/${businessId}/agents/main`}
               className="mt-4 inline-flex items-center justify-center rounded-xl bg-white/95 px-4 py-2.5 text-sm font-semibold text-navy-900 hover:bg-white transition-colors"
             >
               שאל אותי כל דבר
@@ -365,6 +377,7 @@ function Stat({
   icon,
   brand,
   to,
+  error = false,
 }: {
   label: string;
   sub: string;
@@ -372,6 +385,7 @@ function Stat({
   icon: string;
   brand: string;
   to: string;
+  error?: boolean;
 }) {
   return (
     <Link to={to} className="block group">
@@ -380,7 +394,7 @@ function Stat({
           <div className="min-w-0">
             <div className="text-xs text-navy-400 mb-1">{label}</div>
             <div className="text-2xl font-bold text-navy-900 truncate">
-              {value}
+              {error ? "—" : value}
             </div>
             <div className="text-[11px] text-navy-400 mt-1">{sub}</div>
           </div>

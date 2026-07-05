@@ -20,6 +20,9 @@ export interface InvoiceLineItem {
  * from Portal Studio billing the business for its subscription.
  */
 @Entity({ name: 'invoices' })
+// Invoice numbers must be unique within a business — a duplicate is a legal
+// problem, not just a UI glitch.
+@Index('uq_invoice_number', ['businessId', 'number'], { unique: true })
 export class Invoice {
   @PrimaryGeneratedColumn('uuid')
   id!: string;

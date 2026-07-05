@@ -84,9 +84,10 @@ export default function Expenses() {
   const fixed = rows.filter((r) => r.kind === "fixed");
   const occasional = rows.filter((r) => r.kind === "occasional");
   const s = summary.data;
+  const summaryError = summary.isError;
 
   return (
-    <div className="p-6 md:p-8 max-w-4xl mx-auto">
+    <div className="px-4 sm:px-6 md:px-8 py-6 md:py-8 max-w-4xl mx-auto">
       <header className="mb-6">
         <h1 className="text-2xl md:text-3xl font-display text-navy-900">
           מעקב הוצאות
@@ -102,20 +103,31 @@ export default function Expenses() {
         <SumCard
           label="קבועות (חודשי)"
           value={shekels(s?.fixedMonthlyCents ?? 0)}
-          sub={`${s?.fixedCount ?? 0} הוצאות קבועות`}
+          sub={
+            summaryError
+              ? "לא ניתן לטעון נתונים כרגע"
+              : `${s?.fixedCount ?? 0} הוצאות קבועות`
+          }
           brand="--brand-primary"
+          error={summaryError}
         />
         <SumCard
           label="מזדמנות החודש"
           value={shekels(s?.occasionalThisMonthCents ?? 0)}
-          sub={`${s?.occasionalCount ?? 0} הוצאות מזדמנות`}
+          sub={
+            summaryError
+              ? "לא ניתן לטעון נתונים כרגע"
+              : `${s?.occasionalCount ?? 0} הוצאות מזדמנות`
+          }
           brand="--brand-secondary"
+          error={summaryError}
         />
         <SumCard
           label="סה״כ החודש"
           value={shekels(s?.monthlyTotalCents ?? 0)}
-          sub="קבועות + מזדמנות"
+          sub={summaryError ? "לא ניתן לטעון נתונים כרגע" : "קבועות + מזדמנות"}
           brand="--brand-accent"
+          error={summaryError}
         />
       </div>
 
@@ -214,18 +226,22 @@ function SumCard({
   value,
   sub,
   brand,
+  error = false,
 }: {
   label: string;
   value: string;
   sub: string;
   brand: string;
+  error?: boolean;
 }) {
   return (
     <Card className="p-5">
       <div className="flex items-start justify-between">
-        <div>
+        <div className="min-w-0">
           <div className="text-xs text-navy-400 mb-1">{label}</div>
-          <div className="text-2xl font-bold text-navy-900">{value}</div>
+          <div className="text-2xl font-bold text-navy-900">
+            {error ? "—" : value}
+          </div>
           <div className="text-[11px] text-navy-400 mt-1">{sub}</div>
         </div>
         <div

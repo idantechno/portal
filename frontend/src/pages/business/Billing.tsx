@@ -4,6 +4,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { billingApi } from "../../api/billing";
 import type { Invoice } from "../../api/billing";
+import { billingKeys } from "../../lib/queryKeys";
 import { Button, Card, Input, Spinner } from "../../components/ui";
 
 const shekels = (cents: number) =>
@@ -25,17 +26,17 @@ export default function Billing() {
   const canceled = searchParams.get("canceled") === "1";
 
   const plans = useQuery({
-    queryKey: ["billing-plans", businessId],
+    queryKey: billingKeys.plans(businessId),
     queryFn: () => billingApi.plans(businessId),
     enabled: Boolean(businessId),
   });
   const sub = useQuery({
-    queryKey: ["subscription", businessId],
+    queryKey: billingKeys.subscription(businessId),
     queryFn: () => billingApi.subscription(businessId),
     enabled: Boolean(businessId),
   });
   const invoices = useQuery({
-    queryKey: ["invoices", businessId],
+    queryKey: billingKeys.invoices(businessId),
     queryFn: () => billingApi.invoices(businessId),
     enabled: Boolean(businessId),
   });
@@ -43,7 +44,7 @@ export default function Billing() {
   const setPlanMut = useMutation({
     mutationFn: (code: string) => billingApi.setPlan(businessId, code),
     onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["subscription", businessId] }),
+      qc.invalidateQueries({ queryKey: billingKeys.subscription(businessId) }),
   });
   const checkoutMut = useMutation({
     mutationFn: (code: string) => billingApi.checkout(businessId, code),
@@ -56,7 +57,7 @@ export default function Billing() {
       billingApi.confirmCheckout(businessId, sessionId),
     onSuccess: () => {
       setPaidShown(true);
-      qc.invalidateQueries({ queryKey: ["subscription", businessId] });
+      qc.invalidateQueries({ queryKey: billingKeys.subscription(businessId) });
     },
   });
 
@@ -84,14 +85,14 @@ export default function Billing() {
   const markPaidMut = useMutation({
     mutationFn: (id: string) => billingApi.markPaid(businessId, id),
     onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["invoices", businessId] }),
+      qc.invalidateQueries({ queryKey: billingKeys.invoices(businessId) }),
   });
 
   const currentPlan = sub.data?.planCode;
   const providers = plans.data?.providers ?? [];
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
+    <div className="px-4 sm:px-6 py-6 sm:py-8 max-w-4xl mx-auto">
       <header className="mb-6">
         <h1 className="text-2xl font-bold text-navy-900 mb-1">חיוב ותשלומים</h1>
         <p className="text-navy-500 text-sm">
@@ -158,7 +159,7 @@ export default function Billing() {
           })}
         </div>
         {providers.length > 0 && (
-          <div className="flex gap-2 mt-3">
+          <div className="flex flex-wrap gap-2 mt-3">
             {providers.map((p) => (
               <span
                 key={p.name}
@@ -193,7 +194,7 @@ export default function Billing() {
             businessId={businessId}
             onDone={() => {
               setShowInvoice(false);
-              qc.invalidateQueries({ queryKey: ["invoices", businessId] });
+              qc.invalidateQueries({ queryKey: billingKeys.invoices(businessId) });
             }}
             onCancel={() => setShowInvoice(false)}
           />
@@ -207,7 +208,8 @@ export default function Billing() {
 
         {invoices.data && invoices.data.length > 0 && (
           <Card className="overflow-hidden">
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[480px]">
               <thead className="bg-cream-50 text-navy-400 text-xs">
                 <tr>
                   <th className="text-start px-4 py-3">מספר</th>
@@ -252,6 +254,7 @@ export default function Billing() {
                 ))}
               </tbody>
             </table>
+            </div>
           </Card>
         )}
       </section>

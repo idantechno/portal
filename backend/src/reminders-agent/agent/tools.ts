@@ -2,6 +2,7 @@ import { tool } from '@anthropic-ai/claude-agent-sdk';
 import { z } from 'zod';
 import { TasksService } from '../../tasks/tasks.service';
 import { bucketFor } from '../buckets';
+import { parseIsraelDate } from '../../common/time/israel-time';
 
 export interface ToolContext {
   businessId: string;
@@ -61,10 +62,12 @@ export function createReminderTool(ctx: ToolContext) {
         .describe('Optional linked object id (uuid).'),
     },
     async (args) => {
+      // A due_date without an offset is Israel wall-clock time, not UTC.
+      const dueAt = args.due_date ? parseIsraelDate(args.due_date) : null;
       const task = await ctx.tasks.create({
         businessId: ctx.businessId,
         title: args.title,
-        dueAt: args.due_date ?? null,
+        dueAt,
         source: 'agent',
         createdByUserId: ctx.userId ?? null,
         relatedType: args.related_type ?? null,

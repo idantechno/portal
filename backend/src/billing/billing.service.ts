@@ -113,19 +113,33 @@ export class BillingService {
       (sum, l) => sum + l.quantity * l.unitPriceCents,
       0,
     );
-    return this.invoices.save(
-      this.invoices.create({
-        businessId,
-        number: await this.nextInvoiceNumber(businessId),
-        status: 'draft',
-        customerName: dto.customerName ?? null,
-        amountCents,
-        currency: 'ILS',
-        lineItems,
-        issuedAt: new Date(),
-        dueAt: dto.dueAt ? new Date(dto.dueAt) : null,
-      }),
-    );
+    // Invoice numbers are (business, number)-unique at the DB. Under concurrent
+    // creates two rows can compute the same count+1 number; retry a few times
+    // on the unique-violation so we never emit a duplicate legal document.
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        return await this.invoices.save(
+          this.invoices.create({
+            businessId,
+            number: await this.nextInvoiceNumber(businessId),
+            status: 'draft',
+            customerName: dto.customerName ?? null,
+            amountCents,
+            currency: 'ILS',
+            lineItems,
+            issuedAt: new Date(),
+            dueAt: dto.dueAt ? new Date(dto.dueAt) : null,
+          }),
+        );
+      } catch (err) {
+        // Postgres unique_violation — collide on number, regenerate and retry.
+        if ((err as { code?: string }).code === '23505' && attempt < 4) {
+          continue;
+        }
+        throw err;
+      }
+    }
+    throw new Error('INVOICE_NUMBER_ALLOCATION_FAILED');
   }
 
   async markInvoicePaid(businessId: string, id: string): Promise<Invoice> {

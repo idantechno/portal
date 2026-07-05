@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, Navigate, useNavigate } from "react-router-dom";
@@ -37,7 +37,7 @@ function agentLink(
 }
 
 export default function Dashboard() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
@@ -89,28 +89,20 @@ export default function Dashboard() {
   return (
     <div className="min-h-dvh bg-cream-50">
       <header className="bg-navy-900 sticky top-0 z-10 shadow-[0_8px_24px_-16px_rgba(1,20,39,0.6)]">
-        <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
             <img src="/icon.png" alt="" className="h-8 w-8" />
             <span className="font-display text-2xl text-cream-100">
               Portal Studio
             </span>
           </div>
-          <div className="flex items-center gap-4 text-sm">
-            <span className="text-brand-200 font-medium">{user?.name}</span>
+          <div className="flex items-center gap-2 sm:gap-4 text-sm shrink-0">
+            <span className="text-brand-200 font-medium hidden sm:inline">{user?.name}</span>
             <button
               className="text-navy-200 hover:text-white transition-colors"
               onClick={() => setShowPw(true)}
             >
               {t("account.changePassword")}
-            </button>
-            <button
-              className="text-navy-200 hover:text-white transition-colors"
-              onClick={() =>
-                i18n.changeLanguage(i18n.language === "he" ? "en" : "he")
-              }
-            >
-              {i18n.language === "he" ? "EN" : "עב"}
             </button>
             <button
               className="text-navy-200 hover:text-coral-300 transition-colors"
@@ -125,7 +117,7 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-6 py-10">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
         {showBriefing && firstBizId && (
           <HomeBriefing businessId={firstBizId} name={user?.name} />
         )}
@@ -216,13 +208,24 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
     mut.mutate();
   }
 
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   return (
     <div
       className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
       onClick={onClose}
     >
       <Card
-        className="p-6 w-full max-w-md"
+        role="dialog"
+        aria-modal="true"
+        aria-label={t("account.changePassword")}
+        className="p-6 w-full max-w-md mx-4"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">

@@ -276,7 +276,7 @@ function Explorer({
   }, [path, t]);
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
+    <div className="px-4 sm:px-6 py-6 sm:py-8 max-w-6xl mx-auto">
       <header className="mb-6">
         <h1 className="text-2xl font-bold mb-1">{t("files.title")}</h1>
         <p className="text-neutral-600 text-sm">{t("files.subtitle")}</p>
@@ -292,8 +292,8 @@ function Explorer({
                   onClick={() => onNavigate(bc.path)}
                   className={
                     i === breadcrumbs.length - 1
-                      ? "font-medium text-neutral-900 truncate max-w-[200px]"
-                      : "text-brand-600 hover:underline truncate max-w-[200px]"
+                      ? "font-medium text-neutral-900 truncate max-w-[140px] sm:max-w-[200px]"
+                      : "text-brand-600 hover:underline truncate max-w-[140px] sm:max-w-[200px]"
                   }
                   title={bc.path || "/"}
                 >
@@ -403,7 +403,8 @@ function Explorer({
 
       {entries.length > 0 && (
         <Card className="overflow-hidden">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[560px]">
             <thead className="bg-neutral-50 text-neutral-500 text-xs uppercase">
               <tr>
                 <th className="text-start px-4 py-3 w-[60%]">
@@ -489,6 +490,7 @@ function Explorer({
               )}
             </tbody>
           </table>
+          </div>
         </Card>
       )}
     </div>
@@ -593,13 +595,13 @@ function FileEditor({ businessId, fileId, onClose }: FileEditorProps) {
 
   if (fileQ.isLoading) {
     return (
-      <div className="p-8 text-neutral-500 text-sm">{t("common.loading")}</div>
+      <div className="px-4 sm:px-6 py-6 sm:py-8 text-neutral-500 text-sm">{t("common.loading")}</div>
     );
   }
 
   if (fileQ.isError || !fileQ.data) {
     return (
-      <div className="p-8">
+      <div className="px-4 sm:px-6 py-6 sm:py-8">
         <Button variant="secondary" onClick={onClose}>
           {t("common.back")}
         </Button>
@@ -661,11 +663,11 @@ function LoadedFileEditor({
 
   if (!isText) {
     return (
-      <div className="p-8 max-w-3xl mx-auto">
+      <div className="px-4 sm:px-6 py-6 sm:py-8 max-w-3xl mx-auto">
         <Button variant="secondary" onClick={onClose}>
           {t("common.back")}
         </Button>
-        <Card className="mt-4 p-8 text-center">
+        <Card className="mt-4 p-6 sm:p-8 text-center">
           <FileIcon markdown={false} text={false} />
           <p className="mt-3 font-mono text-sm" dir="ltr">
             {file.relativePath}
@@ -704,7 +706,7 @@ function LoadedFileEditor({
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto h-[calc(100vh-4rem)] flex flex-col">
+    <div className="px-4 sm:px-6 py-4 sm:py-6 max-w-7xl mx-auto h-[calc(100vh-4rem)] flex flex-col">
       <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
         <div className="flex items-center gap-2 min-w-0">
           <Button variant="ghost" size="sm" onClick={onClose}>

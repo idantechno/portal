@@ -80,7 +80,7 @@ export default function WhatsappSettings() {
   const isConnected = conn.data?.status === "active";
 
   return (
-    <div className="p-8 max-w-3xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-3xl mx-auto">
       <header className="mb-6 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">{t("whatsapp.title")}</h1>
@@ -96,7 +96,7 @@ export default function WhatsappSettings() {
           <div className="text-xs uppercase text-red-700 font-semibold mb-1">
             {t("whatsapp.lastError")}
           </div>
-          <div className="text-sm text-red-800 font-mono" dir="ltr">
+          <div className="text-sm text-red-800 font-mono break-all" dir="ltr">
             {conn.data.lastError}
           </div>
         </Card>
@@ -119,7 +119,7 @@ export default function WhatsappSettings() {
             <div className="text-lg font-semibold" dir="ltr">
               {conn.data.displayPhoneNumber ?? conn.data.phoneNumberId}
             </div>
-            <div className="text-xs text-neutral-500 font-mono" dir="ltr">
+            <div className="text-xs text-neutral-500 font-mono break-all" dir="ltr">
               waba_id: {conn.data.wabaId ?? "—"}
               {" · "}phone_number_id: {conn.data.phoneNumberId ?? "—"}
             </div>

@@ -140,7 +140,7 @@ export default function BrandingCard({ businessId, business }: Props) {
       <div className="grid md:grid-cols-2 gap-6">
         {/* Controls */}
         <div className="space-y-4">
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <ColorField label="ראשי" value={primary} onChange={setPrimary} />
             <ColorField label="משני" value={secondary} onChange={setSecondary} />
             <ColorField label="הדגשה" value={accent} onChange={setAccent} />
@@ -169,7 +169,7 @@ export default function BrandingCard({ businessId, business }: Props) {
 
           <div>
             <Label>לוגו</Label>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <div className="h-14 w-14 rounded-xl border border-navy-100 bg-cream-50 flex items-center justify-center overflow-hidden shrink-0">
                 {logo ? (
                   <img src={logo} alt="" className="max-h-full max-w-full object-contain" />

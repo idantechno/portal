@@ -67,7 +67,7 @@ export default function Tasks() {
   const done = items.filter((t) => t.status === "done");
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
+    <div className="px-4 sm:px-6 py-6 sm:py-8 max-w-4xl mx-auto">
       <header className="mb-6">
         <h1 className="text-2xl font-bold text-navy-900 mb-1">משימות</h1>
         <p className="text-navy-500 text-sm">
@@ -173,12 +173,14 @@ function TaskRow({
         )}
       </div>
       <span
-        className={`text-xs px-2 py-0.5 rounded-full ${PRIORITY_TONE[task.priority]}`}
+        className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${PRIORITY_TONE[task.priority]}`}
       >
         {PRIORITY_LABEL[task.priority]}
       </span>
       {task.source !== "manual" && (
-        <span className="text-xs text-navy-400">{SOURCE_LABEL[task.source]}</span>
+        <span className="text-xs text-navy-400 shrink-0 hidden sm:inline">
+          {SOURCE_LABEL[task.source]}
+        </span>
       )}
       <button
         onClick={onRemove}

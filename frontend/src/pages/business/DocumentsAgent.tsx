@@ -78,19 +78,19 @@ export default function DocumentsAgent({ businessId }: { businessId: string }) {
   return (
     <div className="h-full grid grid-cols-1 lg:grid-cols-[1fr_320px]">
       <div className="flex flex-col h-full min-h-0">
-        <header className="px-8 py-5 border-b border-neutral-200 bg-white flex items-center justify-between">
-          <div>
+        <header className="px-4 sm:px-8 py-5 border-b border-neutral-200 bg-white flex items-center justify-between gap-3">
+          <div className="min-w-0">
             <h1 className="text-xl font-bold">סוכן מסמכים</h1>
             <p className="text-sm text-neutral-500">
               ספר על העסקה, הסוכן יכין את המסמך ויחזיר קישור לחתימה.
             </p>
           </div>
-          <Button variant="secondary" size="sm" onClick={onStartNew}>
+          <Button variant="secondary" size="sm" className="shrink-0" onClick={onStartNew}>
             שיחה חדשה
           </Button>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-8 py-6 space-y-4">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-6 space-y-4">
           {messages.length === 0 && !chat.isPending && (
             <EmptyState />
           )}
@@ -107,7 +107,7 @@ export default function DocumentsAgent({ businessId }: { businessId: string }) {
 
         <form
           onSubmit={onSend}
-          className="border-t border-neutral-200 bg-white px-8 py-4"
+          className="border-t border-neutral-200 bg-white px-4 sm:px-8 py-4"
         >
           <FormError message={error} />
           <div className="flex gap-2 items-end mt-2">
@@ -123,12 +123,13 @@ export default function DocumentsAgent({ businessId }: { businessId: string }) {
               disabled={chat.isPending}
               rows={2}
               placeholder="לדוגמה: 'הלקוח שלי אורל אריאלי רוצה הדרכת AI לעסקים — 4 שעות, 3 קבוצות, 100 איש. העלות 4500 ש״ח עם מקדמה.'"
-              className="flex-1 block rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm focus:bg-white focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none resize-none"
+              className="flex-1 min-w-0 block rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm focus:bg-white focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none resize-none"
             />
             <Button
               type="submit"
               disabled={!draft.trim() || chat.isPending}
               size="md"
+              className="shrink-0"
             >
               שלח
             </Button>
@@ -163,8 +164,8 @@ function Message({ message }: { message: UIMessage }) {
       <div
         className={
           isUser
-            ? "max-w-[80%] rounded-2xl rounded-tr-sm bg-brand-600 text-white px-4 py-3 text-sm"
-            : "max-w-[80%] rounded-2xl rounded-tl-sm bg-white border border-neutral-200 text-neutral-900 px-4 py-3 text-sm shadow-sm"
+            ? "max-w-[85%] sm:max-w-[75%] rounded-2xl rounded-se-sm bg-brand-600 text-white px-4 py-3 text-sm"
+            : "max-w-[85%] sm:max-w-[75%] rounded-2xl rounded-ss-sm bg-white border border-neutral-200 text-neutral-900 px-4 py-3 text-sm shadow-sm"
         }
       >
         <div className="whitespace-pre-wrap leading-relaxed">{message.content}</div>
@@ -202,12 +203,12 @@ function CreatedDocumentCard({ doc }: { doc: DocumentInstance }) {
               readOnly
               value={publicUrl}
               dir="ltr"
-              className="flex-1 rounded border border-neutral-300 bg-neutral-50 px-2 py-1 text-xs font-mono"
+              className="flex-1 min-w-0 rounded border border-neutral-300 bg-neutral-50 px-2 py-1 text-xs font-mono"
               onFocus={(e) => e.currentTarget.select()}
             />
             <button
               onClick={copyUrl}
-              className="rounded bg-neutral-100 hover:bg-neutral-200 px-2 py-1 font-medium"
+              className="shrink-0 rounded bg-neutral-100 hover:bg-neutral-200 px-2 py-1 font-medium"
             >
               העתק
             </button>

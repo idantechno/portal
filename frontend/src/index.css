@@ -131,6 +131,13 @@ body {
 }
 .animate-fade-up { animation: fadeUp 0.45s ease-out both; }
 
+/* Mobile nav drawer entrance. Opacity-only so it reads correctly in RTL and
+   LTR without direction-aware transforms. */
+@keyframes slideIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
 .markdown-preview {
   @apply text-sm leading-relaxed text-neutral-800;
 }

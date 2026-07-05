@@ -6,6 +6,7 @@ import { leadsApi } from "../../api/leads";
 import { tasksApi } from "../../api/tasks";
 import { conversationsApi } from "../../api/conversations";
 import { billingApi } from "../../api/billing";
+import { billingKeys } from "../../lib/queryKeys";
 import { Card, Spinner } from "../../components/ui";
 
 const PLAN_ORDER = ["free", "growth", "scale"];
@@ -30,7 +31,7 @@ const MOVE_TIERS: MoveTier[] = [
     title: "המהלך הראשון שלך",
     line: "כל עסק גדול התחיל מפעולה אחת קטנה. הגדר היום יעד אחד קצר — ואני אזכיר לך עליו. שתי דקות, ואתה בתנועה.",
     ctaLabel: "להגדיר תזכורת",
-    ctaPath: "/app/agents/reminders",
+    ctaPath: "/app/businesses/{id}/agents/reminders",
   },
   {
     maxCents: 500000,
@@ -51,7 +52,7 @@ const MOVE_TIERS: MoveTier[] = [
     title: "זה הזמן לנפץ תקרות",
     line: "אתה מגלגל ברצינות — עכשיו לוקחים סיכון מחושב. בוא נבנה מהלך נועז יחד; Portal Studio כאן כדי להפוך רעיון שאפתני לתוצאה.",
     ctaLabel: "לתכנן מהלך עם הסוכן הראשי",
-    ctaPath: "/app/agents/main",
+    ctaPath: "/app/businesses/{id}/agents/main",
   },
 ];
 
@@ -82,17 +83,17 @@ export default function Growth() {
     enabled: Boolean(businessId),
   });
   const sub = useQuery({
-    queryKey: ["billing", "subscription", businessId],
+    queryKey: billingKeys.subscription(businessId),
     queryFn: () => billingApi.subscription(businessId),
     enabled: Boolean(businessId),
   });
   const plansQ = useQuery({
-    queryKey: ["billing", "plans", businessId],
+    queryKey: billingKeys.plans(businessId),
     queryFn: () => billingApi.plans(businessId),
     enabled: Boolean(businessId),
   });
   const invoices = useQuery({
-    queryKey: ["billing", "invoices", businessId],
+    queryKey: billingKeys.invoices(businessId),
     queryFn: () => billingApi.invoices(businessId),
     enabled: Boolean(businessId),
   });
@@ -130,8 +131,8 @@ export default function Growth() {
   const nextPlan = nextCode ? plans.find((p) => p.code === nextCode) : undefined;
 
   return (
-    <div className="p-6 md:p-8 max-w-4xl mx-auto">
-      <header className="mb-6 flex items-center justify-between gap-4">
+    <div className="px-4 sm:px-6 md:px-8 py-6 md:py-8 max-w-4xl mx-auto">
+      <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-display text-navy-900">
             הצמיחה שלך
@@ -159,6 +160,7 @@ export default function Growth() {
           value={leadCount}
           sub="לידים שנאספו"
           loading={leads.isLoading}
+          error={leads.isError}
         />
         <Metric
           label="יעילות"
@@ -167,6 +169,7 @@ export default function Growth() {
           value={`${efficiency}%`}
           sub={`${doneCount} מתוך ${totalTasks} משימות הושלמו`}
           loading={tasks.isLoading}
+          error={tasks.isError}
         />
         <Metric
           label="טווח"
@@ -175,13 +178,14 @@ export default function Growth() {
           value={convoCount}
           sub="לקוחות ששוחחו איתך"
           loading={convos.isLoading}
+          error={convos.isError}
         />
       </div>
 
       {/* Scaled motivational "next move" — grows bolder with revenue */}
       <Card
-        className="p-6 mb-8 border-r-4"
-        style={{ borderRightColor: "var(--brand-accent)" }}
+        className="p-6 mb-8 border-s-4"
+        style={{ borderInlineStartColor: "var(--brand-accent)" }}
       >
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="min-w-0">
@@ -209,6 +213,10 @@ export default function Growth() {
       {plansQ.isLoading || sub.isLoading ? (
         <Card className="p-8 flex justify-center">
           <Spinner />
+        </Card>
+      ) : plansQ.isError || sub.isError ? (
+        <Card className="p-6 text-center text-navy-400 text-sm">
+          לא ניתן לטעון נתונים כרגע. נסה שוב מאוחר יותר.
         </Card>
       ) : nextPlan ? (
         <Card
@@ -266,6 +274,7 @@ function Metric({
   value,
   sub,
   loading,
+  error = false,
 }: {
   label: string;
   icon: string;
@@ -273,16 +282,19 @@ function Metric({
   value: number | string;
   sub: string;
   loading: boolean;
+  error?: boolean;
 }) {
   return (
     <Card className="p-5">
       <div className="flex items-start justify-between">
-        <div>
+        <div className="min-w-0">
           <div className="text-xs text-navy-400 mb-1">{label}</div>
           <div className="text-3xl font-bold text-navy-900">
-            {loading ? "—" : value}
+            {loading || error ? "—" : value}
           </div>
-          <div className="text-[11px] text-navy-400 mt-1">{sub}</div>
+          <div className="text-[11px] text-navy-400 mt-1">
+            {error ? "לא ניתן לטעון נתונים כרגע" : sub}
+          </div>
         </div>
         <div
           className="h-11 w-11 rounded-2xl flex items-center justify-center text-xl shrink-0"

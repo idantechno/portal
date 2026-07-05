@@ -9,6 +9,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { BusinessScopeGuard } from '../businesses/guards/business-scope.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { AuthenticatedUser } from '../auth/auth.types';
 import { IntegrationsService } from './integrations.service';
 import { GmailService } from './gmail.service';
 import { SendEmailDto } from './dto/send-email.dto';
@@ -39,11 +41,12 @@ export class IntegrationsController {
   authUrl(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('provider') provider: string,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     if (!isIntegrationProvider(provider)) {
       throw new BadRequestException(`Unknown provider: ${provider}`);
     }
-    return { url: this.integrations.authUrl(businessId, provider) };
+    return { url: this.integrations.authUrl(businessId, provider, user.id) };
   }
 
   @Post(':provider/disconnect')

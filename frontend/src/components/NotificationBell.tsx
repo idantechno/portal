@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { notificationsApi } from "../api/notifications";
 import type { NotificationType } from "../api/notifications";
@@ -40,12 +40,23 @@ export function NotificationBell({ businessId }: { businessId: string }) {
   const count = unread.data ?? 0;
   const items = list.data ?? [];
 
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
+
   return (
     <div className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
         className="relative h-9 w-9 rounded-xl hover:bg-cream-50 flex items-center justify-center text-navy-600"
         aria-label="התראות"
+        aria-haspopup="dialog"
+        aria-expanded={open}
       >
         <span className="text-lg">🔔</span>
         {count > 0 && (
@@ -58,7 +69,11 @@ export function NotificationBell({ businessId }: { businessId: string }) {
       {open && (
         <>
           <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-          <div className="absolute end-0 mt-2 w-80 max-h-96 overflow-auto z-40 rounded-2xl border border-navy-100 bg-white shadow-[0_24px_48px_-24px_rgba(1,20,39,0.4)]">
+          <div
+            role="dialog"
+            aria-label="התראות"
+            className="absolute end-0 mt-2 w-80 max-w-[calc(100vw-2rem)] max-h-96 overflow-auto z-40 rounded-2xl border border-navy-100 bg-white shadow-[0_24px_48px_-24px_rgba(1,20,39,0.4)]"
+          >
             <div className="flex items-center justify-between px-4 py-3 border-b border-navy-100 sticky top-0 bg-white">
               <span className="font-semibold text-navy-900 text-sm">
                 התראות
@@ -77,9 +92,10 @@ export function NotificationBell({ businessId }: { businessId: string }) {
                 אין התראות
               </div>
             ) : (
-              <ul className="divide-y divide-navy-50">
+              <ul role="menu" className="divide-y divide-navy-50">
                 {items.map((n) => (
                   <li
+                    role="menuitem"
                     key={n.id}
                     className={`px-4 py-3 flex gap-3 ${n.read ? "opacity-60" : "bg-brand-50/40"}`}
                   >

@@ -13,6 +13,7 @@ import {
   Res,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { SkipThrottle } from '@nestjs/throttler';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { Request, Response } from 'express';
 import { Public } from '../auth/decorators/public.decorator';
@@ -74,6 +75,9 @@ function extractPhoneNumberId(payload: MetaWebhookPayload): string | null {
   return null;
 }
 
+// Never rate-limit Meta's webhook — Meta batches deliveries and disables the
+// subscription on repeated non-2xx. The HMAC signature is the gate here.
+@SkipThrottle()
 @Controller('webhooks/whatsapp')
 export class WhatsappWebhookController {
   private readonly log = new Logger(WhatsappWebhookController.name);
@@ -157,15 +161,12 @@ export class WhatsappWebhookController {
     });
 
     if (!signatureOk) {
-      const expected = createHmac('sha256', appSecret)
-        .update(raw)
-        .digest('hex');
+      // Log only non-sensitive facts. Never log the expected HMAC (it would let
+      // anyone with log access forge a valid signature for this exact body),
+      // the secret length, or attacker-controlled body content.
       this.log.warn(
         `Bad signature on inbound webhook (phone_number_id=${phoneNumberId ?? 'none'}) ` +
-          `rawLen=${raw.length} secretLen=${appSecret.length} ` +
-          `sigHeader=${signature ?? 'MISSING'} ` +
-          `expected=sha256=${expected} ` +
-          `bodyStart=${raw.subarray(0, 80).toString('utf8').replace(/\n/g, '\\n')}`,
+          `rawLen=${raw.length} sigHeader=${signature ? 'present' : 'MISSING'}`,
       );
       return { ok: true };
     }

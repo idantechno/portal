@@ -5,6 +5,7 @@ import { ContextFilesModule } from '../context-files/context-files.module';
 import { ConversationsModule } from '../conversations/conversations.module';
 import { LeadsModule } from '../leads/leads.module';
 import { AgentsModule } from '../agents/agents.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { AGENT_RUNS_QUEUE } from './agent-worker.constants';
 import { AgentWorkerService } from './agent-worker.service';
 import { AgentWorkerProcessor } from './agent-worker.processor';
@@ -17,6 +18,7 @@ import { AgentWorkerProcessor } from './agent-worker.processor';
     ConversationsModule,
     LeadsModule,
     AgentsModule,
+    NotificationsModule,
   ],
   providers: [AgentWorkerService, AgentWorkerProcessor],
 })

@@ -10,6 +10,15 @@ import { Channel } from '../common/enums/channel.enum';
 import { ConversationStatus } from '../common/enums/conversation-status.enum';
 
 @Entity({ name: 'conversations' })
+// One conversation per (business, channel, thread). Blocks the check-then-insert
+// race in findOrCreate where two concurrent first-messages spawn duplicate rows.
+@Index(
+  'uq_conversation_thread',
+  ['businessId', 'channel', 'externalThreadId'],
+  {
+    unique: true,
+  },
+)
 export class Conversation {
   @PrimaryGeneratedColumn('uuid')
   id!: string;

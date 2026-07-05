@@ -6,6 +6,7 @@ import { tasksApi } from "../../api/tasks";
 import { notificationsApi } from "../../api/notifications";
 import { businessesApi } from "../../api/businesses";
 import { billingApi } from "../../api/billing";
+import { expensesApi } from "../../api/expenses";
 import { overviewApi } from "../../api/overview";
 import { useAuthStore } from "../../store/auth";
 import { Button, Card, Spinner } from "../../components/ui";
@@ -48,6 +49,11 @@ export default function Home() {
   const invoices = useQuery({
     queryKey: ["billing", "invoices", businessId],
     queryFn: () => billingApi.invoices(businessId),
+    enabled: Boolean(businessId),
+  });
+  const expenses = useQuery({
+    queryKey: ["expenses", "summary", businessId],
+    queryFn: () => expensesApi.summary(businessId),
     enabled: Boolean(businessId),
   });
   const overview = useQuery({
@@ -170,12 +176,14 @@ export default function Home() {
           to={`/app/businesses/${businessId}/billing`}
         />
         <Stat
-          label="הכנסות החודש"
-          sub="מתוך חשבוניות ששולמו"
-          value={shekels(monthIncome)}
+          label="מאזן החודש"
+          sub={`הכנסות ${shekels(monthIncome)} · הוצאות ${shekels(
+            expenses.data?.monthlyTotalCents ?? 0,
+          )}`}
+          value={shekels(monthIncome - (expenses.data?.monthlyTotalCents ?? 0))}
           icon="💰"
           brand="--brand-secondary"
-          to={`/app/businesses/${businessId}/billing`}
+          to={`/app/businesses/${businessId}/expenses`}
         />
         <Stat
           label="אירועי השבוע"

@@ -22,6 +22,7 @@ import Growth from "./pages/business/Growth";
 import AgentStudio from "./pages/business/AgentStudio";
 import Integrations from "./pages/business/Integrations";
 import Billing from "./pages/business/Billing";
+import Expenses from "./pages/business/Expenses";
 import Members from "./pages/business/Members";
 import Settings from "./pages/business/Settings";
 import WhatsappSettings from "./pages/business/WhatsappSettings";
@@ -139,6 +140,7 @@ export default function App() {
         <Route path="growth" element={<Growth />} />
         <Route path="integrations" element={<Integrations />} />
         <Route path="billing" element={<Billing />} />
+        <Route path="expenses" element={<Expenses />} />
         <Route path="members" element={<Members />} />
         <Route path="settings" element={<Settings />} />
         <Route path="channels/whatsapp" element={<WhatsappSettings />} />

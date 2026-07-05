@@ -65,7 +65,10 @@ export default function BusinessLayout() {
     },
     {
       title: "כספים",
-      items: [{ to: "billing", label: "חיוב", icon: "🧾", show: true }],
+      items: [
+        { to: "billing", label: "חיוב", icon: "🧾", show: true },
+        { to: "expenses", label: "מעקב הוצאות", icon: "💸", show: true },
+      ],
     },
     {
       title: "צמיחה",

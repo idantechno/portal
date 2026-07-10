@@ -9,6 +9,7 @@ import Login from "./pages/Login";
 // WhatsApp link) and the staff-only admin area load only when visited.
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const SignDocument = lazy(() => import("./pages/SignDocument"));
+const Questionnaire = lazy(() => import("./pages/Questionnaire"));
 const AgentDocumentsPage = lazy(() => import("./pages/AgentDocumentsPage"));
 const AgentIdeasPage = lazy(() => import("./pages/AgentIdeasPage"));
 const AgentMainPage = lazy(() => import("./pages/AgentMainPage"));
@@ -75,6 +76,7 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/sign/:token" element={<SignDocument />} />
+        <Route path="/strategy" element={<Questionnaire />} />
         <Route
           path="/app"
           element={

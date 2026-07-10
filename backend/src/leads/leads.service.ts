@@ -3,17 +3,20 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AutomationsService } from '../automations/automations.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { Lead } from './lead.entity';
+import { Lead, LeadSource } from './lead.entity';
 
 export interface CreateLeadInput {
   businessId: string;
-  conversationId: string;
-  customerContactId: string;
+  // Only the agent path supplies these; a questionnaire lead has neither.
+  conversationId?: string | null;
+  customerContactId?: string | null;
   name: string;
   phone?: string | null;
   email?: string | null;
   interest: string;
   notes?: string | null;
+  source?: LeadSource;
+  answers?: Record<string, unknown> | null;
 }
 
 @Injectable()
@@ -29,13 +32,15 @@ export class LeadsService {
     const lead = await this.leads.save(
       this.leads.create({
         businessId: input.businessId,
-        conversationId: input.conversationId,
-        customerContactId: input.customerContactId,
+        conversationId: input.conversationId ?? null,
+        customerContactId: input.customerContactId ?? null,
         name: input.name,
         phone: input.phone ?? null,
         email: input.email ?? null,
         interest: input.interest,
         notes: input.notes ?? null,
+        source: input.source ?? 'agent',
+        answers: input.answers ?? null,
       }),
     );
 

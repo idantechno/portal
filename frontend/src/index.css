@@ -1,4 +1,5 @@
 @import url("https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700&family=Frank+Ruhl+Libre:wght@500;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800&family=Alef:wght@400;700&display=swap");
 @import "tailwindcss";
 
 @theme {
@@ -101,6 +102,31 @@ body {
 /* Display font helper class used by the warm sign page. */
 .font-display {
   font-family: var(--font-display);
+}
+
+/* Marketing-brand fonts (portalstudio.co.il) for the public questionnaire. */
+.font-heebo {
+  font-family: "Heebo", system-ui, sans-serif;
+}
+.font-alef {
+  font-family: "Alef", system-ui, sans-serif;
+}
+
+/* CTA glow, ported from the marketing site so the questionnaire's primary
+   button matches the /start landing page. */
+.btn-glow {
+  transition:
+    box-shadow 0.3s ease,
+    opacity 0.2s ease,
+    transform 0.15s ease;
+}
+.btn-glow:hover {
+  box-shadow:
+    0 0 28px rgba(220, 93, 70, 0.5),
+    0 6px 16px rgba(220, 93, 70, 0.3);
+}
+.btn-glow:active {
+  transform: scale(0.98);
 }
 
 /* Tabular numbers for prices and IDs. */

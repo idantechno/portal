@@ -39,6 +39,7 @@ import { FilingModule } from './filing/filing.module';
 import { RemindersAgentModule } from './reminders-agent/reminders-agent.module';
 import { OverviewModule } from './overview/overview.module';
 import { ExpensesModule } from './expenses/expenses.module';
+import { QuestionnaireModule } from './questionnaire/questionnaire.module';
 import { WorkspaceAgentModule } from './agents/workspace/workspace-agent.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
@@ -120,6 +121,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
     OverviewModule,
     ExpensesModule,
     WorkspaceAgentModule,
+    QuestionnaireModule,
   ],
   controllers: [AppController, HealthController],
   providers: [

@@ -1,12 +1,14 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { leadsApi } from "../../api/leads";
+import { leadsApi, type Lead } from "../../api/leads";
 import { Card } from "../../components/ui";
 
 export default function Leads() {
   const { t, i18n } = useTranslation();
   const { businessId = "" } = useParams<{ businessId: string }>();
+  const [active, setActive] = useState<Lead | null>(null);
   const leads = useQuery({
     queryKey: ["leads", businessId],
     queryFn: () => leadsApi.list(businessId),
@@ -33,43 +35,168 @@ export default function Leads() {
       {items.length > 0 && (
         <Card className="overflow-hidden">
           <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[720px]">
+          <table className="w-full text-sm min-w-[760px]">
             <thead className="bg-neutral-50 text-neutral-500 text-xs uppercase">
               <tr>
                 <th className="text-start px-4 py-3">{t("leads.name")}</th>
+                <th className="text-start px-4 py-3">מקור</th>
                 <th className="text-start px-4 py-3">{t("leads.phone")}</th>
                 <th className="text-start px-4 py-3">{t("leads.email")}</th>
                 <th className="text-start px-4 py-3">{t("leads.interest")}</th>
-                <th className="text-start px-4 py-3">{t("leads.notes")}</th>
                 <th className="text-start px-4 py-3">{t("leads.createdAt")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
-              {items.map((l) => (
-                <tr key={l.id} className="hover:bg-neutral-50">
-                  <td className="px-4 py-3 font-medium">{l.name}</td>
-                  <td className="px-4 py-3 font-mono text-xs" dir="ltr">
-                    {l.phone ?? "—"}
-                  </td>
-                  <td className="px-4 py-3 font-mono text-xs" dir="ltr">
-                    {l.email ?? "—"}
-                  </td>
-                  <td className="px-4 py-3">{l.interest}</td>
-                  <td className="px-4 py-3 text-neutral-600">
-                    {l.notes ?? "—"}
-                  </td>
-                  <td className="px-4 py-3 text-neutral-500 text-xs" dir="ltr">
-                    {new Date(l.createdAt).toLocaleString(
-                      i18n.language === "he" ? "he-IL" : "en-US",
-                    )}
-                  </td>
-                </tr>
-              ))}
+              {items.map((l) => {
+                const isQ = l.source === "questionnaire";
+                return (
+                  <tr
+                    key={l.id}
+                    onClick={() => isQ && setActive(l)}
+                    className={`hover:bg-neutral-50 ${isQ ? "cursor-pointer" : ""}`}
+                  >
+                    <td className="px-4 py-3 font-medium">{l.name}</td>
+                    <td className="px-4 py-3">
+                      {isQ ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-700 ring-1 ring-brand-200">
+                          שאלון
+                        </span>
+                      ) : (
+                        <span className="text-neutral-400 text-xs">צ׳אט</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs" dir="ltr">
+                      {l.phone ?? "—"}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs" dir="ltr">
+                      {l.email ?? "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      {l.interest}
+                      {isQ && (
+                        <span className="ms-2 text-xs text-brand-600">
+                          צפייה בשאלון ←
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-neutral-500 text-xs" dir="ltr">
+                      {new Date(l.createdAt).toLocaleString(
+                        i18n.language === "he" ? "he-IL" : "en-US",
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
           </div>
         </Card>
       )}
+
+      {active && (
+        <QuestionnaireModal lead={active} onClose={() => setActive(null)} />
+      )}
     </div>
   );
+}
+
+function QuestionnaireModal({
+  lead,
+  onClose,
+}: {
+  lead: Lead;
+  onClose: () => void;
+}) {
+  const a = lead.answers ?? {};
+  const sections = a.sections ?? [];
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-navy-900/40 p-0 sm:items-center sm:p-6"
+      onClick={onClose}
+    >
+      <div
+        className="max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-white shadow-2xl sm:rounded-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="sticky top-0 flex items-start justify-between gap-4 border-b border-navy-100 bg-white px-5 py-4">
+          <div>
+            <h2 className="text-lg font-bold text-navy-900">{lead.name}</h2>
+            <p className="text-sm text-navy-500">{lead.interest}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-navy-400 hover:bg-navy-50"
+            aria-label="סגירה"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-5 w-5">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="px-5 py-4">
+          <dl className="mb-4 grid grid-cols-2 gap-3 rounded-xl bg-brand-50/60 p-3.5 text-sm">
+            <Meta label="טלפון" value={lead.phone} ltr />
+            <Meta label="אימייל" value={lead.email} ltr />
+            <Meta label="ערוץ מועדף" value={channelLabel(a.preferredChannel)} />
+          </dl>
+
+          {sections.length === 0 && (
+            <p className="text-sm text-navy-400">אין תשובות מפורטות.</p>
+          )}
+          <div className="space-y-5">
+            {sections.map((section, i) => (
+              <div key={i}>
+                <h3 className="mb-2 text-sm font-semibold text-brand-700">
+                  {section.title}
+                </h3>
+                <dl className="space-y-2">
+                  {section.items.map((item, j) => (
+                    <div key={j} className="rounded-lg border border-navy-100 p-3">
+                      <dt className="text-xs text-navy-400">{item.label}</dt>
+                      <dd className="mt-0.5 whitespace-pre-wrap text-sm text-navy-900">
+                        {item.value}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Meta({
+  label,
+  value,
+  ltr,
+}: {
+  label: string;
+  value: string | null | undefined;
+  ltr?: boolean;
+}) {
+  return (
+    <div>
+      <dt className="text-xs text-navy-400">{label}</dt>
+      <dd
+        className="font-medium text-navy-900"
+        dir={ltr ? "ltr" : undefined}
+        style={ltr ? { textAlign: "start" } : undefined}
+      >
+        {value || "—"}
+      </dd>
+    </div>
+  );
+}
+
+function channelLabel(v: string | null | undefined): string {
+  if (v === "phone") return "טלפון";
+  if (v === "whatsapp") return "וואטסאפ";
+  if (v === "email") return "אימייל";
+  return "—";
 }

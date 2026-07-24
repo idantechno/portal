@@ -1,11 +1,9 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate, useParams } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { leadsApi, type Lead } from "../../api/leads";
-import { briefsApi } from "../../api/briefs";
-import { apiErrorMessage } from "../../api/client";
-import { Button, Card, FormError, Input } from "../../components/ui";
+import { Card } from "../../components/ui";
 import { Icon } from "../../components/icons";
 
 export default function Leads() {
@@ -115,33 +113,6 @@ function QuestionnaireModal({
 }) {
   const a = lead.answers ?? {};
   const sections = a.sections ?? [];
-  const businessId = lead.businessId;
-  const navigate = useNavigate();
-  const qc = useQueryClient();
-  const [website, setWebsite] = useState("");
-  const [error, setError] = useState<string | null>(null);
-
-  // Briefs already generated for this business — so a lead that has one links
-  // straight to it instead of quietly producing a second copy.
-  const briefs = useQuery({
-    queryKey: ["briefs", businessId],
-    queryFn: () => briefsApi.list(businessId),
-    enabled: Boolean(businessId),
-  });
-  const existing = (briefs.data ?? []).find((b) => b.leadId === lead.id);
-
-  const generate = useMutation({
-    mutationFn: () =>
-      briefsApi.generate(businessId, lead.id, {
-        websiteUrl: website.trim() || undefined,
-      }),
-    onSuccess: (brief) => {
-      void qc.invalidateQueries({ queryKey: ["briefs", businessId] });
-      navigate(`/app/businesses/${businessId}/briefs/${brief.id}`);
-    },
-    onError: (err) =>
-      setError(apiErrorMessage(err, "הפקת הבריף נכשלה — נסה שוב")),
-  });
 
   return (
     <div
@@ -173,82 +144,6 @@ function QuestionnaireModal({
             <Meta label="אימייל" value={lead.email} ltr />
             <Meta label="ערוץ מועדף" value={channelLabel(a.preferredChannel)} />
           </dl>
-
-          {/* Brief generation. The website is optional — without it the 🟢
-              extraction layer is simply skipped and its fields stay ⟨לא ידוע⟩. */}
-          <div className="mb-5 rounded-xl border border-navy-100 p-3.5">
-            <div className="mb-1 flex items-center gap-2">
-              <Icon name="compass" size={17} className="text-brand-600" />
-              <h3 className="text-sm font-semibold text-navy-900">
-                בריף עסקי מהשאלון
-              </h3>
-            </div>
-            {existing ? (
-              <>
-                <p className="mb-3 text-xs text-navy-400">
-                  כבר הופק בריף מהשאלון הזה.
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    onClick={() =>
-                      navigate(
-                        `/app/businesses/${businessId}/briefs/${existing.id}`,
-                      )
-                    }
-                  >
-                    פתיחת הבריף
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    icon="refresh"
-                    disabled={generate.isPending}
-                    onClick={() => generate.mutate()}
-                  >
-                    {generate.isPending ? "מפיק…" : "הפקה מחדש"}
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <>
-                <p className="mb-2.5 text-xs text-navy-400">
-                  אפשר להוסיף כתובת אתר — ממנה נחלץ שירותים, מחירים, טון והמלצות.
-                  בלי אתר, השדות האלה יסומנו ⟨לא ידוע⟩.
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <Input
-                    value={website}
-                    onChange={(e) => setWebsite(e.target.value)}
-                    placeholder="example.co.il (רשות)"
-                    dir="ltr"
-                    className="w-56"
-                  />
-                  <Button
-                    size="sm"
-                    icon="agents"
-                    disabled={generate.isPending}
-                    onClick={() => {
-                      setError(null);
-                      generate.mutate();
-                    }}
-                  >
-                    {generate.isPending ? "מפיק בריף…" : "הפק בריף"}
-                  </Button>
-                </div>
-                {generate.isPending && (
-                  <p className="mt-2 text-xs text-navy-400">
-                    ההפקה כוללת סריקת אתר וניסוח — עד כדקה.
-                  </p>
-                )}
-              </>
-            )}
-            {error && (
-              <div className="mt-3">
-                <FormError message={error} />
-              </div>
-            )}
-          </div>
 
           {sections.length === 0 && (
             <p className="text-sm text-navy-400">אין תשובות מפורטות.</p>

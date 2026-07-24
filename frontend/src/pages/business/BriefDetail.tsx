@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { briefsApi, type Brief } from "../../api/briefs";
 import { apiErrorMessage } from "../../api/client";
 import { BriefMarkdown } from "../../components/BriefMarkdown";
-import { Button, Card, FormError, Textarea } from "../../components/ui";
+import { Button, Card, FormError, Input, Textarea } from "../../components/ui";
 import { Icon } from "../../components/icons";
 
 /** Reads the counters the generator stored alongside the markdown. */
@@ -57,12 +57,17 @@ export default function BriefDetail() {
     onError: (err) => setError(apiErrorMessage(err, "השמירה נכשלה")),
   });
 
+  // Regeneration is a two-step reveal, not a one-click: the operator can set a
+  // different website (or none) and back out before spending a model run.
+  const [regenOpen, setRegenOpen] = useState(false);
+  const [regenWebsite, setRegenWebsite] = useState("");
+
   const regenerate = useMutation({
     mutationFn: () => {
       const lead = brief.data?.leadId;
       if (!lead) throw new Error("no-lead");
       return briefsApi.generate(businessId, lead, {
-        websiteUrl: brief.data?.websiteUrl ?? undefined,
+        websiteUrl: regenWebsite.trim() || undefined,
       });
     },
     onSuccess: (created) => {
@@ -73,11 +78,13 @@ export default function BriefDetail() {
       setError(apiErrorMessage(err, "ההפקה מחדש נכשלה — נסה שוב")),
   });
 
+  const backToAgent = `/app/businesses/${businessId}/agents/marketing`;
+
   const remove = useMutation({
     mutationFn: () => briefsApi.remove(businessId, briefId),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["briefs", businessId] });
-      navigate(`/app/businesses/${businessId}/briefs`);
+      navigate(backToAgent);
     },
     onError: (err) => setError(apiErrorMessage(err, "המחיקה נכשלה")),
   });
@@ -123,11 +130,11 @@ export default function BriefDetail() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
       <Link
-        to={`/app/businesses/${businessId}/briefs`}
+        to={backToAgent}
         className="mb-4 inline-flex items-center gap-1.5 text-sm text-navy-500 hover:text-navy-800"
       >
         <Icon name="arrow-start" size={16} />
-        כל הבריפים
+        סוכן שיווק
       </Link>
 
       <header className="mb-5 flex flex-wrap items-start justify-between gap-3">
@@ -245,27 +252,70 @@ export default function BriefDetail() {
         )}
       </Card>
 
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-        <Button
-          variant="secondary"
-          size="sm"
-          icon="refresh"
-          disabled={!data.leadId || regenerate.isPending}
-          onClick={() => regenerate.mutate()}
-        >
-          {regenerate.isPending ? "מפיק מחדש…" : "הפקה מחדש מהשאלון"}
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          icon="trash"
-          disabled={remove.isPending}
-          onClick={() => {
-            if (confirm("למחוק את הבריף?")) remove.mutate();
-          }}
-        >
-          מחיקה
-        </Button>
+      <div className="mt-6">
+        {regenOpen ? (
+          <Card className="p-4">
+            <p className="mb-2.5 text-sm font-medium text-navy-800">
+              הפקה מחדש מהשאלון
+            </p>
+            <p className="mb-3 text-xs text-navy-400">
+              אפשר לשנות/להוסיף כתובת אתר לחילוץ 🟢, או להשאיר ריק. ההפקה מייצרת
+              בריף חדש מאותו שאלון — הבריף הנוכחי לא נמחק.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                value={regenWebsite}
+                onChange={(e) => setRegenWebsite(e.target.value)}
+                placeholder="example.co.il (רשות)"
+                dir="ltr"
+                className="w-56"
+                disabled={regenerate.isPending}
+              />
+              <Button
+                size="sm"
+                icon="refresh"
+                disabled={!data.leadId || regenerate.isPending}
+                onClick={() => regenerate.mutate()}
+              >
+                {regenerate.isPending ? "מפיק מחדש…" : "הפק מחדש"}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={regenerate.isPending}
+                onClick={() => setRegenOpen(false)}
+              >
+                חזרה
+              </Button>
+            </div>
+          </Card>
+        ) : (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Button
+              variant="secondary"
+              size="sm"
+              icon="refresh"
+              disabled={!data.leadId}
+              onClick={() => {
+                setRegenWebsite(data.websiteUrl ?? "");
+                setRegenOpen(true);
+              }}
+            >
+              הפקה מחדש מהשאלון
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              icon="trash"
+              disabled={remove.isPending}
+              onClick={() => {
+                if (confirm("למחוק את הבריף?")) remove.mutate();
+              }}
+            >
+              מחיקה
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

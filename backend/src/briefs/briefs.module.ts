@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AgentsModule } from '../agents/agents.module';
 import { BusinessesModule } from '../businesses/businesses.module';
 import { ContextFilesModule } from '../context-files/context-files.module';
 import { LeadsModule } from '../leads/leads.module';
@@ -14,6 +15,7 @@ import { WebsiteExtractorService } from './website-extractor.service';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Brief]),
+    AgentsModule,
     BusinessesModule,
     ContextFilesModule,
     LeadsModule,

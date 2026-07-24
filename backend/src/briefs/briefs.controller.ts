@@ -11,12 +11,17 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { BusinessScopeGuard } from '../businesses/guards/business-scope.guard';
+import { RequireAgentGuard } from '../agents/guards/require-agent.guard';
+import { RequireAgent } from '../agents/decorators/require-agent.decorator';
 import { BriefGeneratorService } from './brief-generator.service';
 import { BriefsService } from './briefs.service';
 import { GenerateBriefDto } from './dto/generate-brief.dto';
 import { UpdateBriefDto } from './dto/update-brief.dto';
 
-@UseGuards(BusinessScopeGuard)
+// The brief generator is the marketing agent's tool — only businesses granted
+// the "marketing" agent (an admin decision) can reach any of these routes.
+@UseGuards(BusinessScopeGuard, RequireAgentGuard)
+@RequireAgent('marketing')
 @Controller('businesses/:businessId')
 export class BriefsController {
   constructor(

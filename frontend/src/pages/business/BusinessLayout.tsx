@@ -71,7 +71,6 @@ export default function BusinessLayout() {
       title: "מידע ומסמכים",
       items: [
         { to: "filing", label: "מסמכים", icon: "doc", show: true },
-        { to: "briefs", label: "בריפים", icon: "compass", show: true },
         { to: "files", label: "קבצי הקשר", icon: "folder", show: true },
       ],
     },

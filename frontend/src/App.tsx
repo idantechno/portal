@@ -22,7 +22,6 @@ const Files = lazy(() => import("./pages/business/Files"));
 const Filing = lazy(() => import("./pages/business/Filing"));
 const Calendar = lazy(() => import("./pages/business/Calendar"));
 const Leads = lazy(() => import("./pages/business/Leads"));
-const Briefs = lazy(() => import("./pages/business/Briefs"));
 const BriefDetail = lazy(() => import("./pages/business/BriefDetail"));
 const Tasks = lazy(() => import("./pages/business/Tasks"));
 const Automations = lazy(() => import("./pages/business/Automations"));
@@ -172,7 +171,6 @@ export default function App() {
           <Route path="filing" element={<Filing />} />
           <Route path="calendar" element={<Calendar />} />
           <Route path="leads" element={<Leads />} />
-          <Route path="briefs" element={<Briefs />} />
           <Route path="briefs/:briefId" element={<BriefDetail />} />
           <Route path="tasks" element={<Tasks />} />
           <Route path="agents" element={<AgentStudio />} />

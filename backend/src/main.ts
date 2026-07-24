@@ -10,6 +10,13 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     rawBody: true,
   });
+
+  // Default Express body limit is 100kb — too small for a branding save, which
+  // carries the logo inline as a base64 data URL, and for large brief edits.
+  // Raise it while keeping rawBody intact (Meta signs the raw webhook bytes).
+  app.useBodyParser('json', { limit: '8mb' });
+  app.useBodyParser('urlencoded', { limit: '8mb', extended: true });
+
   const config = app.get(ConfigService);
 
   // Behind Railway/nginx the client IP arrives in X-Forwarded-For. Trust the

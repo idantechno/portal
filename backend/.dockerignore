@@ -1,5 +1,8 @@
 node_modules
 dist
+# A stale incremental-build cache in the context makes nest's deleteOutDir wipe
+# dist while tsc skips re-emitting → an image with no dist/main.js. Never ship it.
+*.tsbuildinfo
 coverage
 .git
 .gitignore

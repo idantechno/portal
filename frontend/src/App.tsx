@@ -1,6 +1,7 @@
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useEffect } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuthStore } from "./store/auth";
+import { authApi } from "./api/auth";
 import { isPlatformStaff } from "./lib/roles";
 import Login from "./pages/Login";
 
@@ -77,6 +78,22 @@ function RequireStaff({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const token = useAuthStore((s) => s.token);
+  const setUser = useAuthStore((s) => s.setUser);
+
+  // Refresh the cached user from the server whenever a session exists. Without
+  // this the store keeps whatever the *last login* returned, so a server-side
+  // change (e.g. a role promotion to super_admin) never reaches a client that
+  // stays logged in — the admin area and staff-only controls would stay hidden
+  // until a manual re-login. On auth failure the axios interceptor logs out.
+  useEffect(() => {
+    if (!token) return;
+    authApi
+      .me()
+      .then(setUser)
+      .catch(() => undefined);
+  }, [token, setUser]);
+
   return (
     <Suspense fallback={<RouteFallback />}>
       <Routes>

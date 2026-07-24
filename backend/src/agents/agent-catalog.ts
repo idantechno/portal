@@ -42,6 +42,7 @@ export interface AgentDefinition {
   key: AgentKey;
   name: string;
   description: string;
+  /** Icon slug resolved by the frontend icon set (see components/icons.tsx). */
   icon: string;
   /** Seeded value when a business is created — still revocable by an admin. */
   defaultEnabled: boolean;
@@ -56,7 +57,7 @@ export const AGENT_CATALOG: readonly AgentDefinition[] = [
     name: 'הסוכן הראשי',
     description:
       'הכניסה למערכת: מכיר את כל הסוכנים, מפנה אותך לְמה שאתה צריך, ומעביר פניות לצוות.',
-    icon: '🧭',
+    icon: 'compass',
     defaultEnabled: false,
     status: 'live',
     pillar: 'orchestration',
@@ -65,7 +66,7 @@ export const AGENT_CATALOG: readonly AgentDefinition[] = [
     key: 'chat',
     name: 'סוכן צ׳אט',
     description: 'מענה אוטומטי ללקוחות ב-WhatsApp ובווידג׳ט האתר.',
-    icon: '💬',
+    icon: 'chat',
     defaultEnabled: false,
     status: 'live',
     pillar: 'conversations',
@@ -75,7 +76,7 @@ export const AGENT_CATALOG: readonly AgentDefinition[] = [
     name: 'Portal Orchestrator',
     description:
       'הלב של המערכת: קורא את ההקשר העסקי ומנתב כל משימה לסוכן המתאים.',
-    icon: '🧭',
+    icon: 'compass',
     // The router is the always-available entry point — never admin-gated, so a
     // business always has somewhere to start and get pointed to the right agent.
     defaultEnabled: true,
@@ -86,7 +87,7 @@ export const AGENT_CATALOG: readonly AgentDefinition[] = [
     key: 'sales',
     name: 'סוכן מכירות',
     description: 'מעקב אחרי לידים, נרצ׳רינג ודחיפת עסקאות לסגירה.',
-    icon: '🤝',
+    icon: 'leads',
     defaultEnabled: false,
     status: 'live',
     pillar: 'sales',
@@ -96,7 +97,7 @@ export const AGENT_CATALOG: readonly AgentDefinition[] = [
     name: 'סוכן CRM',
     description:
       'תחזוקת רשומות לקוח: העשרה, תיוג, עדכון סטטוס ומניעת כפילויות.',
-    icon: '🗂️',
+    icon: 'users',
     defaultEnabled: false,
     status: 'live',
     pillar: 'sales',
@@ -105,7 +106,7 @@ export const AGENT_CATALOG: readonly AgentDefinition[] = [
     key: 'documents',
     name: 'סוכן מסמכים',
     description: 'הפקת הצעות מחיר, חוזים והזמנות עבודה לחתימה.',
-    icon: '📝',
+    icon: 'doc',
     defaultEnabled: false,
     status: 'live',
     pillar: 'documents',
@@ -114,7 +115,7 @@ export const AGENT_CATALOG: readonly AgentDefinition[] = [
     key: 'quote',
     name: 'סוכן הצעות מחיר',
     description: 'בניית הצעות מחיר מתומחרות מתוך בקשת הלקוח.',
-    icon: '💰',
+    icon: 'pencil',
     defaultEnabled: false,
     status: 'live',
     pillar: 'documents',
@@ -123,7 +124,7 @@ export const AGENT_CATALOG: readonly AgentDefinition[] = [
     key: 'accounting',
     name: 'סוכן הנהלת חשבונות',
     description: 'חשבוניות, מעקב תשלומים והוצאות עבור עסקאות שנסגרו.',
-    icon: '🧾',
+    icon: 'receipt',
     defaultEnabled: false,
     status: 'live',
     pillar: 'finance',
@@ -132,7 +133,7 @@ export const AGENT_CATALOG: readonly AgentDefinition[] = [
     key: 'marketing',
     name: 'סוכן שיווק',
     description: 'ניסוח תוכן, פוסטים לרשתות, קמפיינים וקופי מותג.',
-    icon: '📣',
+    icon: 'megaphone',
     defaultEnabled: false,
     status: 'live',
     pillar: 'content',
@@ -141,7 +142,7 @@ export const AGENT_CATALOG: readonly AgentDefinition[] = [
     key: 'analytics',
     name: 'סוכן אנליטיקה',
     description: 'תובנות והמלצות "מה לשפר השבוע" מתוך נתוני העסק.',
-    icon: '📊',
+    icon: 'chart',
     defaultEnabled: false,
     status: 'live',
     pillar: 'growth',
@@ -151,7 +152,7 @@ export const AGENT_CATALOG: readonly AgentDefinition[] = [
     name: 'סוכן רעיונות',
     description:
       'לוכד רעיונות גולמיים, מלטש אותם ומפתח אותם לכיוונים ומהלכים לעסק.',
-    icon: '💡',
+    icon: 'idea',
     defaultEnabled: false,
     status: 'live',
     pillar: 'growth',
@@ -161,7 +162,7 @@ export const AGENT_CATALOG: readonly AgentDefinition[] = [
     name: 'סוכן מעצב גרפי',
     description:
       'מייצר מוצרים מעוצבים פשוטים להדפסה — תפריט, כרזה, מחירון, הזמנה — בצבעי העסק.',
-    icon: '🎨',
+    icon: 'palette',
     defaultEnabled: false,
     status: 'live',
     pillar: 'content',
@@ -171,7 +172,7 @@ export const AGENT_CATALOG: readonly AgentDefinition[] = [
     name: 'סוכן תזכורות',
     description:
       'שלא תשכח מעקבים ומשימות: תזכורות עם תאריך יעד — באיחור / היום / בקרוב.',
-    icon: '⏰',
+    icon: 'clock',
     defaultEnabled: false,
     status: 'live',
     pillar: 'growth',

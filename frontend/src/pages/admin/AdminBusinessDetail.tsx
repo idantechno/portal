@@ -6,6 +6,7 @@ import type { AgentAccessView } from "../../api/types";
 import { useAuthStore } from "../../store/auth";
 import { isSuperAdmin } from "../../lib/roles";
 import { Button, Card, Spinner } from "../../components/ui";
+import { Icon, ServerIcon } from "../../components/icons";
 
 function Toggle({
   enabled,
@@ -74,9 +75,10 @@ export default function AdminBusinessDetail() {
     <div className="p-8 max-w-4xl mx-auto">
       <Link
         to="/app/admin/businesses"
-        className="text-sm text-neutral-500 hover:text-neutral-800"
+        className="inline-flex items-center gap-1.5 text-sm text-neutral-500 transition-colors hover:text-neutral-800"
       >
-        ← {t("admin.backToBusinesses")}
+        <Icon name="arrow-start" size={16} />
+        {t("admin.backToBusinesses")}
       </Link>
 
       <div className="flex items-center justify-between mt-3 mb-6 gap-4">
@@ -105,7 +107,9 @@ export default function AdminBusinessDetail() {
               key={a.key}
               className="flex items-center gap-4 rounded-lg border border-neutral-200 p-4"
             >
-              <div className="text-2xl shrink-0">{a.icon}</div>
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-500">
+                <ServerIcon name={a.icon} size={19} />
+              </div>
               <div className="flex-1 min-w-0">
                 <div className="font-medium">{a.name}</div>
                 <div className="text-sm text-neutral-500">{a.description}</div>

@@ -9,6 +9,9 @@ import {
 
 /** One rendered answer line for the human-readable summary (email + leads UI). */
 export interface AnswerItem {
+  /** Question id from the frontend schema. Absent on submissions made before
+   *  the brief generator needed it — see `briefs/brief-facts.ts`. */
+  id?: string;
   label: string;
   value: string;
 }
@@ -67,6 +70,13 @@ export class SubmitQuestionnaireDto {
 
   @IsArray()
   sections!: AnswerSection[];
+
+  // Campaign/source tag read from the landing-page URL (?src= or ?utm_source=),
+  // so we can tell which channel sent this lead (instagram, facebook, ...).
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  src?: string;
 
   // Honeypot: a hidden field real users never see. Bots that autofill every
   // input trip it, and we reject. Must be absent or empty.

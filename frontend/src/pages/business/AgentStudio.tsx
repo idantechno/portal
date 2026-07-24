@@ -3,7 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { agentsApi } from "../../api/agents";
 import type { AgentDefinition } from "../../api/types";
 import { agentRoute } from "../../lib/agentRoutes";
-import { Card } from "../../components/ui";
+import { Card, EmptyState } from "../../components/ui";
+import { Icon, ServerIcon } from "../../components/icons";
 
 // The single hub listing every agent the business has. Clicking any card opens
 // that agent's OWN page (chat + its structured tools). No agent is operated
@@ -36,8 +37,12 @@ export default function AgentStudio() {
 
       {agents.isLoading && <div className="text-navy-400 text-sm">טוען...</div>}
       {!agents.isLoading && allAgents.length === 0 && (
-        <Card className="p-12 text-center text-navy-400">
-          עדיין לא הוקצו לעסק סוכנים. פנה למנהל המערכת כדי להפעיל.
+        <Card>
+          <EmptyState
+            icon="agents"
+            title="עדיין לא הוקצו סוכנים"
+            text="פנה למנהל המערכת כדי להפעיל סוכנים לעסק הזה."
+          />
         </Card>
       )}
 
@@ -47,15 +52,17 @@ export default function AgentStudio() {
             <button
               key={agent.key}
               onClick={() => open(agent)}
-              className="group relative text-start rounded-2xl border border-navy-100 bg-white p-4 transition-all hover:border-brand-200 hover:-translate-y-0.5 hover:shadow-[0_12px_32px_-20px_rgba(1,20,39,0.4)]"
+              className="group relative rounded-2xl border border-navy-100/70 bg-white p-4 text-start shadow-[var(--shadow-e1)] transition-[transform,box-shadow,border-color] duration-200 ease-[var(--ease-out-brand)] hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-[var(--shadow-e3)]"
             >
-              <div className="flex items-start justify-between">
-                <div className="text-2xl mb-2" aria-hidden>
-                  {agent.icon}
-                </div>
-                <span className="text-brand-300 text-lg rtl:rotate-180 group-hover:text-brand-500 transition-colors">
-                  →
+              <div className="mb-2 flex items-start justify-between">
+                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-50 text-brand-500 transition-colors group-hover:bg-brand-100">
+                  <ServerIcon name={agent.icon} size={21} />
                 </span>
+                <Icon
+                  name="chevron-start"
+                  size={18}
+                  className="mt-1 text-brand-200 transition-colors group-hover:text-brand-500 rtl:-scale-x-100"
+                />
               </div>
               <div className="font-semibold text-navy-900 text-sm mb-0.5">
                 {agent.name}

@@ -1,8 +1,10 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { IntegrationsService } from './integrations.service';
 
-const CAL_BASE =
-  'https://www.googleapis.com/calendar/v3/calendars/primary/events';
+const CAL_API = 'https://www.googleapis.com/calendar/v3';
+const CAL_BASE = `${CAL_API}/calendars/primary/events`;
+// Cap fan-out so a big calendar list can't explode into dozens of API calls.
+const MAX_CALENDARS = 12;
 
 export interface CalendarEvent {
   id: string;
@@ -17,6 +19,14 @@ interface GoogleEvent {
   summary?: string;
   start?: { dateTime?: string; date?: string };
   end?: { dateTime?: string; date?: string };
+}
+
+interface GoogleCalendarListEntry {
+  id: string;
+  summary?: string;
+  primary?: boolean;
+  selected?: boolean;
+  accessRole?: string;
 }
 
 /**
@@ -66,6 +76,10 @@ export class CalendarService {
     timeMin: string,
     timeMax: string,
   ): Promise<CalendarEvent[]> {
+    // Read the primary calendar plus any calendar the account has chosen to
+    // show (e.g. a personal calendar shared into this account) so shared
+    // events surface too — not just the account's own primary.
+    const calendarIds = await this.visibleCalendarIds(businessId);
     const params = new URLSearchParams({
       timeMin,
       timeMax,
@@ -73,26 +87,55 @@ export class CalendarService {
       orderBy: 'startTime',
       maxResults: '250',
     });
-    const res = await this.call(businessId, `${CAL_BASE}?${params.toString()}`);
+
+    const all: CalendarEvent[] = [];
+    for (const calId of calendarIds) {
+      const url = `${CAL_API}/calendars/${encodeURIComponent(calId)}/events?${params.toString()}`;
+      const res = await this.call(businessId, url);
+      if (!res.ok) {
+        // One inaccessible/removed calendar must not fail the whole list.
+        this.log.warn(`[calendar] list failed for ${calId}: ${res.status}`);
+        continue;
+      }
+      const json = (await res.json()) as { items?: GoogleEvent[] };
+      for (const e of json.items ?? []) {
+        all.push({
+          id: e.id,
+          title: e.summary ?? '(ללא כותרת)',
+          start: e.start?.dateTime ?? e.start?.date ?? '',
+          end: e.end?.dateTime ?? e.end?.date ?? null,
+          allDay: !e.start?.dateTime,
+        });
+      }
+    }
+
+    all.sort((a, b) => a.start.localeCompare(b.start));
+    return all.slice(0, 250);
+  }
+
+  /**
+   * Calendar ids to read events from: the primary plus every calendar the user
+   * has selected (visible) in their Google Calendar — which includes calendars
+   * shared into this account. Falls back to just `primary` if the list can't be
+   * fetched, so behaviour degrades gracefully to the old single-calendar read.
+   */
+  private async visibleCalendarIds(businessId: string): Promise<string[]> {
+    const res = await this.call(businessId, `${CAL_API}/users/me/calendarList`);
     if (!res.ok) {
       const detail = await res.text().catch(() => '');
-      this.log.error(
-        `[calendar] list failed ${res.status}: ${detail.slice(0, 200)}`,
+      this.log.warn(
+        `[calendar] calendarList failed: ${res.status} ${detail.slice(0, 200)}`,
       );
-      throw new BadRequestException(`CALENDAR_LIST_FAILED_${res.status}`);
+      return ['primary'];
     }
-    const json = (await res.json()) as { items?: GoogleEvent[] };
-    return (json.items ?? []).map((e) => {
-      const start = e.start?.dateTime ?? e.start?.date ?? '';
-      const end = e.end?.dateTime ?? e.end?.date ?? null;
-      return {
-        id: e.id,
-        title: e.summary ?? '(ללא כותרת)',
-        start,
-        end,
-        allDay: !e.start?.dateTime,
-      };
-    });
+    const json = (await res.json()) as { items?: GoogleCalendarListEntry[] };
+    // The primary calendar appears here with its own id (the account email), so
+    // we use that — NOT the `primary` alias — to avoid reading it twice.
+    const ids = (json.items ?? [])
+      .filter((c) => c.primary || c.selected === true)
+      .map((c) => c.id)
+      .filter(Boolean);
+    return ids.length ? ids.slice(0, MAX_CALENDARS) : ['primary'];
   }
 
   async createEvent(

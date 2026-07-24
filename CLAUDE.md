@@ -78,6 +78,18 @@ This codebase uses `@anthropic-ai/claude-agent-sdk` *inside a NestJS BullMQ work
 - `settingSources: []` and `persistSession: false` keep the SDK from reading your `~/.claude` config or persisting session state across runs.
 - A small custom MCP server (`createSdkMcpServer`) is built per run to expose `capture_lead` and `escalate_to_human` (`src/agent-worker/tools.ts`). The `agent-worker` is the only place these MCP tools are wired.
 
+### Brief generator (`src/briefs/`) — questionnaire → business brief
+
+Turns a `/strategy` submission into the full brief document. Three layers, each degrading on its own to `⟨לא ידוע⟩` rather than to invented text:
+
+- **🔵 questionnaire** — `brief-facts.ts` maps the lead's stored `answers` back to typed facts. Items carry `id` now; older rows fall back to label matching against `questionnaire-schema.ts`, the **backend mirror of `frontend/src/questionnaire/schema.ts` that must be kept in sync**. `contradictions.ts` then flags answers that disagree with each other (deterministic, no model).
+- **🟢 extraction** — `website-extractor.service.ts` crawls the business's own site (homepage + up to 4 same-origin pages) and asks the model what it actually says. Refuses non-public hosts — an operator-supplied URL must not become an SSRF probe.
+- **🟠 drafting** — `brief-drafter.service.ts` produces positioning / personas / messaging. Every field it returns is stamped "טיוטה — טעון אישור" by the renderer.
+
+`brief-renderer.ts` assembles the markdown deterministically — an empty slot prints `⟨לא ידוע⟩` because the renderer says so, not because a prompt asked. Both model steps go through `claude-json.service.ts` (Messages API, no agent loop, no tools; **no assistant prefill — the newer models reject it**). Model comes from `BRIEF_MODEL` (default `claude-opus-4-8`).
+
+`backend/scripts/brief-smoke.ts` runs the whole pipeline without a DB: `npx ts-node -T scripts/brief-smoke.ts [website]`.
+
 ### Multi-tenancy
 
 `businessId` is the tenant scope and threads through every service call (`findByIdScoped`, `listMessages(businessId, ...)`, etc.). Per-business filesystem state lives under `BUSINESSES_DIR` (env var, default `/data/businesses` inside the container, bind-mounted from `BUSINESSES_HOST_DIR` on the host). When adding queries or repositories, always scope by `businessId` — there is no global "all tenants" view.
@@ -89,6 +101,17 @@ Customers do NOT bring their own Meta Developer App. The app is ours (one `META_
 ### Why `rawBody: true`
 
 `main.ts` enables `rawBody: true` because Meta signs the **raw body bytes** with the App Secret. If the body is parsed-then-restringified, the HMAC won't match. The webhook controller reads `req.rawBody` (Buffer) directly. Don't change this without re-verifying the signature path.
+
+## Design system
+
+The visual language is centralised — don't hand-roll UI chrome.
+
+- **Icons: `frontend/src/components/icons.tsx` is the only source.** ~66 hand-drawn outline glyphs on a 24 grid, 1.6 stroke, round caps, `currentColor`. **No emoji anywhere in the product**, and no one-off inline `<svg>` — if a glyph is missing, add it to the set following the rules in that file's header. Verify additions at `/dev/icons` (dev-only route; the chunk is folded out of production builds).
+- **Backend sends icon *slugs*, not glyphs.** `agent-catalog.ts`, `integration.constants.ts`, and `weather-codes.ts` carry names like `'compass'` / `'receipt'`; the frontend resolves them through `<ServerIcon>`, which falls back safely on an unknown slug. Adding a catalog entry means adding the matching glyph.
+- **Directional glyphs mirror themselves.** Use `arrow-start`/`chevron-start` for back/previous and `-end` for forward/next; the `Icon` component tags them `icon-dir` and CSS flips them under `[dir="rtl"]`. Never a literal `←`/`→`/`›` in JSX — those don't mirror and read as stray characters.
+- **Primitives live in `components/ui.tsx`**: `Button` (takes an `icon` prop), `Card`, `IconTile`, `Badge`, `SectionTitle`, `EmptyState`, `FormError`. Icons outside buttons and nav rows belong in an `IconTile` so sizes and paddings can't drift.
+- **Tokens in `index.css`**: elevation `--shadow-e1/e2/e3` (navy-tinted, three steps only), one easing curve `--ease-out-brand`, and the `.app-canvas` / `.eyebrow` / `.hairline` utilities.
+- **Three type families, no more.** Rubik (`font-sans`), Frank Ruhl Libre (`font-display`, auto-applied to `h1/h2/h3`), and a system mono stack (`font-mono`). Heebo/Alef are scoped to the public `/strategy` questionnaire, which follows the marketing site's brand. Customer-facing output — the work-order PDF template, designer-agent HTML, the chat widget — must use the same pairing.
 
 ## Gotchas
 

@@ -85,7 +85,12 @@
 
   var style = document.createElement("style");
   style.textContent =
-    ":host,*{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Rubik','Heebo','Inter',sans-serif}" +
+    // Brand faces first, system stack behind. The widget deliberately does not
+    // pull a webfont onto the host site — when the host already serves Rubik or
+    // Heebo (as portalstudio.co.il does) the widget matches the product; when it
+    // doesn't, it falls back to the host's native UI face rather than a slow
+    // third-party font request.
+    ":host,*{box-sizing:border-box;font-family:'Rubik','Heebo',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}" +
     ".bubble{width:60px;height:60px;border-radius:50%;background:#6091B0;color:#fff;border:none;cursor:pointer;box-shadow:0 10px 26px rgba(1,20,39,0.22);display:grid;place-items:center;transition:transform .15s ease}" +
     ".bubble:hover{transform:scale(1.06)}" +
     ".bubble svg{width:26px;height:26px}" +

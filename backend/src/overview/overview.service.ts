@@ -16,7 +16,8 @@ export interface WeatherNow {
   hi: number;
   lo: number;
   description: string;
-  emoji: string;
+  /** Icon slug resolved by the frontend icon set (see components/icons.tsx). */
+  icon: string;
 }
 export interface OverviewExtras {
   /** AI-authored daily tip tailored to the business (null if unavailable). */
@@ -173,14 +174,14 @@ export class OverviewService {
       if (!res.ok) return null;
       const j = (await res.json()) as ForecastResp;
       const code = j.current?.weather_code ?? 0;
-      const desc = WEATHER_CODES[code] ?? { he: '—', emoji: '🌡️' };
+      const desc = WEATHER_CODES[code] ?? { he: '—', icon: 'sun' };
       return {
         city: name,
         tempC: Math.round(j.current?.temperature_2m ?? 0),
         hi: Math.round(j.daily?.temperature_2m_max?.[0] ?? 0),
         lo: Math.round(j.daily?.temperature_2m_min?.[0] ?? 0),
         description: desc.he,
-        emoji: desc.emoji,
+        icon: desc.icon,
       };
     } catch (err) {
       this.log.warn(

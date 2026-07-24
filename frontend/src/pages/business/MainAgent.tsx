@@ -9,6 +9,7 @@ import {
 } from "../../api/main";
 import { agentRoute } from "../../lib/agentRoutes";
 import { Button, Card, FormError, Spinner } from "../../components/ui";
+import { Icon } from "../../components/icons";
 
 interface UIMessage extends ChatTurn {
   createdAt: number;
@@ -159,7 +160,11 @@ function Message({
                       {s.reason}
                     </div>
                   </div>
-                  <span className="text-brand-500 shrink-0 rtl:rotate-180">→</span>
+                  <Icon
+                    name="arrow-end"
+                    size={17}
+                    className="shrink-0 text-brand-500"
+                  />
                 </Link>
               );
             })}
@@ -178,7 +183,9 @@ function Message({
 function EmptyState() {
   return (
     <Card className="p-8 text-center text-neutral-600 max-w-lg mx-auto">
-      <div className="text-2xl mb-3">🧭</div>
+      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-400">
+        <Icon name="compass" size={24} />
+      </div>
       <h2 className="text-base font-semibold mb-2 text-neutral-900">
         שלום — אני הסוכן הראשי
       </h2>

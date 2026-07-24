@@ -14,6 +14,7 @@ import {
   Label,
   Spinner,
 } from "../../components/ui";
+import { Icon, ServerIcon } from "../../components/icons";
 
 export default function AdminCreateClient() {
   const { t } = useTranslation();
@@ -85,7 +86,9 @@ export default function AdminCreateClient() {
     return (
       <div className="p-8 max-w-xl mx-auto">
         <Card className="p-6">
-          <div className="text-2xl mb-2">✅</div>
+          <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-basil-100 text-basil-600">
+            <Icon name="check-circle" size={22} />
+          </div>
           <h1 className="text-xl font-bold mb-1">{t("admin.clientCreated")}</h1>
           <p className="text-sm text-neutral-500 mb-5">
             {t("admin.shareCredsHint")}
@@ -135,9 +138,10 @@ export default function AdminCreateClient() {
     <div className="p-8 max-w-xl mx-auto">
       <Link
         to="/app/admin/businesses"
-        className="text-sm text-neutral-500 hover:text-neutral-800"
+        className="inline-flex items-center gap-1.5 text-sm text-neutral-500 transition-colors hover:text-neutral-800"
       >
-        ← {t("admin.backToBusinesses")}
+        <Icon name="arrow-start" size={16} />
+        {t("admin.backToBusinesses")}
       </Link>
       <h1 className="text-2xl font-bold mt-3 mb-6">{t("admin.createClient")}</h1>
 
@@ -199,7 +203,9 @@ export default function AdminCreateClient() {
                     checked={selected.includes(a.key)}
                     onChange={() => toggle(a.key)}
                   />
-                  <span className="text-xl">{a.icon}</span>
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-500">
+                    <ServerIcon name={a.icon} size={18} />
+                  </span>
                   <span className="flex-1">
                     <span className="block text-sm font-medium">{a.name}</span>
                     <span className="block text-xs text-neutral-500">

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { adminApi } from "../../api/admin";
 import { Button, Card } from "../../components/ui";
+import { Icon } from "../../components/icons";
 
 const PAGE = 50;
 
@@ -28,8 +29,9 @@ export default function AdminAudit() {
             variant="ghost"
             disabled={offset === 0}
             onClick={() => setOffset(Math.max(0, offset - PAGE))}
+            aria-label="הקודם"
           >
-            ←
+            <Icon name="chevron-start" size={17} />
           </Button>
           <span>
             {offset + 1}–{Math.min(offset + PAGE, total)} / {total}
@@ -39,8 +41,9 @@ export default function AdminAudit() {
             variant="ghost"
             disabled={offset + PAGE >= total}
             onClick={() => setOffset(offset + PAGE)}
+            aria-label="הבא"
           >
-            →
+            <Icon name="chevron-end" size={17} />
           </Button>
         </div>
       </div>

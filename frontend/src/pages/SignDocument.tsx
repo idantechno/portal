@@ -8,6 +8,7 @@ import {
   type SubmitSigningResult,
 } from "../api/documents";
 import { SignaturePad } from "../components/SignaturePad";
+import { Icon } from "../components/icons";
 
 export default function SignDocument() {
   const { token = "" } = useParams<{ token: string }>();
@@ -173,18 +174,11 @@ function SignDocumentInner({
                     disabled={submitMutation.isPending}
                     className="peer h-5 w-5 cursor-pointer appearance-none rounded-md border-2 border-wheat bg-white checked:border-basil-600 checked:bg-basil-600 focus:outline-none focus:ring-4 focus:ring-basil-100"
                   />
-                  <svg
-                    className="pointer-events-none absolute inset-0 m-auto hidden h-3.5 w-3.5 text-white peer-checked:block"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={3}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
+                  <Icon
+                    name="check"
+                    size={13}
+                    className="pointer-events-none absolute inset-0 m-auto hidden text-white peer-checked:block"
+                  />
                 </span>
                 <span className="text-sm text-wood-900">
                   אני מאשר/ת כי קראתי והבנתי את כל פרטי המסמך ותנאי השירות של{" "}
@@ -263,8 +257,8 @@ function Hero({
             }}
           />
         ) : (
-          <div className="flex h-24 w-24 items-center justify-center rounded-full bg-cream text-3xl shadow-[0_8px_32px_-12px_rgba(122,74,43,0.35)] ring-4 ring-cream sm:h-28 sm:w-28">
-            📝
+          <div className="flex h-24 w-24 items-center justify-center rounded-full bg-cream text-wood-500 shadow-[0_8px_32px_-12px_rgba(122,74,43,0.35)] ring-4 ring-cream sm:h-28 sm:w-28">
+            <Icon name="pencil" size={38} />
           </div>
         )}
         <h1 className="font-display mt-4 text-3xl text-wood-900 sm:text-4xl">
@@ -610,17 +604,7 @@ function SuccessScreen({
       <div className="w-full max-w-md animate-fade-up overflow-hidden rounded-3xl bg-cream shadow-[0_24px_60px_-20px_rgba(122,74,43,0.35)] ring-1 ring-wheat">
         <div className="relative bg-gradient-to-bl from-basil-600 to-basil-700 px-6 py-7 text-center text-white">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-white/15 ring-4 ring-white/10">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2.5}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-9 w-9"
-            >
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
+            <Icon name="check" size={34} />
           </div>
           <p className="font-display mt-3 text-xs uppercase tracking-[0.3em] text-white/80">
             Grazie
@@ -674,19 +658,7 @@ function SuccessScreen({
             download={`signed-${token}.pdf`}
             className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-wheat bg-white/60 px-4 py-2.5 text-sm font-medium text-wood-700 hover:bg-cream"
           >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={1.8}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-4 w-4"
-            >
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
+            <Icon name="download" size={16} />
             הורד את ה־PDF למכשיר
           </a>
 

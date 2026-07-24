@@ -53,6 +53,19 @@ export class Lead {
   @Column({ type: 'varchar', length: 16, name: 'source', default: 'agent' })
   source!: LeadSource;
 
+  /**
+   * Human-readable origin shown in the leads table: which channel, landing page
+   * or campaign the lead actually came from — e.g. "וואטסאפ", "צ'אט באתר",
+   * "שאלון אסטרטגיה", "שאלון אסטרטגיה · אינסטגרם". Null for older rows.
+   */
+  @Column({
+    type: 'varchar',
+    length: 160,
+    name: 'source_detail',
+    nullable: true,
+  })
+  sourceDetail!: string | null;
+
   /** Full structured questionnaire submission (sections + answers). Null for
    *  agent-captured leads. */
   @Column({ type: 'jsonb', name: 'answers', nullable: true })

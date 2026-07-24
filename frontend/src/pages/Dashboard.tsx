@@ -18,6 +18,7 @@ import {
   Spinner,
 } from "../components/ui";
 import { HomeBriefing } from "../components/HomeBriefing";
+import { Icon, ServerIcon } from "../components/icons";
 
 // Resolves the page an entitled agent opens. The chat agent opens the
 // business's inbox (where the owner watches the bot); documents opens its tool.
@@ -150,9 +151,9 @@ export default function Dashboard() {
                   <Link key={a.key} to={a.to} className="block group">
                     <Card className="p-5 flex items-center gap-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-[0_18px_40px_-22px_rgba(1,20,39,0.4)]">
                       <div
-                        className={`h-14 w-14 rounded-2xl flex items-center justify-center text-2xl shrink-0 ${tone}`}
+                        className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl ${tone}`}
                       >
-                        {a.icon}
+                        <ServerIcon name={a.icon} size={24} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold text-base text-navy-900 mb-0.5">
@@ -162,9 +163,11 @@ export default function Dashboard() {
                           {a.description}
                         </div>
                       </div>
-                      <div className="text-brand-500 text-xl shrink-0 transition-transform group-hover:-translate-x-1 rtl:rotate-180">
-                        →
-                      </div>
+                      <Icon
+                        name="arrow-end"
+                        size={19}
+                        className="shrink-0 text-brand-500 transition-transform group-hover:translate-x-0.5"
+                      />
                     </Card>
                   </Link>
                 );

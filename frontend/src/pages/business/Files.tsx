@@ -15,6 +15,7 @@ import {
   Spinner,
 } from "../../components/ui";
 import { renderMarkdown } from "../../components/markdown";
+import { Icon } from "../../components/icons";
 import type { ContextFile, ContextFileTree } from "../../api/types";
 
 const TEXT_EXTENSIONS = new Set([
@@ -709,8 +710,8 @@ function LoadedFileEditor({
     <div className="px-4 sm:px-6 py-4 sm:py-6 max-w-7xl mx-auto h-[calc(100vh-4rem)] flex flex-col">
       <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
         <div className="flex items-center gap-2 min-w-0">
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            ← {t("common.back")}
+          <Button variant="ghost" size="sm" icon="arrow-start" onClick={onClose}>
+            {t("common.back")}
           </Button>
           <span
             className="font-mono text-sm text-neutral-700 truncate"
@@ -806,20 +807,7 @@ function LoadedFileEditor({
 }
 
 function FolderIcon() {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      className="text-amber-500 shrink-0"
-      aria-hidden
-    >
-      <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
-    </svg>
-  );
+  return <Icon name="folder" size={18} className="text-brand-400" />;
 }
 
 function FileIcon({
@@ -834,19 +822,5 @@ function FileIcon({
     : text
       ? "text-neutral-500"
       : "text-neutral-400";
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      className={`${color} shrink-0`}
-      aria-hidden
-    >
-      <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-6-6z" />
-      <path d="M14 3v6h6" />
-    </svg>
-  );
+  return <Icon name="doc" size={18} className={color} />;
 }

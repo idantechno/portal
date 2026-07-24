@@ -8,6 +8,7 @@ import {
   designerApi,
 } from "../../api/designer";
 import { Button, Card, FormError, Spinner } from "../../components/ui";
+import { Icon } from "../../components/icons";
 
 interface UIMessage extends ChatTurn {
   createdAt: number;
@@ -223,7 +224,10 @@ function CreatedDesignCard({
   return (
     <div className="rounded-lg bg-white text-neutral-900 border border-neutral-200 p-3 text-xs">
       <div className="flex items-center justify-between gap-2 mb-2">
-        <span className="font-semibold text-sm">🎨 {design.title}</span>
+        <span className="flex items-center gap-1.5 text-sm font-semibold">
+          <Icon name="palette" size={15} className="text-brand-500" />
+          {design.title}
+        </span>
         <KindPill kind={design.kind} />
       </div>
       <a
@@ -288,7 +292,9 @@ function DesignListItem({
 function EmptyState() {
   return (
     <Card className="p-8 text-center text-neutral-600 max-w-lg mx-auto">
-      <div className="text-2xl mb-3">🎨</div>
+      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-400">
+        <Icon name="palette" size={24} />
+      </div>
       <h2 className="text-base font-semibold mb-2 text-neutral-900">
         שלום — אני המעצב שלך
       </h2>

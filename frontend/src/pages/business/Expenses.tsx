@@ -8,6 +8,7 @@ import {
   expensesApi,
 } from "../../api/expenses";
 import { Button, Card, FormError, Spinner } from "../../components/ui";
+import { Icon } from "../../components/icons";
 
 function shekels(cents: number | null): string {
   if (cents == null) return "—";
@@ -140,7 +141,9 @@ export default function Expenses() {
           onFiles(e.dataTransfer.files);
         }}
       >
-        <div className="text-3xl mb-2">🧾</div>
+        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-400">
+          <Icon name="receipt" size={24} />
+        </div>
         <div className="font-semibold text-navy-900 mb-1">
           גרור לכאן קובץ, או העלה
         </div>
@@ -245,12 +248,13 @@ function SumCard({
           <div className="text-[11px] text-navy-400 mt-1">{sub}</div>
         </div>
         <div
-          className="h-11 w-11 rounded-2xl flex items-center justify-center text-xl shrink-0"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl"
           style={{
-            backgroundColor: `color-mix(in srgb, var(${brand}) 14%, white)`,
+            backgroundColor: `color-mix(in srgb, var(${brand}) 13%, white)`,
+            color: `color-mix(in srgb, var(${brand}) 88%, black)`,
           }}
         >
-          💸
+          <Icon name="wallet" size={20} />
         </div>
       </div>
     </Card>

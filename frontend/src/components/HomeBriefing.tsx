@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -6,6 +5,8 @@ import { conversationsApi } from "../api/conversations";
 import { leadsApi } from "../api/leads";
 import type { Lead } from "../api/leads";
 import { Card } from "./ui";
+import { Icon } from "./icons";
+import type { IconName } from "./icons";
 
 // A calm daily briefing for the business owner: surfaces only the conversations
 // the bot handed back ("waiting for you") and reassures that everything else is
@@ -46,7 +47,7 @@ function Tile({
   to,
   loading,
 }: {
-  icon: ReactNode;
+  icon: IconName;
   value: number;
   label: string;
   sub: string;
@@ -65,14 +66,16 @@ function Tile({
     >
       <div className="flex items-start justify-between">
         <div
-          className={`h-11 w-11 rounded-2xl flex items-center justify-center ${c.iconBox}`}
+          className={`flex h-11 w-11 items-center justify-center rounded-2xl ${c.iconBox}`}
         >
-          {icon}
+          <Icon name={icon} size={20} />
         </div>
         {to && (
-          <span className="text-brand-400 text-lg transition-transform group-hover:-translate-x-1 rtl:rotate-180">
-            →
-          </span>
+          <Icon
+            name="arrow-end"
+            size={18}
+            className="text-brand-400 transition-transform group-hover:translate-x-0.5"
+          />
         )}
       </div>
       <div className={`mt-4 text-3xl font-semibold tabular-nums ${c.value}`}>
@@ -94,31 +97,6 @@ function Tile({
     inner
   );
 }
-
-const svg = "w-5 h-5";
-const BellIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" className={svg} stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
-    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-  </svg>
-);
-const CheckIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" className={svg} stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-    <polyline points="22 4 12 14.01 9 11.01" />
-  </svg>
-);
-const ChatIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" className={svg} stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-  </svg>
-);
-const PersonIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" className={svg} stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-    <circle cx="12" cy="7" r="4" />
-  </svg>
-);
 
 export function HomeBriefing({
   businessId,
@@ -179,7 +157,7 @@ export function HomeBriefing({
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
         <Tile
           tone={waitingForYou > 0 ? "coral" : "calm"}
-          icon={waitingForYou > 0 ? <BellIcon /> : <CheckIcon />}
+          icon={waitingForYou > 0 ? "bell" : "check-circle"}
           value={waitingForYou}
           label={t("home.waitingLabel")}
           sub={waitingForYou > 0 ? t("home.waitingNeedsAction") : t("home.waitingAllHandled")}
@@ -188,7 +166,7 @@ export function HomeBriefing({
         />
         <Tile
           tone="brand"
-          icon={<ChatIcon />}
+          icon="chat"
           value={activeCount}
           label={t("home.activeLabel")}
           sub={t("home.activeSub")}
@@ -197,7 +175,7 @@ export function HomeBriefing({
         />
         <Tile
           tone="teal"
-          icon={<PersonIcon />}
+          icon="user"
           value={newLeads}
           label={t("home.newLeadsLabel")}
           sub={t("home.leadsSub")}

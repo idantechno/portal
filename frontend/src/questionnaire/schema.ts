@@ -583,9 +583,17 @@ function renderValue(field: Field, answers: Answers): string {
   return String(raw).trim();
 }
 
+export interface AnswerItem {
+  /** Field id — lets the backend map an answer back to its question without
+   *  matching on the label text (see backend `briefs/questionnaire-schema.ts`). */
+  id: string;
+  label: string;
+  value: string;
+}
+
 export interface AnswerSection {
   title: string;
-  items: { label: string; value: string }[];
+  items: AnswerItem[];
 }
 
 /** Builds the human-readable sections sent to the backend (contact + the
@@ -593,12 +601,12 @@ export interface AnswerSection {
 export function buildSections(answers: Answers): AnswerSection[] {
   const sections: AnswerSection[] = [];
   for (const step of STEPS) {
-    const items: { label: string; value: string }[] = [];
+    const items: AnswerItem[] = [];
     for (const field of step.fields) {
       if (PROMOTED.has(field.id)) continue;
       if (!isFieldVisible(field, answers)) continue;
       const value = renderValue(field, answers);
-      if (value) items.push({ label: field.label, value });
+      if (value) items.push({ id: field.id, label: field.label, value });
     }
     if (items.length > 0) sections.push({ title: step.title, items });
   }
@@ -615,6 +623,16 @@ export interface QuestionnairePayload {
   preferredChannel?: PreferredChannel;
   sections: AnswerSection[];
   hp: string;
+  /** Campaign tag from the URL (?src= / ?utm_source=) — which channel sent them. */
+  src?: string;
+}
+
+/** Reads the campaign tag off the landing-page URL, if present. */
+export function readCampaignTag(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  const p = new URLSearchParams(window.location.search);
+  const v = (p.get("src") ?? p.get("utm_source") ?? "").trim();
+  return v ? v.slice(0, 60) : undefined;
 }
 
 export function buildPayload(answers: Answers, hp: string): QuestionnairePayload {
@@ -632,5 +650,6 @@ export function buildPayload(answers: Answers, hp: string): QuestionnairePayload
     preferredChannel: (channel || undefined) as PreferredChannel | undefined,
     sections: buildSections(answers),
     hp,
+    src: readCampaignTag(),
   };
 }

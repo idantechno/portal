@@ -8,6 +8,7 @@ import {
   ideasApi,
 } from "../../api/ideas";
 import { Button, Card, FormError, Spinner } from "../../components/ui";
+import { Icon } from "../../components/icons";
 
 interface UIMessage extends ChatTurn {
   createdAt: number;
@@ -233,7 +234,10 @@ function SavedIdeaCard({ idea }: { idea: Idea }) {
   return (
     <div className="rounded-lg bg-white text-neutral-900 border border-neutral-200 p-3 text-xs">
       <div className="flex items-center justify-between gap-2 mb-1">
-        <span className="font-semibold text-sm">💡 {idea.title}</span>
+        <span className="flex items-center gap-1.5 text-sm font-semibold">
+          <Icon name="idea" size={15} className="text-brand-500" />
+          {idea.title}
+        </span>
         <StatusPill status={idea.status} />
       </div>
       {idea.summary && (
@@ -273,9 +277,10 @@ function IdeaListItem({
         <button
           type="button"
           onClick={onOpen}
-          className="text-xs font-medium text-brand-600 hover:underline px-2 py-1 -ms-2"
+          className="-ms-2 inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-brand-600 hover:underline"
         >
-          המשך לפתח <span className="rtl:inline-block rtl:rotate-180">→</span>
+          המשך לפתח
+          <Icon name="arrow-end" size={14} />
         </button>
         <button
           onClick={onRemove}
@@ -292,7 +297,9 @@ function IdeaListItem({
 function EmptyState() {
   return (
     <Card className="p-8 text-center text-neutral-600 max-w-lg mx-auto">
-      <div className="text-2xl mb-3">💡</div>
+      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-400">
+        <Icon name="idea" size={24} />
+      </div>
       <h2 className="text-base font-semibold mb-2 text-neutral-900">
         שלום — אני שותף החשיבה שלך
       </h2>

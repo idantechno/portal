@@ -7,6 +7,7 @@ import {
   documentsApi,
 } from "../../api/documents";
 import { Button, Card, FormError, Spinner } from "../../components/ui";
+import { Icon } from "../../components/icons";
 
 interface UIMessage extends ChatTurn {
   createdAt: number;
@@ -261,7 +262,9 @@ function DocumentSummary({ doc }: { doc: DocumentInstance }) {
 function EmptyState() {
   return (
     <Card className="p-8 text-center text-neutral-600 max-w-lg mx-auto">
-      <div className="text-2xl mb-3">📝</div>
+      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-400">
+        <Icon name="pencil" size={24} />
+      </div>
       <h2 className="text-base font-semibold mb-2 text-neutral-900">
         שלום — אני הסוכן שיכין לך מסמכים
       </h2>

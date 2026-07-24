@@ -14,6 +14,8 @@ import {
 import { useAuthStore } from "../../store/auth";
 import { apiErrorMessage } from "../../api/client";
 import { Button, Spinner, Textarea } from "../../components/ui";
+import { Icon } from "../../components/icons";
+import type { IconName } from "../../components/icons";
 
 type Tab = "all" | "bot" | "human" | "closed";
 
@@ -42,8 +44,10 @@ function statusBadge(status: ConversationStatus, t: (k: string) => string) {
   );
 }
 
-function channelIcon(channel: Conversation["channel"]) {
-  return channel === "whatsapp" ? "🟢" : channel === "instagram" ? "📷" : "💬";
+function channelIcon(channel: Conversation["channel"]): IconName {
+  if (channel === "whatsapp") return "whatsapp";
+  if (channel === "instagram") return "instagram";
+  return "chat";
 }
 
 function timeShort(iso: string | null, lang: string): string {
@@ -256,7 +260,11 @@ export default function Inbox() {
                   }`}
                 >
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-base">{channelIcon(c.channel)}</span>
+                    <Icon
+                      name={channelIcon(c.channel)}
+                      size={17}
+                      className="text-navy-400"
+                    />
                     <span className="font-medium text-sm truncate" dir="ltr">
                       {c.externalThreadId}
                     </span>
@@ -296,24 +304,13 @@ export default function Inbox() {
                 aria-label="חזרה לרשימה"
                 className="lg:hidden -ms-1 rounded-lg p-1.5 text-neutral-500 hover:bg-neutral-100 shrink-0"
               >
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 20 20"
-                  fill="none"
-                  aria-hidden
-                  className="rtl:rotate-180"
-                >
-                  <path
-                    d="M12 4l-6 6 6 6"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
+                <Icon name="chevron-start" size={20} />
               </button>
-              <span className="text-xl">{channelIcon(selected.channel)}</span>
+              <Icon
+                name={channelIcon(selected.channel)}
+                size={19}
+                className="text-navy-400"
+              />
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-sm truncate" dir="ltr">
                   {selected.externalThreadId}

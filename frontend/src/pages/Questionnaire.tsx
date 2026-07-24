@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { apiErrorMessage } from "../api/client";
 import { questionnaireApi } from "../api/questionnaire";
+import { Icon } from "../components/icons";
 import {
   buildPayload,
   isFieldVisible,
@@ -383,17 +384,7 @@ function OptionCard({
         }}
       >
         {checked && (
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={3.5}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="h-3 w-3 text-white"
-          >
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
+          <Icon name="check" size={11} className="text-white" />
         )}
       </span>
       <span className="leading-tight">{label}</span>
@@ -536,27 +527,17 @@ function ThankYou() {
           >
             <div
               className="mx-auto flex h-16 w-16 items-center justify-center rounded-full"
-              style={{ backgroundColor: "rgba(96,145,176,0.14)" }}
+              style={{ backgroundColor: "rgba(96,145,176,0.14)", color: STEEL }}
             >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke={STEEL}
-                strokeWidth={2.5}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-9 w-9"
-              >
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
+              <Icon name="check" size={34} />
             </div>
             <h1 className="font-heebo mt-5 text-2xl font-black" style={{ color: NAVY }}>
-              התשובות נשלחו בהצלחה! 🎉
+              התשובות נשלחו בהצלחה!
             </h1>
             <p className="mt-3 text-[15px] leading-7" style={{ color: "rgba(6,35,64,0.65)" }}>
               אנחנו ב-Portal Studio נעבד את המידע ונחזור אליך בהקדם האפשרי עם
               הצעה לאסטרטגיית שיווק שאנחנו מאמינים שהכי נכונה לך ולעסק שלך.
-              תודה 🙏
+              תודה.
             </p>
             <p className="font-heebo mt-6 text-sm font-bold tracking-tight" style={{ color: CORAL }}>
               PORTAL STUDIO

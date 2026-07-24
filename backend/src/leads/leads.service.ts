@@ -16,6 +16,8 @@ export interface CreateLeadInput {
   interest: string;
   notes?: string | null;
   source?: LeadSource;
+  /** Human-readable origin, e.g. "וואטסאפ" / "שאלון אסטרטגיה · אינסטגרם". */
+  sourceDetail?: string | null;
   answers?: Record<string, unknown> | null;
 }
 
@@ -40,6 +42,7 @@ export class LeadsService {
         interest: input.interest,
         notes: input.notes ?? null,
         source: input.source ?? 'agent',
+        sourceDetail: input.sourceDetail ?? null,
         answers: input.answers ?? null,
       }),
     );

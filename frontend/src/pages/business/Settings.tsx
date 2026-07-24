@@ -17,6 +17,7 @@ import {
 } from "../../components/ui";
 import BrandingCard from "../../components/BrandingCard";
 import BusinessProfileForm from "../../components/BusinessProfileForm";
+import { Icon } from "../../components/icons";
 
 function buildSnippet(publicKey: string): string {
   const origin =
@@ -211,9 +212,10 @@ function SettingsForm({ businessId, business }: SettingsFormProps) {
               href="/widget-test.html"
               target="_blank"
               rel="noreferrer"
-              className="text-brand-700 hover:underline text-sm"
+              className="inline-flex items-center gap-1.5 text-sm text-brand-700 hover:underline"
             >
-              {t("settings.testWidget")} →
+              {t("settings.testWidget")}
+              <Icon name="external" size={15} />
             </a>
           </div>
         </div>

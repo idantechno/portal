@@ -5,6 +5,7 @@ import { apiErrorMessage } from "../../api/client";
 import { tasksApi } from "../../api/tasks";
 import { calendarApi } from "../../api/calendar";
 import { Button, Card, FormError, Spinner } from "../../components/ui";
+import { Icon } from "../../components/icons";
 
 type ItemKind = "reminder" | "google";
 interface CalItem {
@@ -187,9 +188,10 @@ export default function Calendar() {
             onClick={() =>
               setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))
             }
-            className="h-8 w-8 rounded-lg border border-navy-200 text-navy-600 hover:bg-cream-50"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-navy-200 text-navy-600 transition-colors hover:bg-cream-50"
+            aria-label="חודש קודם"
           >
-            ›
+            <Icon name="chevron-start" size={17} />
           </button>
           <div className="text-sm font-semibold text-navy-800 w-28 text-center">
             {MONTHS[cursor.getMonth()]} {cursor.getFullYear()}
@@ -198,9 +200,10 @@ export default function Calendar() {
             onClick={() =>
               setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))
             }
-            className="h-8 w-8 rounded-lg border border-navy-200 text-navy-600 hover:bg-cream-50"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-navy-200 text-navy-600 transition-colors hover:bg-cream-50"
+            aria-label="חודש הבא"
           >
-            ‹
+            <Icon name="chevron-end" size={17} />
           </button>
         </div>
       </header>

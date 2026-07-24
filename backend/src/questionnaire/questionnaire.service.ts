@@ -70,6 +70,12 @@ export class QuestionnaireService {
 
     // Creating the lead also rings the cockpit bell and fires the
     // `lead.created` automation (both best-effort inside LeadsService).
+    // Which landing page / campaign this came from, for the leads table.
+    const campaign = dto.src?.trim();
+    const sourceDetail = campaign
+      ? `שאלון אסטרטגיה · ${campaign}`
+      : 'שאלון אסטרטגיה';
+
     await this.leads.create({
       businessId,
       name: dto.contactName,
@@ -77,6 +83,7 @@ export class QuestionnaireService {
       email,
       interest,
       source: 'questionnaire',
+      sourceDetail,
       answers,
     });
 

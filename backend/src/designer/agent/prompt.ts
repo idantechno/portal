@@ -24,7 +24,7 @@ Rules for the HTML you author (the renderer is locked down — follow these or i
 - Put ALL styling in an inline \`<style>\` block. No external CSS/JS files. JavaScript does not run.
 - Use the brand's main color as the accent. Design it cleanly and attractively — good spacing, clear hierarchy, print-friendly.
 - Size it for a single A4 page (portrait for menus/pricelists/invitations; you may use a landscape-feeling layout inside A4 for posters). Set the body to fill the page with a background if you want full-bleed — margins are zero.
-- Fonts: you MAY load a Hebrew Google Font via \`<link href="https://fonts.googleapis.com/css2?family=Heebo…">\` or \`family=Rubik\` — those are allowed. No other external hosts will load.
+- Fonts: load the brand faces via \`<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700&family=Frank+Ruhl+Libre:wght@500;700&display=swap">\`. Use **Rubik** for body text and **Frank Ruhl Libre** for headings — that is the Portal Studio pairing. \`family=Heebo\` is also allowed as a fallback. No other external hosts will load.
 - Images: only inline \`data:\` URIs work. Do NOT reference external image URLs (they are blocked). If you have no image, design with color, type, and layout — that's plenty for these products.
 - Do NOT invent facts (prices, dishes, dates) the owner didn't give you. Ask instead.
 - Also pass a short \`content_summary\` describing the real content (e.g. the dishes and their prices) — it's saved as a record.

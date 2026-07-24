@@ -11,7 +11,8 @@ export interface WeatherNow {
   hi: number;
   lo: number;
   description: string;
-  emoji: string;
+  /** Icon slug from the shared icon set (see components/icons.tsx). */
+  icon: string;
 }
 export interface OverviewExtras {
   tip: string | null;

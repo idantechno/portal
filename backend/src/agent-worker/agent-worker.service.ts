@@ -69,6 +69,7 @@ export class AgentWorkerService {
       businessId: business.id,
       conversationId: conversation.id,
       customerContactId: conversation.customerContactId,
+      channel: conversation.channel,
       leads: this.leads,
       conversations: this.conversations,
     };

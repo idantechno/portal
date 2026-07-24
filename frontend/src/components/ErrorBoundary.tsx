@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { Icon } from "./icons";
 
 interface Props {
   children: ReactNode;
@@ -32,8 +33,8 @@ export class ErrorBoundary extends Component<Props, State> {
         className="min-h-dvh grid place-items-center bg-cream-50 px-4 text-center"
       >
         <div className="max-w-sm">
-          <div className="text-4xl mb-3" aria-hidden>
-            😕
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-coral-50 text-coral-400">
+            <Icon name="error" size={28} />
           </div>
           <h1 className="font-display text-xl text-navy-800 mb-2">
             משהו השתבש

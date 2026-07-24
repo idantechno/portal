@@ -10,7 +10,16 @@ import { expensesApi } from "../../api/expenses";
 import { overviewApi } from "../../api/overview";
 import { useAuthStore } from "../../store/auth";
 import { billingKeys } from "../../lib/queryKeys";
-import { Button, Card, Spinner } from "../../components/ui";
+import {
+  Button,
+  Card,
+  EmptyState,
+  IconTile,
+  SectionTitle,
+  Spinner,
+} from "../../components/ui";
+import { Icon, ServerIcon } from "../../components/icons";
+import type { IconName } from "../../components/icons";
 import BusinessProfileForm from "../../components/BusinessProfileForm";
 
 function greeting(): string {
@@ -122,16 +131,19 @@ export default function Home() {
           />
         ) : (
           <div
-            className="h-14 w-14 rounded-2xl flex items-center justify-center text-2xl shrink-0"
-            style={tint("--brand-accent", 16)}
+            className="h-14 w-14 shrink-0 rounded-2xl flex items-center justify-center font-display text-2xl"
+            style={{
+              ...tint("--brand-accent", 16),
+              color: "color-mix(in srgb, var(--brand-accent) 85%, black)",
+            }}
           >
-            👋
+            {(biz.data?.name ?? "P").trim().charAt(0)}
           </div>
         )}
         <div className="min-w-0">
           <h1 className="text-2xl md:text-3xl font-display text-navy-900">
             {greeting()}
-            {firstName ? `, ${firstName}` : ""} 👋
+            {firstName ? `, ${firstName}` : ""}
           </h1>
           <p className="text-navy-500 mt-1 truncate">
             {branding?.slogan
@@ -148,8 +160,9 @@ export default function Home() {
         <Card className="p-5 mb-6 border-brand-200 bg-brand-50/50">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <div className="font-semibold text-navy-900">
-                בוא נכיר את העסק שלך ✨
+              <div className="flex items-center gap-2 font-semibold text-navy-900">
+                <Icon name="agents" size={17} className="text-brand-500" />
+                בוא נכיר את העסק שלך
               </div>
               <p className="text-sm text-navy-500 mt-0.5">
                 כמה שאלות קצרות — וכל הסוכנים יעבדו בול לפי העסק שלך.
@@ -177,8 +190,8 @@ export default function Home() {
           label="עסקאות שנסגרו"
           sub="חשבוניות ששולמו"
           value={paidInvoices.length}
-          icon="🤝"
-          brand="--brand-primary"
+          icon="leads"
+          tone="brand"
           to={`/app/businesses/${businessId}/billing`}
           error={invoicesError}
         />
@@ -192,8 +205,8 @@ export default function Home() {
                 )}`
           }
           value={shekels(monthIncome - (expenses.data?.monthlyTotalCents ?? 0))}
-          icon="💰"
-          brand="--brand-secondary"
+          icon="coins"
+          tone="secondary"
           to={`/app/businesses/${businessId}/expenses`}
           error={balanceError}
         />
@@ -201,8 +214,8 @@ export default function Home() {
           label="אירועי השבוע"
           sub="7 הימים הקרובים"
           value={weekEvents.length}
-          icon="🗓️"
-          brand="--brand-accent"
+          icon="calendar"
+          tone="accent"
           to={`/app/businesses/${businessId}/calendar`}
         />
       </div>
@@ -210,8 +223,14 @@ export default function Home() {
       {/* Daily trio: AI tip + weather */}
       <div className="grid lg:grid-cols-3 gap-4 mb-4">
         <Card className="lg:col-span-2 p-5">
-          <div className="text-xs font-semibold text-brand-600 mb-1">
-            💡 הטיפ היומי שלך
+          <div className="mb-2 flex items-center gap-2">
+            <IconTile icon="idea" size="sm" tone="brand" />
+            <div>
+              <div className="eyebrow text-brand-500">היום</div>
+              <div className="text-sm font-medium text-navy-800">
+                הטיפ היומי שלך
+              </div>
+            </div>
           </div>
           {overview.isLoading ? (
             <div className="flex items-center gap-2 text-navy-400 text-sm py-2">
@@ -233,15 +252,19 @@ export default function Home() {
             </div>
           ) : ex?.weather ? (
             <div className="flex items-center gap-4">
-              <div className="text-4xl">{ex.weather.emoji}</div>
+              <ServerIcon
+                name={ex.weather.icon}
+                size={38}
+                className="text-brand-400"
+              />
               <div>
-                <div className="text-2xl font-bold text-navy-900">
+                <div className="tabular text-2xl font-bold text-navy-900">
                   {ex.weather.tempC}°
                 </div>
                 <div className="text-xs text-navy-500">
                   {ex.weather.description} · {ex.weather.city}
                 </div>
-                <div className="text-[11px] text-navy-400 mt-0.5">
+                <div className="tabular text-[11px] text-navy-400 mt-0.5">
                   {ex.weather.hi}° / {ex.weather.lo}°
                 </div>
               </div>
@@ -262,9 +285,9 @@ export default function Home() {
           rel="noreferrer"
           className="block mb-6"
         >
-          <Card className="p-4 hover:border-brand-200 transition-colors">
+          <Card className="p-4 transition-[border-color,box-shadow] duration-150 ease-[var(--ease-out-brand)] hover:border-brand-200 hover:shadow-[var(--shadow-e2)]">
             <div className="flex items-center gap-3">
-              <span className="text-lg shrink-0">📰</span>
+              <IconTile icon="news" size="sm" tone="neutral" />
               <div className="min-w-0">
                 <div className="text-sm font-medium text-navy-900 truncate">
                   {ex.news.title}
@@ -275,6 +298,11 @@ export default function Home() {
                   </div>
                 )}
               </div>
+              <Icon
+                name="external"
+                size={16}
+                className="ms-auto shrink-0 text-navy-300"
+              />
             </div>
           </Card>
         </a>
@@ -283,12 +311,10 @@ export default function Home() {
       {/* Week's events + AI assistant */}
       <div className="grid lg:grid-cols-3 gap-4 mb-4">
         <div className="lg:col-span-2">
-          <h2 className="text-sm font-semibold text-navy-700 mb-3">
-            השבוע הקרוב
-          </h2>
+          <SectionTitle eyebrow="יומן" title="השבוע הקרוב" />
           {weekEvents.length === 0 ? (
-            <Card className="p-6 text-center text-navy-400 text-sm">
-              אין אירועים בשבוע הקרוב.
+            <Card>
+              <EmptyStateInline />
             </Card>
           ) : (
             <Card className="divide-y divide-navy-50">
@@ -313,9 +339,7 @@ export default function Home() {
         </div>
 
         <div>
-          <h2 className="text-sm font-semibold text-navy-700 mb-3">
-            העוזר החכם
-          </h2>
+          <SectionTitle eyebrow="סוכן" title="העוזר החכם" />
           <div
             className="rounded-3xl p-6 text-white shadow-sm h-[calc(100%-2rem)] flex flex-col"
             style={{
@@ -323,7 +347,7 @@ export default function Home() {
                 "linear-gradient(135deg, var(--brand-primary), var(--brand-secondary))",
             }}
           >
-            <div className="text-3xl mb-2">✨</div>
+            <Icon name="agents" size={30} className="mb-2 text-white/90" />
             <div className="text-lg font-display leading-snug">
               איך אפשר לעזור לך היום?
             </div>
@@ -343,9 +367,7 @@ export default function Home() {
       {/* Recent activity */}
       {recent.length > 0 && (
         <>
-          <h2 className="text-sm font-semibold text-navy-700 mb-3 mt-2">
-            פעילות אחרונה
-          </h2>
+          <SectionTitle eyebrow="עדכונים" title="פעילות אחרונה" className="mt-2" />
           <Card className="divide-y divide-navy-50">
             {recent.map((n) => (
               <div key={n.id} className="px-4 py-3 flex items-start gap-3">
@@ -370,40 +392,45 @@ export default function Home() {
   );
 }
 
+function EmptyStateInline() {
+  return (
+    <EmptyState
+      icon="calendar"
+      title="השבוע פנוי"
+      text="אין אירועים או משימות עם תאריך יעד בשבעת הימים הקרובים."
+    />
+  );
+}
+
 function Stat({
   label,
   sub,
   value,
   icon,
-  brand,
+  tone,
   to,
   error = false,
 }: {
   label: string;
   sub: string;
   value: number | string;
-  icon: string;
-  brand: string;
+  icon: IconName;
+  tone: "brand" | "secondary" | "accent";
   to: string;
   error?: boolean;
 }) {
   return (
     <Link to={to} className="block group">
-      <Card className="p-5 h-full transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-22px_rgba(1,20,39,0.4)]">
+      <Card className="h-full p-5 transition-[transform,box-shadow,border-color] duration-200 ease-[var(--ease-out-brand)] group-hover:-translate-y-0.5 group-hover:border-navy-100 group-hover:shadow-[var(--shadow-e3)]">
         <div className="flex items-start justify-between">
           <div className="min-w-0">
             <div className="text-xs text-navy-400 mb-1">{label}</div>
-            <div className="text-2xl font-bold text-navy-900 truncate">
+            <div className="tabular truncate text-2xl font-bold text-navy-900">
               {error ? "—" : value}
             </div>
             <div className="text-[11px] text-navy-400 mt-1">{sub}</div>
           </div>
-          <div
-            className="h-11 w-11 rounded-2xl flex items-center justify-center text-xl shrink-0"
-            style={tint(brand, 14)}
-          >
-            {icon}
-          </div>
+          <IconTile icon={icon} tone={tone} />
         </div>
       </Card>
     </Link>

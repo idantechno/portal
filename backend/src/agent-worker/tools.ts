@@ -4,6 +4,7 @@ import { ConversationsService } from '../conversations/conversations.service';
 import { LeadsService } from '../leads/leads.service';
 import { ConversationStatus } from '../common/enums/conversation-status.enum';
 import { MessageRole } from '../common/enums/message-role.enum';
+import { Channel } from '../common/enums/channel.enum';
 
 /**
  * Tools exposed to the agent via an in-process MCP server. The agent only
@@ -15,8 +16,22 @@ export interface ToolContext {
   businessId: string;
   conversationId: string;
   customerContactId: string;
+  /** Channel the conversation arrived on — recorded as the lead's origin. */
+  channel?: Channel;
   leads: LeadsService;
   conversations: ConversationsService;
+}
+
+/** Human-readable origin for a lead captured mid-conversation. */
+function channelLabel(channel?: Channel): string {
+  switch (channel) {
+    case Channel.WhatsApp:
+      return 'וואטסאפ';
+    case Channel.Web:
+      return "צ'אט באתר";
+    default:
+      return "צ'אט";
+  }
 }
 
 export function captureLeadTool(ctx: ToolContext) {
@@ -50,6 +65,7 @@ export function captureLeadTool(ctx: ToolContext) {
         email: args.email ?? null,
         interest: args.interest,
         notes: args.notes ?? null,
+        sourceDetail: channelLabel(ctx.channel),
       });
       return {
         content: [
@@ -66,7 +82,7 @@ export function captureLeadTool(ctx: ToolContext) {
 export function escalateToHumanTool(ctx: ToolContext) {
   return tool(
     'escalate_to_human',
-    'Hand the conversation over to a human team member. Use when the customer asks for a human, complains, the issue is sensitive, or you cannot help confidently. After calling this, the bot will stop responding until a human takes over.',
+    'Hand the conversation over to a human team member. Use when the customer asks for a human, complains, the issue is sensitive, or you cannot help confidently. After calling this, you (the AI agent) will stop responding until a human takes over.',
     {
       reason: z
         .string()

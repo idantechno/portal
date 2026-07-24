@@ -10,12 +10,14 @@ import { useQuery } from "@tanstack/react-query";
 import { businessesApi } from "../../api/businesses";
 import { useAuthStore } from "../../store/auth";
 import { NotificationBell } from "../../components/NotificationBell";
+import { Icon } from "../../components/icons";
+import type { IconName } from "../../components/icons";
 import { businessThemeVars } from "../../lib/theme";
 
 interface NavItem {
   to: string;
   label: string;
-  icon: string;
+  icon: IconName;
   show: boolean;
   /** Absolute link (outside the business layout) instead of relative. */
   absolute?: boolean;
@@ -52,39 +54,40 @@ export default function BusinessLayout() {
     {
       title: "מוקד",
       items: [
-        { to: "home", label: "בית", icon: "🏠", show: true },
-        { to: "inbox", label: "שיחות", icon: "💬", show: true },
-        { to: "leads", label: "לידים", icon: "🤝", show: true },
+        { to: "home", label: "בית", icon: "home", show: true },
+        { to: "inbox", label: "שיחות", icon: "chat", show: true },
+        { to: "leads", label: "לידים", icon: "leads", show: true },
       ],
     },
     {
       title: "עבודה",
       items: [
-        { to: "agents", label: "סוכנים", icon: "🤖", show: true },
-        { to: "calendar", label: "יומן", icon: "📅", show: true },
-        { to: "tasks", label: "משימות", icon: "✅", show: true },
+        { to: "agents", label: "סוכנים", icon: "agents", show: true },
+        { to: "calendar", label: "יומן", icon: "calendar", show: true },
+        { to: "tasks", label: "משימות", icon: "tasks", show: true },
       ],
     },
     {
       title: "מידע ומסמכים",
       items: [
-        { to: "filing", label: "מסמכים", icon: "🗂️", show: true },
-        { to: "files", label: "קבצי הקשר", icon: "📁", show: true },
+        { to: "filing", label: "מסמכים", icon: "doc", show: true },
+        { to: "briefs", label: "בריפים", icon: "compass", show: true },
+        { to: "files", label: "קבצי הקשר", icon: "folder", show: true },
       ],
     },
     {
       title: "כספים",
       items: [
-        { to: "billing", label: "חיוב", icon: "🧾", show: true },
-        { to: "expenses", label: "מעקב הוצאות", icon: "💸", show: true },
+        { to: "billing", label: "חיוב", icon: "receipt", show: true },
+        { to: "expenses", label: "מעקב הוצאות", icon: "wallet", show: true },
       ],
     },
     {
       title: "צמיחה",
       items: [
-        { to: "growth", label: "סטטוס וצמיחה", icon: "📈", show: true },
-        { to: "automations", label: "אוטומציות", icon: "⚡", show: true },
-        { to: "integrations", label: "אינטגרציות", icon: "🔗", show: true },
+        { to: "growth", label: "סטטוס וצמיחה", icon: "growth", show: true },
+        { to: "automations", label: "אוטומציות", icon: "bolt", show: true },
+        { to: "integrations", label: "אינטגרציות", icon: "link", show: true },
       ],
     },
     {
@@ -92,23 +95,25 @@ export default function BusinessLayout() {
       // everything by entering the business from the admin console (viaStaff).
       title: "ניהול",
       items: [
-        { to: "members", label: "צוות", icon: "👥", show: viaStaff },
+        { to: "members", label: "צוות", icon: "users", show: viaStaff },
         {
           to: "channels/whatsapp",
           label: "WhatsApp",
-          icon: "📱",
+          icon: "whatsapp",
           show: viaStaff,
         },
-        { to: "settings", label: "הגדרות", icon: "⚙️", show: viaStaff },
+        { to: "settings", label: "הגדרות", icon: "settings", show: viaStaff },
       ],
     },
   ];
 
+  // The active row is a filled accent pill; inactive rows are text-only until
+  // hovered. Icons inherit the row's colour, so the whole nav shifts as one.
   const linkClass = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm transition-colors ${
+    `group flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-[background-color,color] duration-150 ease-[var(--ease-out-brand)] ${
       isActive
-        ? "bg-[var(--brand-accent)] text-[var(--brand-accent-contrast)] font-medium shadow-sm"
-        : "text-white/70 hover:bg-white/10 hover:text-white"
+        ? "bg-[var(--brand-accent)] text-[var(--brand-accent-contrast)] font-medium shadow-[0_2px_10px_-4px_rgba(0,0,0,0.5)]"
+        : "text-white/65 hover:bg-white/[0.08] hover:text-white"
     }`;
 
   const sidebar = (
@@ -146,16 +151,9 @@ export default function BusinessLayout() {
           type="button"
           onClick={() => setNavOpen(false)}
           aria-label="סגור תפריט"
-          className="lg:hidden shrink-0 rounded-lg p-1.5 text-white/60 hover:bg-white/10 hover:text-white"
+          className="lg:hidden shrink-0 rounded-lg p-1.5 text-white/60 hover:bg-white/10 hover:text-white transition-colors"
         >
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
-            <path
-              d="M6 6l8 8M14 6l-8 8"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-            />
-          </svg>
+          <Icon name="close" size={20} />
         </button>
       </div>
       <div className="p-4 flex-1">
@@ -165,7 +163,7 @@ export default function BusinessLayout() {
             if (visible.length === 0) return null;
             return (
               <div key={group.title}>
-                <div className="px-3 mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-white/40">
+                <div className="eyebrow px-3 mb-1.5 text-white/35">
                   {group.title}
                 </div>
                 <div className="space-y-0.5">
@@ -176,9 +174,7 @@ export default function BusinessLayout() {
                       className={linkClass}
                       end={!it.absolute}
                     >
-                      <span className="text-base" aria-hidden>
-                        {it.icon}
-                      </span>
+                      <Icon name={it.icon} size={19} className="opacity-90" />
                       {it.label}
                     </NavLink>
                   ))}
@@ -189,16 +185,22 @@ export default function BusinessLayout() {
         </nav>
       </div>
       <div className="px-4 pb-4 pt-4 border-t border-white/10 text-sm">
-        <div className="px-3 py-1.5 text-white/80 font-medium truncate">
-          {user?.name}
+        <div className="flex items-center gap-3 px-3 py-1.5">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-white/70">
+            <Icon name="user" size={17} />
+          </span>
+          <span className="min-w-0 truncate font-medium text-white/80">
+            {user?.name}
+          </span>
         </div>
         <button
-          className="w-full text-start rounded-xl px-3 py-1.5 text-white/50 hover:bg-coral-500/20 hover:text-coral-200 transition-colors"
+          className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-start text-white/50 transition-colors hover:bg-coral-500/20 hover:text-coral-200"
           onClick={() => {
             logout();
             navigate("/login");
           }}
         >
+          <Icon name="logout" size={17} className="ms-1.5" />
           התנתקות
         </button>
       </div>
@@ -234,16 +236,9 @@ export default function BusinessLayout() {
             type="button"
             onClick={() => setNavOpen(true)}
             aria-label="פתח תפריט"
-            className="lg:hidden -ms-1 rounded-lg p-2 text-navy-600 hover:bg-navy-100"
+            className="lg:hidden -ms-1 rounded-lg p-2 text-navy-600 hover:bg-navy-100 transition-colors"
           >
-            <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden>
-              <path
-                d="M4 6h14M4 11h14M4 16h14"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-              />
-            </svg>
+            <Icon name="menu" size={22} />
           </button>
           <Link
             to={`/app/businesses/${businessId}/home`}
@@ -257,8 +252,11 @@ export default function BusinessLayout() {
         </div>
         {viaStaff && (
           <div className="bg-coral-400 text-white text-xs sm:text-sm px-4 py-2.5 flex items-center justify-between gap-2">
-            <span className="min-w-0">
-              ⚠️ אתה צופה בעסק זה כצוות פלטפורמה — כל פעולה מתועדת.
+            <span className="flex min-w-0 items-center gap-2">
+              <Icon name="warning" size={17} className="shrink-0" />
+              <span className="min-w-0">
+                אתה צופה בעסק זה כצוות פלטפורמה — כל פעולה מתועדת.
+              </span>
             </span>
             <Link
               to="/app/admin/businesses"
@@ -268,7 +266,7 @@ export default function BusinessLayout() {
             </Link>
           </div>
         )}
-        <div className="flex-1">
+        <div className="app-canvas flex-1">
           <Outlet />
         </div>
       </main>

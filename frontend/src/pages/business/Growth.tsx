@@ -8,6 +8,8 @@ import { conversationsApi } from "../../api/conversations";
 import { billingApi } from "../../api/billing";
 import { billingKeys } from "../../lib/queryKeys";
 import { Card, Spinner } from "../../components/ui";
+import { Icon } from "../../components/icons";
+import type { IconName } from "../../components/icons";
 
 const PLAN_ORDER = ["free", "growth", "scale"];
 
@@ -155,7 +157,7 @@ export default function Growth() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
         <Metric
           label="צמיחה"
-          icon="📈"
+          icon="growth"
           brand="--brand-primary"
           value={leadCount}
           sub="לידים שנאספו"
@@ -164,7 +166,7 @@ export default function Growth() {
         />
         <Metric
           label="יעילות"
-          icon="⚡"
+          icon="bolt"
           brand="--brand-accent"
           value={`${efficiency}%`}
           sub={`${doneCount} מתוך ${totalTasks} משימות הושלמו`}
@@ -173,7 +175,7 @@ export default function Growth() {
         />
         <Metric
           label="טווח"
-          icon="🌐"
+          icon="globe"
           brand="--brand-secondary"
           value={convoCount}
           sub="לקוחות ששוחחו איתך"
@@ -189,8 +191,9 @@ export default function Growth() {
       >
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="min-w-0">
-            <div className="text-xs font-semibold text-brand-600 mb-1">
-              🎯 {move.title}
+            <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-brand-600">
+              <Icon name="target" size={15} />
+              {move.title}
             </div>
             <p className="text-navy-800 leading-relaxed max-w-2xl">
               {move.line}
@@ -254,7 +257,9 @@ export default function Growth() {
         </Card>
       ) : (
         <Card className="p-6 text-center">
-          <div className="text-2xl mb-2">🚀</div>
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-basil-100 text-basil-600">
+            <Icon name="check-circle" size={24} />
+          </div>
           <div className="font-semibold text-navy-900">
             אתה בתוכנית הגבוהה ביותר
           </div>
@@ -277,7 +282,7 @@ function Metric({
   error = false,
 }: {
   label: string;
-  icon: string;
+  icon: IconName;
   brand: string;
   value: number | string;
   sub: string;
@@ -297,10 +302,13 @@ function Metric({
           </div>
         </div>
         <div
-          className="h-11 w-11 rounded-2xl flex items-center justify-center text-xl shrink-0"
-          style={tint(brand, 14)}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl"
+          style={{
+            ...tint(brand, 13),
+            color: `color-mix(in srgb, var(${brand}) 88%, black)`,
+          }}
         >
-          {icon}
+          <Icon name={icon} size={20} />
         </div>
       </div>
     </Card>

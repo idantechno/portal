@@ -1,21 +1,28 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { notificationsApi } from "../api/notifications";
-import type { NotificationType } from "../api/notifications";
+import { EmptyState } from "./ui";
+import type { AppNotification, NotificationType } from "../api/notifications";
+import { Icon } from "./icons";
+import type { IconName } from "./icons";
 
-const ICON: Record<NotificationType, string> = {
-  lead: "🤝",
-  message: "💬",
-  task: "✅",
-  document: "📝",
-  billing: "🧾",
-  automation: "⚡",
-  system: "🔔",
+/** Each notification type gets the same glyph the matching screen uses in the
+ *  sidebar, so a notification visually points at where it lands. */
+const ICON: Record<NotificationType, IconName> = {
+  lead: "leads",
+  message: "chat",
+  task: "tasks",
+  document: "doc",
+  billing: "receipt",
+  automation: "bolt",
+  system: "bell",
 };
 
 export function NotificationBell({ businessId }: { businessId: string }) {
   const [open, setOpen] = useState(false);
   const qc = useQueryClient();
+  const navigate = useNavigate();
 
   const unread = useQuery({
     queryKey: ["notif-count", businessId],
@@ -29,13 +36,27 @@ export function NotificationBell({ businessId }: { businessId: string }) {
     enabled: Boolean(businessId) && open,
   });
 
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["notif-count", businessId] });
+    qc.invalidateQueries({ queryKey: ["notifications", businessId] });
+  };
+
   const markAll = useMutation({
     mutationFn: () => notificationsApi.markAllRead(businessId),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["notif-count", businessId] });
-      qc.invalidateQueries({ queryKey: ["notifications", businessId] });
-    },
+    onSuccess: invalidate,
   });
+  const markRead = useMutation({
+    mutationFn: (id: string) => notificationsApi.markRead(businessId, id),
+    onSuccess: invalidate,
+  });
+
+  // Clicking a notification marks it read, closes the panel, and jumps to the
+  // relevant screen (each notification carries a `link`, e.g. /app/.../leads).
+  const onItemClick = (n: AppNotification) => {
+    if (!n.read) markRead.mutate(n.id);
+    setOpen(false);
+    if (n.link) navigate(n.link);
+  };
 
   const count = unread.data ?? 0;
   const items = list.data ?? [];
@@ -53,12 +74,12 @@ export function NotificationBell({ businessId }: { businessId: string }) {
     <div className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="relative h-9 w-9 rounded-xl hover:bg-cream-50 flex items-center justify-center text-navy-600"
+        className="relative flex h-9 w-9 items-center justify-center rounded-xl text-navy-600 transition-colors hover:bg-cream-50 hover:text-navy-800"
         aria-label="התראות"
         aria-haspopup="dialog"
         aria-expanded={open}
       >
-        <span className="text-lg">🔔</span>
+        <Icon name="bell" size={19} />
         {count > 0 && (
           <span className="absolute -top-0.5 -end-0.5 min-w-4 h-4 px-1 rounded-full bg-coral-500 text-white text-[10px] font-bold flex items-center justify-center">
             {count > 9 ? "9+" : count}
@@ -88,28 +109,40 @@ export function NotificationBell({ businessId }: { businessId: string }) {
               )}
             </div>
             {items.length === 0 ? (
-              <div className="px-4 py-10 text-center text-navy-400 text-sm">
-                אין התראות
-              </div>
+              <EmptyState icon="bell" title="אין התראות" />
             ) : (
               <ul role="menu" className="divide-y divide-navy-50">
                 {items.map((n) => (
-                  <li
-                    role="menuitem"
-                    key={n.id}
-                    className={`px-4 py-3 flex gap-3 ${n.read ? "opacity-60" : "bg-brand-50/40"}`}
-                  >
-                    <span className="text-base shrink-0">{ICON[n.type]}</span>
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium text-navy-900">
-                        {n.title}
-                      </div>
-                      {n.body && (
-                        <div className="text-xs text-navy-400 truncate">
-                          {n.body}
+                  <li key={n.id} role="none">
+                    <button
+                      role="menuitem"
+                      type="button"
+                      onClick={() => onItemClick(n)}
+                      className={`w-full text-start px-4 py-3 flex items-start gap-3 transition-colors hover:bg-cream-50 ${
+                        n.read ? "opacity-60" : "bg-brand-50/40"
+                      } ${n.link ? "cursor-pointer" : "cursor-default"}`}
+                    >
+                      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
+                        <Icon name={ICON[n.type]} size={15} />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium text-navy-900">
+                          {n.title}
                         </div>
+                        {n.body && (
+                          <div className="text-xs text-navy-400 truncate">
+                            {n.body}
+                          </div>
+                        )}
+                      </div>
+                      {n.link && (
+                        <Icon
+                          name="chevron-start"
+                          size={16}
+                          className="self-center shrink-0 text-navy-300 rtl:-scale-x-100"
+                        />
                       )}
-                    </div>
+                    </button>
                   </li>
                 ))}
               </ul>

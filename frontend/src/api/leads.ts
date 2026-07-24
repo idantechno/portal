@@ -27,6 +27,8 @@ export interface Lead {
   interest: string;
   notes: string | null;
   source: "agent" | "questionnaire";
+  /** Human-readable origin: "וואטסאפ", "צ'אט באתר", "שאלון אסטרטגיה · אינסטגרם". */
+  sourceDetail: string | null;
   answers: LeadAnswers | null;
   createdAt: string;
 }

@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiErrorMessage } from "../../api/client";
 import { type FiledDocument, filingApi } from "../../api/filing";
 import { Card, FormError, Spinner } from "../../components/ui";
+import { Icon } from "../../components/icons";
 
 function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`;
@@ -106,7 +107,9 @@ export default function Filing() {
               : "border-navy-200 bg-cream-50 hover:border-brand-300"
           }`}
         >
-          <div className="text-2xl mb-1">📎</div>
+          <div className="mx-auto mb-2 flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-brand-400 shadow-[var(--shadow-e1)]">
+            <Icon name="upload" size={21} />
+          </div>
           <div className="text-sm font-medium text-navy-700">
             גרור לכאן מסמכים או לחץ לבחירה
           </div>
@@ -146,7 +149,8 @@ export default function Filing() {
           return (
             <div key={name}>
               <h2 className="text-sm font-semibold text-navy-700 mb-2 flex items-center gap-2">
-                📁 {name}
+                <Icon name="folder" size={16} className="text-brand-400" />
+                {name}
                 <span className="text-xs font-normal text-navy-400">
                   ({items.length})
                 </span>

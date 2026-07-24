@@ -4,7 +4,10 @@ export const WORK_ORDER_HTML = `<!doctype html>
   <meta charset="utf-8" />
   <title>הזמנת עבודה — {{business.name}}</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700&display=swap');
+    /* Same two faces as the product UI: Rubik for text, Frank Ruhl Libre for
+       headings. A signed work order is a customer-facing brand surface, so it
+       must not drift onto a different typeface than the app. */
+    @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700&family=Frank+Ruhl+Libre:wght@500;700&display=swap');
 
     :root {
       --primary: {{brand.primaryColor}};
@@ -17,7 +20,7 @@ export const WORK_ORDER_HTML = `<!doctype html>
     * { box-sizing: border-box; }
 
     body {
-      font-family: 'Heebo', Arial, sans-serif;
+      font-family: 'Rubik', 'Heebo', Arial, sans-serif;
       margin: 0;
       padding: 40px 48px;
       color: var(--ink);
@@ -44,8 +47,10 @@ export const WORK_ORDER_HTML = `<!doctype html>
     }
 
     h1 {
+      font-family: 'Frank Ruhl Libre', 'Rubik', Georgia, serif;
       font-size: 26px;
       font-weight: 700;
+      letter-spacing: -0.01em;
       margin: 0 0 24px;
       color: var(--primary);
     }

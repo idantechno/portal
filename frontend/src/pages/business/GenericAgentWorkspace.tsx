@@ -10,6 +10,7 @@ import {
 import { WORKSPACE_AGENT_UI } from "../../lib/workspaceAgents";
 import { agentRoute } from "../../lib/agentRoutes";
 import { Button, Card, FormError, Spinner } from "../../components/ui";
+import { Icon, ServerIcon } from "../../components/icons";
 
 interface UIMessage extends ChatTurn {
   createdAt: number;
@@ -93,8 +94,8 @@ export default function GenericAgentWorkspace({
       <div className="flex flex-col h-full min-h-0">
         <header className="px-4 sm:px-8 py-5 border-b border-neutral-200 bg-white flex items-center justify-between gap-3">
           <div className="min-w-0 flex items-center gap-3">
-            <span className="text-2xl shrink-0" aria-hidden>
-              {icon}
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-500">
+              <ServerIcon name={icon} size={20} />
             </span>
             <div className="min-w-0">
               <h1 className="text-xl font-bold text-navy-900 truncate">
@@ -137,7 +138,8 @@ export default function GenericAgentWorkspace({
                     onClick={() => navigate(to)}
                     className="inline-flex items-center gap-1.5 rounded-full border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-100 transition-colors"
                   >
-                    ← פתח: {s.name}
+                    <Icon name="arrow-end" size={14} />
+                    פתח: {s.name}
                   </button>
                 );
               })}
@@ -209,7 +211,8 @@ export default function GenericAgentWorkspace({
               to={`/app/businesses/${businessId}/${cfg.related.to}`}
               className="inline-flex items-center gap-1.5 rounded-xl border border-neutral-200 bg-white px-3 py-2.5 text-sm text-brand-700 hover:bg-brand-50 transition-colors"
             >
-              {cfg.related.label} ←
+              {cfg.related.label}
+              <Icon name="arrow-end" size={15} />
             </Link>
           </div>
         )}
@@ -247,11 +250,11 @@ function EmptyState({
   text: string;
 }) {
   return (
-    <Card className="p-8 text-center text-neutral-600 max-w-lg mx-auto">
-      <div className="text-2xl mb-3" aria-hidden>
-        {icon}
+    <Card className="mx-auto max-w-lg p-8 text-center text-neutral-600">
+      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-400">
+        <ServerIcon name={icon} size={24} />
       </div>
-      <h2 className="text-base font-semibold mb-2 text-neutral-900">{title}</h2>
+      <h2 className="mb-2 text-base font-semibold text-neutral-900">{title}</h2>
       <p className="text-sm">{text}</p>
     </Card>
   );

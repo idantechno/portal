@@ -6,6 +6,7 @@ import type { Business } from "../api/types";
 import { Button, Card, FormError, Input, Label, Spinner } from "./ui";
 import { businessThemeVars, DEFAULT_BRANDING, normalizeHex } from "../lib/theme";
 import { extractPaletteFromFile, fileToResizedDataUrl, mostSaturatedIndex } from "../lib/image";
+import { Icon } from "./icons";
 
 interface Props {
   businessId: string;
@@ -153,7 +154,14 @@ export default function BrandingCard({ businessId, business }: Props) {
               disabled={busy === "palette"}
               className="text-sm text-brand-700 hover:underline disabled:opacity-50"
             >
-              {busy === "palette" ? "מחלץ צבעים…" : "🎨 חלץ צבעים מתמונה"}
+              {busy === "palette" ? (
+                "מחלץ צבעים…"
+              ) : (
+                <span className="inline-flex items-center gap-1.5">
+                  <Icon name="palette" size={15} />
+                  חלץ צבעים מתמונה
+                </span>
+              )}
             </button>
             <input
               ref={paletteInput}
@@ -250,19 +258,22 @@ export default function BrandingCard({ businessId, business }: Props) {
               </div>
               <div className="space-y-1">
                 <div
-                  className="rounded-lg px-3 py-1.5 text-sm font-medium"
+                  className="flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-sm font-medium"
                   style={{
                     backgroundColor: "var(--brand-accent)",
                     color: "var(--brand-accent-contrast)",
                   }}
                 >
-                  🏠 בית
+                  <Icon name="home" size={16} />
+                  בית
                 </div>
-                <div className="rounded-lg px-3 py-1.5 text-sm text-white/70">
-                  💬 שיחות
+                <div className="flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-sm text-white/70">
+                  <Icon name="chat" size={16} />
+                  שיחות
                 </div>
-                <div className="rounded-lg px-3 py-1.5 text-sm text-white/70">
-                  🤖 סוכנים
+                <div className="flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-sm text-white/70">
+                  <Icon name="agents" size={16} />
+                  סוכנים
                 </div>
               </div>
             </div>

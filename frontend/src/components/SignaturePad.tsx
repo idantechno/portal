@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { Icon } from "./icons";
 
 interface Point {
   x: number;
@@ -56,20 +57,7 @@ export function SignaturePad({
           </>
         ) : (
           <div className="flex flex-col items-center gap-2 text-wood-700/70">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={1.6}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-8 w-8 text-tomato-500"
-              aria-hidden="true"
-            >
-              <path d="M3 21c3-1 6-2 9-5s5-7 7-10" />
-              <path d="M14 6l4 4" />
-            </svg>
+            <Icon name="pencil" size={32} className="text-tomato-500" />
             <span className="font-display text-base text-wood-900">{label}</span>
             <span className="text-xs text-wood-700/60">
               תוכל לחתום באצבע במובייל או בעכבר במחשב
@@ -282,20 +270,7 @@ function SignatureModal({
             className="rounded-full p-1.5 text-wood-700/60 hover:bg-wheat/30 hover:text-wood-900"
             aria-label="סגור"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-5 w-5"
-              aria-hidden="true"
-            >
-              <path d="M18 6L6 18" />
-              <path d="M6 6l12 12" />
-            </svg>
+            <Icon name="close" size={20} />
           </button>
         </div>
 

@@ -7,6 +7,7 @@ import type { IntegrationProvider, IntegrationView } from "../../api/integration
 import { greenInvoiceApi } from "../../api/greenInvoice";
 import { apiErrorMessage } from "../../api/client";
 import { Button, Card, FormError, Input, Spinner, Textarea } from "../../components/ui";
+import { Icon, ServerIcon } from "../../components/icons";
 
 export default function Integrations() {
   const { businessId = "" } = useParams<{ businessId: string }>();
@@ -116,8 +117,8 @@ function ProviderRow({
   const connected = it.status === "connected";
   return (
     <Card className="p-4 flex items-center gap-4">
-      <div className="h-11 w-11 rounded-2xl bg-cream-50 border border-navy-100 flex items-center justify-center text-2xl shrink-0">
-        {it.icon}
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-navy-100 bg-cream-50 text-brand-500">
+        <ServerIcon name={it.icon} size={21} />
       </div>
       <div className="flex-1 min-w-0">
         <div className="font-semibold text-navy-900 text-sm">{it.name}</div>
@@ -173,7 +174,9 @@ function GmailCompose({ businessId }: { businessId: string }) {
   return (
     <Card className="p-5 mt-6">
       <div className="flex items-center gap-2 mb-3">
-        <span className="text-xl">✉️</span>
+        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-50 text-brand-500">
+          <Icon name="mail" size={17} />
+        </span>
         <span className="font-semibold text-navy-900">שלח מייל דרך Gmail</span>
       </div>
       <form onSubmit={submit} className="space-y-3">
@@ -245,8 +248,8 @@ function GreenInvoiceCard({ businessId }: { businessId: string }) {
   if (s?.connected) {
     return (
       <Card className="p-4 flex items-center gap-4">
-        <div className="h-11 w-11 rounded-2xl bg-cream-50 border border-navy-100 flex items-center justify-center text-2xl shrink-0">
-          🧾
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-navy-100 bg-cream-50 text-brand-500">
+          <Icon name="receipt" size={21} />
         </div>
         <div className="flex-1 min-w-0">
           <div className="font-semibold text-navy-900 text-sm">

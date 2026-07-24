@@ -53,7 +53,7 @@ export class AgentWorkerProcessor extends WorkerHost {
         await this.notifications.notify({
           businessId: job.data.businessId,
           type: 'system',
-          title: 'הבוט לא הצליח להשיב להודעת לקוח',
+          title: 'הסוכן לא הצליח להשיב להודעת לקוח',
           body: 'הודעת לקוח נכנסה אך הסוכן נכשל במענה. פתח את תיבת השיחות כדי להשיב ידנית.',
           link: `/app/businesses/${job.data.businessId}/inbox`,
         });

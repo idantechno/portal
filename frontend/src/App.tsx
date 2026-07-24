@@ -22,6 +22,8 @@ const Files = lazy(() => import("./pages/business/Files"));
 const Filing = lazy(() => import("./pages/business/Filing"));
 const Calendar = lazy(() => import("./pages/business/Calendar"));
 const Leads = lazy(() => import("./pages/business/Leads"));
+const Briefs = lazy(() => import("./pages/business/Briefs"));
+const BriefDetail = lazy(() => import("./pages/business/BriefDetail"));
 const Tasks = lazy(() => import("./pages/business/Tasks"));
 const Automations = lazy(() => import("./pages/business/Automations"));
 const Growth = lazy(() => import("./pages/business/Growth"));
@@ -43,6 +45,11 @@ const AdminCreateClient = lazy(() => import("./pages/admin/AdminCreateClient"));
 const AdminUsers = lazy(() => import("./pages/admin/AdminUsers"));
 const AdminAudit = lazy(() => import("./pages/admin/AdminAudit"));
 const AdminSupport = lazy(() => import("./pages/admin/AdminSupport"));
+// Guarding the lazy() call itself (not just the <Route>) is what lets Vite fold
+// the branch away in production — otherwise the chunk is still emitted.
+const IconGallery = import.meta.env.DEV
+  ? lazy(() => import("./pages/dev/IconGallery"))
+  : null;
 
 function RouteFallback() {
   return (
@@ -74,6 +81,11 @@ export default function App() {
   return (
     <Suspense fallback={<RouteFallback />}>
       <Routes>
+        {/* Design-system contact sheet. Dev builds only — the lazy import is
+            inside the guard so it never enters the production bundle. */}
+        {IconGallery && (
+          <Route path="/dev/icons" element={<IconGallery />} />
+        )}
         <Route path="/login" element={<Login />} />
         <Route path="/sign/:token" element={<SignDocument />} />
         <Route path="/strategy" element={<Questionnaire />} />
@@ -160,6 +172,8 @@ export default function App() {
           <Route path="filing" element={<Filing />} />
           <Route path="calendar" element={<Calendar />} />
           <Route path="leads" element={<Leads />} />
+          <Route path="briefs" element={<Briefs />} />
+          <Route path="briefs/:briefId" element={<BriefDetail />} />
           <Route path="tasks" element={<Tasks />} />
           <Route path="agents" element={<AgentStudio />} />
           <Route path="agents/:agentKey" element={<AgentWorkspace />} />

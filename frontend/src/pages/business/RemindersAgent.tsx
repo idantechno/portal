@@ -11,6 +11,7 @@ import {
   bucketOf,
 } from "../../lib/reminderBuckets";
 import { Button, Card, FormError, Spinner } from "../../components/ui";
+import { Icon } from "../../components/icons";
 
 interface UIMessage extends ChatTurn {
   createdAt: number;
@@ -120,7 +121,10 @@ export default function RemindersAgent({ businessId }: { businessId: string }) {
             to={`/app/businesses/${businessId}/billing`}
             className="block bg-amber-50 border-b border-amber-200 px-4 sm:px-8 py-2.5 text-sm text-amber-800 hover:bg-amber-100 transition-colors"
           >
-            ⏳ תקופת ניסיון — נותרו {daysLeft} ימים לסוכן התזכורות.{" "}
+            <span className="inline-flex items-center gap-1.5 align-middle">
+              <Icon name="hourglass" size={15} />
+              תקופת ניסיון — נותרו {daysLeft} ימים לסוכן התזכורות.
+            </span>{" "}
             <span className="font-semibold underline">שדרג כדי להמשיך</span>
           </Link>
         )}
@@ -176,7 +180,10 @@ export default function RemindersAgent({ businessId }: { businessId: string }) {
           <div className="text-sm text-neutral-500">טוען...</div>
         )}
         {open.length === 0 && !tasks.isLoading && (
-          <div className="text-sm text-neutral-500">אין מה לטפל בו כרגע. 🎉</div>
+          <div className="flex items-center gap-2 text-sm text-neutral-500">
+            <Icon name="check-circle" size={16} className="text-basil-500" />
+            אין מה לטפל בו כרגע.
+          </div>
         )}
         <div className="space-y-4">
           {BUCKET_ORDER.map((bucket) => {
@@ -273,7 +280,9 @@ function RemindersLocked({ businessId }: { businessId: string }) {
   return (
     <div className="h-full flex items-center justify-center p-8">
       <Card className="p-8 text-center max-w-md">
-        <div className="text-4xl mb-3">🔒</div>
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-navy-50 text-navy-400">
+          <Icon name="lock" size={28} />
+        </div>
         <h2 className="text-lg font-bold text-navy-900 mb-2">
           תקופת הניסיון של סוכן התזכורות הסתיימה
         </h2>
@@ -295,7 +304,9 @@ function RemindersLocked({ businessId }: { businessId: string }) {
 function EmptyState() {
   return (
     <Card className="p-8 text-center text-neutral-600 max-w-lg mx-auto">
-      <div className="text-2xl mb-3">⏰</div>
+      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-400">
+        <Icon name="clock" size={24} />
+      </div>
       <h2 className="text-base font-semibold mb-2 text-neutral-900">
         שלום — אני אדאג שלא תשכח כלום
       </h2>

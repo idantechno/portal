@@ -4,6 +4,7 @@ import { createSdkMcpServer } from '@anthropic-ai/claude-agent-sdk';
 import { AgentRunner } from '../agents/agent-runner.service';
 import { BusinessesService } from '../businesses/businesses.service';
 import { FilesystemService } from '../context-files/filesystem.service';
+import { BusinessContextService } from '../context-files/business-context.service';
 import { FilingService } from '../filing/filing.service';
 import { DocumentPdfService } from './document-pdf.service';
 import {
@@ -41,6 +42,7 @@ export class DocumentsAgentService {
     private readonly businesses: BusinessesService,
     private readonly documents: DocumentsService,
     private readonly filesystem: FilesystemService,
+    private readonly businessContext: BusinessContextService,
     private readonly documentPdf: DocumentPdfService,
     private readonly filing: FilingService,
   ) {}
@@ -102,8 +104,14 @@ export class DocumentsAgentService {
       ],
     });
 
+    const contextBlock = await this.businessContext.promptBlock(business.id);
+
     const { finalText } = await this.runner.run({
-      systemPrompt: buildDocumentsSystemPrompt(business, templates),
+      systemPrompt: buildDocumentsSystemPrompt(
+        business,
+        templates,
+        contextBlock,
+      ),
       prompt: buildDocumentsUserPrompt(input.history),
       cwd,
       mcpServers: { [MCP_SERVER_NAME]: mcpServer },

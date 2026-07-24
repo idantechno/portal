@@ -3,6 +3,7 @@ import { createSdkMcpServer } from '@anthropic-ai/claude-agent-sdk';
 import { AgentRunner } from '../agents/agent-runner.service';
 import { BusinessesService } from '../businesses/businesses.service';
 import { FilesystemService } from '../context-files/filesystem.service';
+import { BusinessContextService } from '../context-files/business-context.service';
 import {
   ChatTurn,
   buildDesignerSystemPrompt,
@@ -35,6 +36,7 @@ export class DesignerAgentService {
     private readonly businesses: BusinessesService,
     private readonly designer: DesignerService,
     private readonly filesystem: FilesystemService,
+    private readonly businessContext: BusinessContextService,
   ) {}
 
   async chat(input: DesignerChatInput): Promise<DesignerChatResult> {
@@ -62,8 +64,15 @@ export class DesignerAgentService {
       tools: [listDesignsTool(toolCtx), generateDesignTool(toolCtx)],
     });
 
+    const contextBlock = await this.businessContext.promptBlock(business.id);
+
     const { finalText } = await this.runner.run({
-      systemPrompt: buildDesignerSystemPrompt(business, existing, remaining),
+      systemPrompt: buildDesignerSystemPrompt(
+        business,
+        existing,
+        remaining,
+        contextBlock,
+      ),
       prompt: buildDesignerUserPrompt(input.history),
       cwd,
       mcpServers: { [MCP_SERVER_NAME]: mcpServer },

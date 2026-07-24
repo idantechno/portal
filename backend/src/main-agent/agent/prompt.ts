@@ -1,7 +1,6 @@
 import { SYSTEM_PROMPT_DYNAMIC_BOUNDARY } from '@anthropic-ai/claude-agent-sdk';
 import { Business } from '../../businesses/business.entity';
 import { AgentDefinition } from '../../agents/agent-catalog';
-import { renderOnboardingProfile } from '../../agents/onboarding-context';
 
 export interface ChatTurn {
   role: 'user' | 'assistant';
@@ -29,10 +28,10 @@ Tools available to you:
 export function buildMainSystemPrompt(
   business: Business,
   agents: AgentDefinition[],
+  contextBlock?: string | null,
 ): string[] {
   const dynamicLines = [`The business you are serving is: ${business.name}.`];
-  const profile = renderOnboardingProfile(business);
-  if (profile) dynamicLines.push(profile);
+  if (contextBlock) dynamicLines.push(contextBlock);
 
   if (agents.length === 0) {
     dynamicLines.push(

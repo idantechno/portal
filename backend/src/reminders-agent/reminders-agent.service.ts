@@ -3,6 +3,7 @@ import { createSdkMcpServer } from '@anthropic-ai/claude-agent-sdk';
 import { AgentRunner } from '../agents/agent-runner.service';
 import { BusinessesService } from '../businesses/businesses.service';
 import { FilesystemService } from '../context-files/filesystem.service';
+import { BusinessContextService } from '../context-files/business-context.service';
 import { TasksService } from '../tasks/tasks.service';
 import {
   ChatTurn,
@@ -39,6 +40,7 @@ export class RemindersAgentService {
     private readonly businesses: BusinessesService,
     private readonly tasks: TasksService,
     private readonly filesystem: FilesystemService,
+    private readonly businessContext: BusinessContextService,
   ) {}
 
   async chat(input: RemindersChatInput): Promise<RemindersChatResult> {
@@ -73,8 +75,10 @@ export class RemindersAgentService {
       ],
     });
 
+    const contextBlock = await this.businessContext.promptBlock(business.id);
+
     const { finalText } = await this.runner.run({
-      systemPrompt: buildRemindersSystemPrompt(business, open),
+      systemPrompt: buildRemindersSystemPrompt(business, open, contextBlock),
       prompt: buildRemindersUserPrompt(input.history),
       cwd,
       mcpServers: { [MCP_SERVER_NAME]: mcpServer },

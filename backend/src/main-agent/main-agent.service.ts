@@ -4,6 +4,7 @@ import { AgentRunner } from '../agents/agent-runner.service';
 import { AgentsService } from '../agents/agents.service';
 import { BusinessesService } from '../businesses/businesses.service';
 import { FilesystemService } from '../context-files/filesystem.service';
+import { BusinessContextService } from '../context-files/business-context.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { SupportRequestsService } from '../support/support-requests.service';
 import {
@@ -41,6 +42,7 @@ export class MainAgentService {
     private readonly support: SupportRequestsService,
     private readonly notifications: NotificationsService,
     private readonly filesystem: FilesystemService,
+    private readonly businessContext: BusinessContextService,
   ) {}
 
   async chat(input: MainChatInput): Promise<MainChatResult> {
@@ -74,8 +76,10 @@ export class MainAgentService {
       tools: [suggestAgentTool(toolCtx), openSupportRequestTool(toolCtx)],
     });
 
+    const contextBlock = await this.businessContext.promptBlock(business.id);
+
     const { finalText } = await this.runner.run({
-      systemPrompt: buildMainSystemPrompt(business, entitled),
+      systemPrompt: buildMainSystemPrompt(business, entitled, contextBlock),
       prompt: buildMainUserPrompt(input.history),
       cwd,
       mcpServers: { [MCP_SERVER_NAME]: mcpServer },

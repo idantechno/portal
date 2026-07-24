@@ -1,7 +1,6 @@
 import { SYSTEM_PROMPT_DYNAMIC_BOUNDARY } from '@anthropic-ai/claude-agent-sdk';
 import { Business } from '../../businesses/business.entity';
 import { DesignProduct } from '../design-product.entity';
-import { renderOnboardingProfile } from '../../agents/onboarding-context';
 
 export interface ChatTurn {
   role: 'user' | 'assistant';
@@ -42,13 +41,13 @@ export function buildDesignerSystemPrompt(
   business: Business,
   designs: DesignProduct[],
   remaining: number,
+  contextBlock?: string | null,
 ): string[] {
   const dynamicLines = [
     `The business you are serving is: ${business.name}.`,
     `Design generations remaining this month: ${remaining}. If it's 0, tell the owner kindly (in Hebrew) they've reached this month's limit and can't generate more right now.`,
   ];
-  const profile = renderOnboardingProfile(business);
-  if (profile) dynamicLines.push(profile);
+  if (contextBlock) dynamicLines.push(contextBlock);
   const brand = business.branding;
   if (brand?.primaryColor) {
     const extra = [

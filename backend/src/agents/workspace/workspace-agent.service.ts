@@ -4,6 +4,7 @@ import { AgentRunner } from '../agent-runner.service';
 import { AgentsService } from '../agents.service';
 import { BusinessesService } from '../../businesses/businesses.service';
 import { FilesystemService } from '../../context-files/filesystem.service';
+import { BusinessContextService } from '../../context-files/business-context.service';
 import { TasksService } from '../../tasks/tasks.service';
 import { LeadsService } from '../../leads/leads.service';
 import { BillingService } from '../../billing/billing.service';
@@ -42,6 +43,7 @@ export class WorkspaceAgentService {
     private readonly agents: AgentsService,
     private readonly businesses: BusinessesService,
     private readonly filesystem: FilesystemService,
+    private readonly businessContext: BusinessContextService,
     private readonly tasks: TasksService,
     private readonly leads: LeadsService,
     private readonly billing: BillingService,
@@ -79,8 +81,10 @@ export class WorkspaceAgentService {
       tools: config.tools(ctx),
     });
 
+    const contextBlock = await this.businessContext.promptBlock(business.id);
+
     const { finalText } = await this.runner.run({
-      systemPrompt: buildWorkspaceSystemPrompt(config, business),
+      systemPrompt: buildWorkspaceSystemPrompt(config, business, contextBlock),
       prompt: buildWorkspaceUserPrompt(input.history),
       cwd,
       mcpServers: { [config.mcpName]: mcpServer },

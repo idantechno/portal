@@ -278,10 +278,35 @@ function Explorer({
 
   return (
     <div className="px-4 sm:px-6 py-6 sm:py-8 max-w-6xl mx-auto">
-      <header className="mb-6">
-        <h1 className="text-2xl font-bold mb-1">{t("files.title")}</h1>
-        <p className="text-neutral-600 text-sm">{t("files.subtitle")}</p>
+      <header className="mb-4">
+        <h1 className="text-2xl font-bold mb-1">מידע העסק</h1>
+        <p className="text-neutral-600 text-sm">
+          {isStaff
+            ? "המסמכים כאן מזינים את הסוכנים. קבצים מסומנים «מוסתר» הם ההנחיות והידע שרק אתה קובע; שאר הקבצים הם מידע שהלקוח מעדכן."
+            : "כאן מעלים מסמכים עם מידע עדכני על העסק — מחירונים, תפריטים, רשימות מוצרים, שעות פעילות. הסוכנים שלך משתמשים בהם כמקור העובדות."}
+        </p>
       </header>
+
+      <div
+        className={`mb-4 rounded-xl border p-3.5 text-sm ${
+          isStaff
+            ? "border-amber-200 bg-amber-50 text-amber-900"
+            : "border-brand-200 bg-brand-50/60 text-navy-700"
+        }`}
+      >
+        {isStaff ? (
+          <span>
+            <b>אזור אופרטור.</b> קבצים ותיקיות שתסמן «מוסתר» מכתיבים את התנהגות
+            הסוכן (הנחיות, טון, מה מותר/אסור) ואת הידע הרשמי — הלקוח לא רואה ולא
+            נוגע בהם. מסמכים רגילים הם מידע עובדתי שהלקוח מעדכן.
+          </span>
+        ) : (
+          <span>
+            המסמכים שתעלה משמשים את הסוכנים כעובדות בלבד. את <b>אופן ההתנהלות</b>{" "}
+            של הסוכנים מגדיר צוות Portal Studio — לא דרך המסמכים כאן.
+          </span>
+        )}
+      </div>
 
       <Card className="p-4 mb-4">
         <div className="flex items-center justify-between gap-4 flex-wrap">

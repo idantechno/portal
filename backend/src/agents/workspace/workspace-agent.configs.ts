@@ -3,7 +3,6 @@ import {
   type SdkMcpToolDefinition,
 } from '@anthropic-ai/claude-agent-sdk';
 import { Business } from '../../businesses/business.entity';
-import { renderOnboardingProfile } from '../onboarding-context';
 import { WorkspaceAgentKey } from './workspace-agent.constants';
 import {
   WorkspaceToolContext,
@@ -194,14 +193,14 @@ Tools:
 export function buildWorkspaceSystemPrompt(
   config: WorkspaceAgentConfig,
   business: Business,
+  contextBlock?: string | null,
 ): string[] {
   const dynamic = [`The business you are serving is: ${business.name}.`];
-  const profile = renderOnboardingProfile(business);
-  if (profile) dynamic.push(profile);
+  if (contextBlock) dynamic.push(contextBlock);
   return [
     config.staticPrompt,
     SYSTEM_PROMPT_DYNAMIC_BOUNDARY,
-    dynamic.join('\n'),
+    dynamic.join('\n\n'),
   ];
 }
 

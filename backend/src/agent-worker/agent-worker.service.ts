@@ -3,6 +3,7 @@ import { createSdkMcpServer } from '@anthropic-ai/claude-agent-sdk';
 import { ConversationsService } from '../conversations/conversations.service';
 import { BusinessesService } from '../businesses/businesses.service';
 import { FilesystemService } from '../context-files/filesystem.service';
+import { BusinessContextService } from '../context-files/business-context.service';
 import { ChannelRegistry } from '../channels/channel-registry.service';
 import { LeadsService } from '../leads/leads.service';
 import { AgentRunner } from '../agents/agent-runner.service';
@@ -25,6 +26,7 @@ export class AgentWorkerService {
     private readonly businesses: BusinessesService,
     private readonly leads: LeadsService,
     private readonly filesystem: FilesystemService,
+    private readonly businessContext: BusinessContextService,
     private readonly channels: ChannelRegistry,
     private readonly runner: AgentRunner,
     private readonly agents: AgentsService,
@@ -80,8 +82,10 @@ export class AgentWorkerService {
       tools: [captureLeadTool(toolCtx), escalateToHumanTool(toolCtx)],
     });
 
+    const contextBlock = await this.businessContext.promptBlock(business.id);
+
     const { finalText } = await this.runner.run({
-      systemPrompt: buildSystemPrompt(business),
+      systemPrompt: buildSystemPrompt(business, contextBlock),
       prompt: buildUserPrompt(history),
       cwd,
       mcpServers: { [MCP_SERVER_NAME]: mcpServer },

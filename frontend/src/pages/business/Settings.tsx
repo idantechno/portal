@@ -16,7 +16,6 @@ import {
   Textarea,
 } from "../../components/ui";
 import BrandingCard from "../../components/BrandingCard";
-import BusinessProfileForm from "../../components/BusinessProfileForm";
 import { Icon } from "../../components/icons";
 
 function buildSnippet(publicKey: string): string {
@@ -60,9 +59,6 @@ function SettingsForm({ businessId, business }: SettingsFormProps) {
 
   const [name, setName] = useState(business.name);
   const [slug, setSlug] = useState(business.slug);
-  const [systemPrompt, setSystemPrompt] = useState(
-    business.systemPromptOverride ?? "",
-  );
   const [allowedOriginsText, setAllowedOriginsText] = useState(
     (business.widgetAllowedOrigins ?? []).join("\n"),
   );
@@ -75,7 +71,6 @@ function SettingsForm({ businessId, business }: SettingsFormProps) {
       businessesApi.update(businessId, {
         name,
         slug,
-        systemPromptOverride: systemPrompt,
         widgetAllowedOrigins: allowedOriginsText
           .split("\n")
           .map((s) => s.trim())
@@ -108,14 +103,6 @@ function SettingsForm({ businessId, business }: SettingsFormProps) {
         <h1 className="text-2xl font-bold">{t("settings.title")}</h1>
       </header>
 
-      <Card className="p-6 mb-6">
-        <h2 className="font-semibold mb-1">אפיון העסק</h2>
-        <p className="text-xs text-navy-400 mb-4">
-          המידע כאן מוזרם לכל הסוכנים כדי שידברו ויפעלו בקו של העסק.
-        </p>
-        <BusinessProfileForm businessId={businessId} business={business} />
-      </Card>
-
       <BrandingCard businessId={businessId} business={business} />
 
       <Card className="p-6 mb-6">
@@ -139,19 +126,6 @@ function SettingsForm({ businessId, business }: SettingsFormProps) {
               required
               dir="ltr"
             />
-          </div>
-          <div>
-            <Label htmlFor="sysprompt">{t("settings.systemPrompt")}</Label>
-            <Textarea
-              id="sysprompt"
-              value={systemPrompt}
-              onChange={(e) => setSystemPrompt(e.target.value)}
-              rows={8}
-              className="min-h-32 font-mono text-xs"
-            />
-            <p className="text-xs text-neutral-500 mt-1">
-              {t("settings.systemPromptHint")}
-            </p>
           </div>
           <FormError message={error} />
           <div className="flex items-center gap-3">

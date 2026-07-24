@@ -9,6 +9,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { businessesApi } from "../../api/businesses";
 import { useAuthStore } from "../../store/auth";
+import { isPlatformStaff } from "../../lib/roles";
 import { NotificationBell } from "../../components/NotificationBell";
 import { Icon } from "../../components/icons";
 import type { IconName } from "../../components/icons";
@@ -44,6 +45,7 @@ export default function BusinessLayout() {
   });
 
   const viaStaff = biz.data?.viaPlatformStaff ?? false;
+  const staff = isPlatformStaff(user?.role);
   const branding = biz.data?.branding ?? null;
   const themeVars = businessThemeVars(branding);
 
@@ -155,6 +157,22 @@ export default function BusinessLayout() {
           <Icon name="close" size={20} />
         </button>
       </div>
+      {/* Platform staff are viewing a tenant from the outside — give them a
+          persistent way back to the admin console (system / businesses /
+          users / audit). Clients never see this. */}
+      {staff && (
+        <div className="px-4 pt-4">
+          <Link
+            to="/app/admin"
+            onClick={() => setNavOpen(false)}
+            className="flex items-center gap-3 rounded-xl bg-white/10 px-3 py-2.5 text-sm font-medium text-white ring-1 ring-white/10 transition-colors hover:bg-white/[0.16]"
+          >
+            <Icon name="shield" size={18} className="opacity-90" />
+            אזור ניהול
+            <Icon name="arrow-end" size={16} className="ms-auto opacity-70" />
+          </Link>
+        </div>
+      )}
       <div className="p-4 flex-1">
         <nav className="space-y-5" onClick={() => setNavOpen(false)}>
           {groups.map((group) => {

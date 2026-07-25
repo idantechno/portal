@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Logger,
@@ -132,5 +133,40 @@ export class WhatsappOnboardingController {
       accessToken,
     });
     return this.conns.toPublic(conn);
+  }
+
+  /**
+   * Connect a business through 360dialog (our WhatsApp BSP). The operator pastes
+   * the per-number 360dialog API key here; it is stored encrypted and never
+   * returned. The response includes the inbound webhook URL to paste into the
+   * 360dialog channel's "Channel Webhook URL" setting.
+   */
+  @Post('360dialog')
+  async connect360dialog(
+    @Param('businessId', ParseUUIDPipe) businessId: string,
+    @Body()
+    body: {
+      apiKey?: string;
+      wabaId?: string;
+      displayPhoneNumber?: string;
+      metaBusinessId?: string;
+    },
+  ) {
+    const apiKey = typeof body?.apiKey === 'string' ? body.apiKey.trim() : '';
+    if (!apiKey) {
+      throw new BadRequestException('apiKey is required');
+    }
+    await this.conns.connect360dialog({
+      businessId,
+      apiKey,
+      wabaId: body.wabaId ?? null,
+      displayPhoneNumber: body.displayPhoneNumber ?? null,
+      metaBusinessId: body.metaBusinessId ?? null,
+    });
+    const conn = await this.conns.findByBusinessId(businessId);
+    return {
+      connection: this.conns.toPublic(conn!),
+      webhookUrl: this.conns.webhookUrl(businessId),
+    };
   }
 }

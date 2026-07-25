@@ -1,11 +1,13 @@
 import {
   BadRequestException,
   Controller,
+  ForbiddenException,
   Get,
   Headers,
   HttpCode,
   HttpStatus,
   Logger,
+  Param,
   Post,
   Query,
   RawBodyRequest,
@@ -179,6 +181,50 @@ export class WhatsappWebhookController {
     }
 
     await this.handleVerifiedPayload(conn.businessId, payload);
+    return { ok: true };
+  }
+
+  // 360dialog forwards Meta-format payloads but does NOT sign them with Meta's
+  // app secret, so there is no x-hub-signature-256 to verify. Authentication is
+  // the per-business HMAC token baked into the URL we hand to 360dialog; a valid
+  // token both proves the caller is 360dialog (holds our secret) and names the
+  // tenant to route to — no phone_number_id lookup needed.
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @Post('360dialog/:businessId')
+  async receive360dialog(
+    @Param('businessId') businessId: string,
+    @Query('token') token: string | undefined,
+    @Req() req: RawBodyRequest<Request>,
+  ): Promise<{ ok: true }> {
+    if (!this.conns.verifyWebhookToken(businessId, token ?? '')) {
+      throw new ForbiddenException('invalid webhook token');
+    }
+    const raw = req.rawBody;
+    if (!raw) {
+      throw new BadRequestException('Missing raw body');
+    }
+    let payload: MetaWebhookPayload;
+    try {
+      payload = JSON.parse(raw.toString('utf8')) as MetaWebhookPayload;
+    } catch {
+      throw new BadRequestException('Invalid JSON');
+    }
+
+    const phoneNumberId = extractPhoneNumberId(payload);
+    await this.events.log({
+      businessId,
+      rawPayload: payload as unknown as Record<string, unknown>,
+      signatureOk: true,
+      error: null,
+    });
+    if (phoneNumberId) {
+      await this.conns
+        .capturePhoneNumberId(businessId, phoneNumberId)
+        .catch(() => undefined);
+    }
+
+    await this.handleVerifiedPayload(businessId, payload);
     return { ok: true };
   }
 

@@ -1,8 +1,11 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { DataSource } from 'typeorm';
 import { AppModule } from './app.module';
+import { Business } from './businesses/business.entity';
+import { WhatsappConnectionsService } from './whatsapp/whatsapp-connections.service';
 
 async function bootstrap() {
   // rawBody: true exposes req.rawBody to controllers — needed for the
@@ -47,5 +50,42 @@ async function bootstrap() {
   console.log(
     `API listening on http://0.0.0.0:${port}/${config.get<string>('API_PREFIX', 'api')}`,
   );
+
+  // One-shot operator bootstrap: if DIALOG360_BOOTSTRAP_KEY is present, attach
+  // the 360dialog number to the (single) business and log the webhook URL. Lets
+  // us connect without a console/curl; the operator removes the var afterwards.
+  await bootstrap360dialog(app);
 }
+
+async function bootstrap360dialog(app: NestExpressApplication): Promise<void> {
+  const log = new Logger('Dialog360Bootstrap');
+  const key = process.env.DIALOG360_BOOTSTRAP_KEY;
+  log.log(`bootstrap check: keyPresent=${Boolean(key)}`);
+  if (!key) return;
+  try {
+    const ds = app.get(DataSource);
+    const conns = app.get(WhatsappConnectionsService);
+    const businesses = await ds.getRepository(Business).find();
+    log.log(`businesses found: ${businesses.length}`);
+    const target =
+      businesses.find((b) => /portal\s*studio/i.test(b.name ?? '')) ??
+      businesses[0];
+    if (!target) {
+      log.error('No business found to attach the 360dialog number to.');
+      return;
+    }
+    await conns.connect360dialog({
+      businessId: target.id,
+      apiKey: key,
+      wabaId: '1360655686138700',
+      displayPhoneNumber: '+972 51-522-3921',
+    });
+    log.log(`Connected 360dialog to business "${target.name}" (${target.id}).`);
+    log.log(`WEBHOOK URL -> ${conns.webhookUrl(target.id)}`);
+    log.warn('Bootstrap done — now REMOVE the DIALOG360_BOOTSTRAP_KEY env var.');
+  } catch (err) {
+    log.error(`360dialog bootstrap failed: ${(err as Error).message}`);
+  }
+}
+
 void bootstrap();

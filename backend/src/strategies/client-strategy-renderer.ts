@@ -7,20 +7,42 @@
  * client. Deterministic — renders from the stored StrategyDraft, no model call.
  */
 
-import { StrategyDraft, UNKNOWN } from './strategy-drafter.service';
+import { StrategyDraft } from './strategy-drafter.service';
 
-function has(v: string | undefined | null): v is string {
-  return !!v && v.trim() !== '' && v.trim() !== UNKNOWN;
+/**
+ * Strips gap-references the drafter sometimes weaves INTO otherwise-good prose —
+ * not just whole ⟨לא ידוע⟩ fields but inline notes like "(בסיס לא ידוע)" — and
+ * repairs the grammar left behind (e.g. "מ-(בסיס לא ידוע) ל-50" → "ל-50"). Runs
+ * on every client export so no deliverable has to be cleaned by hand.
+ */
+function sanitize(v: string | undefined | null): string {
+  let t = (v ?? '').trim();
+  if (!t) return '';
+  // ⟨…⟩ notes (incl. the ⟨לא ידוע⟩ sentinel), and (…)/[…] fragments that mention לא ידוע.
+  t = t.replace(/⟨[^⟨⟩]*⟩/g, '');
+  t = t.replace(/[(（][^()（）]*לא ידוע[^()（）]*[)）]/g, '');
+  t = t.replace(/\[[^[\]]*לא ידוע[^[\]]*\]/g, '');
+  // "from-<removed> to-" reads as just "to-".
+  t = t.replace(/מ-\s*ל-/g, 'ל-');
+  // Tidy leftovers: collapsed spaces, space-before-punctuation, orphan edges.
+  t = t
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+([,.;:·])/g, '$1')
+    .replace(/^[·,;:\s-]+|[·,;:\s-]+$/g, '')
+    .trim();
+  return t;
+}
+
+function has(v: string | undefined | null): boolean {
+  return sanitize(v) !== '';
 }
 
 function clean(items: string[] | undefined): string[] {
-  return (items ?? [])
-    .map((s) => (typeof s === 'string' ? s.trim() : ''))
-    .filter((s) => s && s !== UNKNOWN);
+  return (items ?? []).map((s) => sanitize(s)).filter((s) => s !== '');
 }
 
 function cell(v: string): string {
-  return (v ?? '').trim().replace(/\|/g, '\\|') || '—';
+  return sanitize(v).replace(/\|/g, '\\|') || '—';
 }
 
 function fmtDate(d: Date): string {
@@ -53,22 +75,22 @@ export function renderClientStrategy(
   // המצב
   {
     const b: string[] = [];
-    if (has(draft.situationOneLiner)) b.push(draft.situationOneLiner.trim());
+    if (has(draft.situationOneLiner)) b.push(sanitize(draft.situationOneLiner));
     if (has(draft.centralConstraint))
-      b.push('', `**המסקנה המרכזית:** ${draft.centralConstraint.trim()}`);
+      b.push('', `**המסקנה המרכזית:** ${sanitize(draft.centralConstraint)}`);
     section('המצב', b);
   }
 
   // המיצוב וההימור המרכזי
   {
     const b: string[] = [];
-    if (has(draft.centralBet)) b.push(`> ${draft.centralBet.trim()}`, '');
+    if (has(draft.centralBet)) b.push(`> ${sanitize(draft.centralBet)}`, '');
     const fg = clean(draft.freeGround);
     if (fg.length) b.push('**על מה זה נשען:**', ...fg.map((x) => `- ${x}`), '');
     if (has(draft.betRationale))
-      b.push(`**למה זה נכון:** ${draft.betRationale.trim()}`, '');
+      b.push(`**למה זה נכון:** ${sanitize(draft.betRationale)}`, '');
     if (has(draft.betMeaning))
-      b.push(`**מה זה אומר בפועל:** ${draft.betMeaning.trim()}`);
+      b.push(`**מה זה אומר בפועל:** ${sanitize(draft.betMeaning)}`);
     section('המיצוב וההימור המרכזי', b);
   }
 
@@ -87,7 +109,7 @@ export function renderClientStrategy(
       );
     }
     if (has(draft.audienceDecision))
-      b.push(`> **החלטה:** ${draft.audienceDecision.trim()}`);
+      b.push(`> **החלטה:** ${sanitize(draft.audienceDecision)}`);
     section('קהל היעד וסדר העדיפויות', b);
   }
 
@@ -95,18 +117,18 @@ export function renderClientStrategy(
   {
     const b: string[] = [];
     if (has(draft.funnelTension))
-      b.push(`**האתגר:** ${draft.funnelTension.trim()}`, '');
+      b.push(`**האתגר:** ${sanitize(draft.funnelTension)}`, '');
     const fs = clean(draft.funnelStages);
     if (fs.length) b.push('**המבנה:**', ...fs.map((x) => `- ${x}`), '');
     if (has(draft.funnelResolution))
-      b.push(`**הפתרון:** ${draft.funnelResolution.trim()}`);
+      b.push(`**הפתרון:** ${sanitize(draft.funnelResolution)}`);
     section('מסע הלקוח', b);
   }
 
   // מנוע ההוכחה
   {
     const b: string[] = [];
-    if (has(draft.proofMechanism)) b.push(draft.proofMechanism.trim(), '');
+    if (has(draft.proofMechanism)) b.push(sanitize(draft.proofMechanism), '');
     const pc = clean(draft.proofConditions);
     if (pc.length) b.push('**תנאים להצלחה:**', ...pc.map((x) => `- ${x}`), '');
     const pa = clean(draft.proofExistingAssets);
@@ -122,12 +144,12 @@ export function renderClientStrategy(
   {
     const b: string[] = [];
     if (has(draft.channelsPrinciple))
-      b.push(`**עיקרון:** ${draft.channelsPrinciple.trim()}`, '');
+      b.push(`**עיקרון:** ${sanitize(draft.channelsPrinciple)}`, '');
     const oc = clean(draft.organicChannels);
     if (oc.length) b.push('### אורגני', ...oc.map((x) => `- ${x}`), '');
     const paidBody: string[] = [];
     if (has(draft.paidTrigger))
-      paidBody.push(`**מתי נכנס:** ${draft.paidTrigger.trim()}`);
+      paidBody.push(`**מתי נכנס:** ${sanitize(draft.paidTrigger)}`);
     const pch = clean(draft.paidChannels);
     if (pch.length) paidBody.push(...pch.map((x) => `- ${x}`));
     if (paidBody.length) b.push('### ממומן (בהמשך)', ...paidBody);
@@ -165,7 +187,7 @@ export function renderClientStrategy(
       );
     }
     if (has(draft.roadmapLever))
-      b.push(`**המנוף לאורך הדרך:** ${draft.roadmapLever.trim()}`);
+      b.push(`**המנוף לאורך הדרך:** ${sanitize(draft.roadmapLever)}`);
     section('מפת הדרך', b);
   }
 
@@ -183,7 +205,7 @@ export function renderClientStrategy(
         '',
       );
     }
-    if (has(draft.metricsNote)) b.push(`> ${draft.metricsNote.trim()}`);
+    if (has(draft.metricsNote)) b.push(`> ${sanitize(draft.metricsNote)}`);
     section('מדדי הצלחה', b);
   }
 

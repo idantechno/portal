@@ -99,6 +99,21 @@ export default function StrategyDetail() {
       setError(apiErrorMessage(err, "יצירת גרסת הלקוח נכשלה")),
   });
 
+  // The sendable deliverable: the client version rendered to a branded PDF.
+  const pdfExport = useMutation({
+    mutationFn: () => strategiesApi.clientPdf(businessId, strategyId),
+    onSuccess: (blob) => {
+      const name = (data?.title ?? "strategy").replace(/[\\/:*?"<>|]/g, "-");
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${name} — אסטרטגיה.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    },
+    onError: (err) => setError(apiErrorMessage(err, "יצירת ה-PDF נכשלה")),
+  });
+
   const data = strategy.data;
   const stats = summaryOf(data);
   const approved = data?.status === "approved";
@@ -363,6 +378,15 @@ export default function StrategyDetail() {
               <div className="flex shrink-0 items-center gap-2">
                 <Button
                   size="sm"
+                  variant="primary"
+                  icon="download"
+                  disabled={pdfExport.isPending}
+                  onClick={() => pdfExport.mutate()}
+                >
+                  {pdfExport.isPending ? "מכין…" : "הורדת PDF"}
+                </Button>
+                <Button
+                  size="sm"
                   variant="secondary"
                   icon="paperclip"
                   onClick={copyClient}
@@ -371,11 +395,11 @@ export default function StrategyDetail() {
                 </Button>
                 <Button
                   size="sm"
-                  variant="secondary"
+                  variant="ghost"
                   icon="download"
                   onClick={downloadClient}
                 >
-                  הורדה
+                  Markdown
                 </Button>
                 <Button
                   size="sm"

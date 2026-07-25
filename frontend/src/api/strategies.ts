@@ -41,6 +41,14 @@ export const strategiesApi = {
       )
       .then((r) => r.data.markdown),
 
+  /** The client-facing version as a branded PDF (binary blob). */
+  clientPdf: (businessId: string, id: string) =>
+    api
+      .get(`/businesses/${businessId}/strategies/${id}/client.pdf`, {
+        responseType: "blob",
+      })
+      .then((r) => r.data as Blob),
+
   generate: (
     businessId: string,
     briefId: string,

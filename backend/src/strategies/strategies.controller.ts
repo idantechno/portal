@@ -7,9 +7,11 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
+import type { Response } from 'express';
 import { BusinessScopeGuard } from '../businesses/guards/business-scope.guard';
 import { RequireAgentGuard } from '../agents/guards/require-agent.guard';
 import { RequireAgent } from '../agents/decorators/require-agent.decorator';
@@ -66,6 +68,30 @@ export class StrategiesController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return { markdown: await this.strategies.clientMarkdown(businessId, id) };
+  }
+
+  /** The client-facing version as a branded PDF — the sendable deliverable. */
+  @Get('strategies/:id/client.pdf')
+  async clientPdf(
+    @Param('businessId', ParseUUIDPipe) businessId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Res() res: Response,
+  ) {
+    const { pdf, businessName } = await this.strategies.clientPdf(
+      businessId,
+      id,
+    );
+    // Hebrew filename → RFC 5987 encoded, with an ASCII fallback for old clients.
+    const base = `אסטרטגיית שיווק - ${businessName}`;
+    const ascii = `strategy-${id}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(
+        base,
+      )}.pdf`,
+    );
+    res.end(pdf);
   }
 
   @Patch('strategies/:id')

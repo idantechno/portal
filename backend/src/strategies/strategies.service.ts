@@ -2,9 +2,11 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FilesystemService } from '../context-files/filesystem.service';
+import { PdfRendererService } from '../documents/pdf-renderer.service';
 import { Strategy, StrategyStatus } from './strategy.entity';
 import { StrategyDraft } from './strategy-drafter.service';
 import { renderClientStrategy } from './client-strategy-renderer';
+import { renderClientStrategyHtml } from './client-strategy-pdf';
 
 export interface CreateStrategyInput {
   businessId: string;
@@ -35,6 +37,7 @@ export class StrategiesService {
     @InjectRepository(Strategy)
     private readonly strategies: Repository<Strategy>,
     private readonly filesystem: FilesystemService,
+    private readonly pdf: PdfRendererService,
   ) {}
 
   list(businessId: string): Promise<Strategy[]> {
@@ -85,6 +88,22 @@ export class StrategiesService {
       this.businessNameFrom(strategy.markdown),
       generatedAt,
     );
+  }
+
+  /**
+   * The client-facing strategy as a branded PDF — the same clean deliverable,
+   * rendered to A4 through the shared headless-Chromium service. Returns the
+   * PDF bytes plus a filename-safe business name for the download.
+   */
+  async clientPdf(
+    businessId: string,
+    id: string,
+  ): Promise<{ pdf: Buffer; businessName: string }> {
+    const strategy = await this.findByIdScoped(businessId, id);
+    const markdown = await this.clientMarkdown(businessId, id);
+    const html = renderClientStrategyHtml(markdown);
+    const pdf = await this.pdf.renderHtmlToPdf(html);
+    return { pdf, businessName: this.businessNameFrom(strategy.markdown) };
   }
 
   /** The strategy H1 is always `# אסטרטגיית שיווק — <name>` (see the renderer). */

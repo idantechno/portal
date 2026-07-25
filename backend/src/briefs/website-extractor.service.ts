@@ -163,6 +163,20 @@ export class WebsiteExtractorService {
     };
   }
 
+  /**
+   * Public, SSRF-guarded crawl. Returns the readable pages (url + text) for a
+   * caller that wants the raw site text with its OWN extraction prompt — e.g.
+   * the operator "import facts from the website" action. Empty array when the
+   * URL is unusable or nothing readable was found.
+   */
+  async readPages(
+    rawUrl: string | null | undefined,
+  ): Promise<Array<{ url: string; text: string }>> {
+    const start = this.normalizeUrl(rawUrl);
+    if (!start) return [];
+    return this.crawl(start);
+  }
+
   /** http(s) + a public host only. Returns null for anything we won't fetch. */
   private normalizeUrl(raw: string | null | undefined): URL | null {
     const trimmed = (raw ?? '').trim();

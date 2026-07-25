@@ -232,6 +232,28 @@ function Explorer({
     onError: (err) => setError(apiErrorMessage(err, t("files.createFileFailed"))),
   });
 
+  // Operator-only: crawl the business site and write _hidden/website-facts.md.
+  const importWebsiteMut = useMutation({
+    mutationFn: (url: string) => filesApi.importWebsiteFacts(businessId, url),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ["files-tree", businessId] });
+      onOpenFile(res.fileId);
+    },
+    onError: (err) =>
+      setError(apiErrorMessage(err, "ייבוא העובדות מהאתר נכשל")),
+  });
+
+  function onImportWebsite() {
+    const url = prompt(
+      "כתובת האתר של העסק (המערכת תסרוק ותפיק קובץ עובדות ל'מוסתר'):",
+      "https://",
+    );
+    const clean = (url ?? "").trim();
+    if (!clean || clean === "https://") return;
+    setError(null);
+    importWebsiteMut.mutate(clean);
+  }
+
   function onPick(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -339,6 +361,23 @@ function Explorer({
                 />
                 {t("files.uploadHidden")}
               </label>
+            )}
+            {isStaff && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={onImportWebsite}
+                disabled={importWebsiteMut.isPending}
+                title="סורק את אתר העסק ומפיק קובץ עובדות (מחירים, שעות, מיקום...) לאזור המוסתר"
+              >
+                {importWebsiteMut.isPending ? (
+                  <>
+                    <Spinner /> מייבא מהאתר...
+                  </>
+                ) : (
+                  "ייבא עובדות מהאתר"
+                )}
+              </Button>
             )}
             <Button
               variant="secondary"

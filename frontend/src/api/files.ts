@@ -82,4 +82,14 @@ export const filesApi = {
         responseType: "blob",
       })
       .then((r) => r.data),
+
+  // Operator-only: crawl the business website and write the extracted facts to
+  // _hidden/website-facts.md. Returns the created/updated file id.
+  importWebsiteFacts: (businessId: string, url: string) =>
+    api
+      .post<{ fileId: string; path: string; pages: string[] }>(
+        `/businesses/${businessId}/website-facts/import`,
+        { url },
+      )
+      .then((r) => r.data),
 };

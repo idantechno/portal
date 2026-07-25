@@ -40,6 +40,7 @@ import { RemindersAgentModule } from './reminders-agent/reminders-agent.module';
 import { OverviewModule } from './overview/overview.module';
 import { ExpensesModule } from './expenses/expenses.module';
 import { QuestionnaireModule } from './questionnaire/questionnaire.module';
+import { WebsiteFactsModule } from './website-facts/website-facts.module';
 import { BriefsModule } from './briefs/briefs.module';
 import { StrategiesModule } from './strategies/strategies.module';
 import { WorkspaceAgentModule } from './agents/workspace/workspace-agent.module';
@@ -126,6 +127,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
     QuestionnaireModule,
     BriefsModule,
     StrategiesModule,
+    WebsiteFactsModule,
   ],
   controllers: [AppController, HealthController],
   providers: [

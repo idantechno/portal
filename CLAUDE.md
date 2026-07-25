@@ -88,6 +88,8 @@ Turns a `/strategy` submission into the full brief document. Three layers, each 
 
 `brief-renderer.ts` assembles the markdown deterministically — an empty slot prints `⟨לא ידוע⟩` because the renderer says so, not because a prompt asked. Both model steps go through `claude-json.service.ts` (Messages API, no agent loop, no tools; **no assistant prefill — the newer models reject it**). Model comes from `BRIEF_MODEL` (default `claude-opus-4-8`).
 
+Access is **gated behind the `marketing` agent** (`@RequireAgent('marketing')` on `BriefsController`), so only businesses an admin has granted that agent can generate/read briefs. The entry point is the bespoke `MarketingAgent` page (`frontend/.../MarketingAgent.tsx`, wired into `AgentWorkspace`'s BESPOKE map): it lists questionnaire leads → generate (optional website) and existing briefs → open/delete. `BriefDetail` handles view/edit/copy/download/approve/regenerate(with website)/delete. There is no open "briefs" sidebar item.
+
 `backend/scripts/brief-smoke.ts` runs the whole pipeline without a DB: `npx ts-node -T scripts/brief-smoke.ts [website]`.
 
 ### Multi-tenancy

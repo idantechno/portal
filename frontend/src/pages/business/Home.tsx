@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import type { CSSProperties } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { tasksApi } from "../../api/tasks";
@@ -29,9 +28,6 @@ function greeting(): string {
   return "ערב טוב";
 }
 
-function tint(varName: string, pct = 14): CSSProperties {
-  return { backgroundColor: `color-mix(in srgb, var(${varName}) ${pct}%, white)` };
-}
 
 function shekels(cents: number): string {
   return `₪${Math.round(cents / 100).toLocaleString("he-IL")}`;
@@ -123,23 +119,14 @@ export default function Home() {
     <div className="px-4 sm:px-6 md:px-8 py-6 md:py-8 max-w-5xl mx-auto">
       {/* Greeting band */}
       <div className="rounded-3xl bg-white border border-navy-100 shadow-sm p-6 md:p-7 mb-6 flex items-center gap-5">
-        {branding?.logoUrl ? (
-          <img
-            src={branding.logoUrl}
-            alt=""
-            className="h-14 w-14 rounded-2xl object-contain bg-cream-50 border border-navy-100 p-1 shrink-0"
-          />
-        ) : (
-          <div
-            className="h-14 w-14 shrink-0 rounded-2xl flex items-center justify-center font-display text-2xl"
-            style={{
-              ...tint("--brand-accent", 16),
-              color: "color-mix(in srgb, var(--brand-accent) 85%, black)",
-            }}
-          >
-            {(biz.data?.name ?? "P").trim().charAt(0)}
-          </div>
-        )}
+        {/* Business logo — same source and fallback as the sidebar, so the
+            greeting always shows a logo mark (the tenant's, or the Portal
+            icon), never a bare initial. */}
+        <img
+          src={branding?.logoUrl || "/icon.png"}
+          alt=""
+          className="h-14 w-14 rounded-2xl object-contain bg-cream-50 border border-navy-100 p-1 shrink-0"
+        />
         <div className="min-w-0">
           <h1 className="text-2xl md:text-3xl font-display text-navy-900">
             {greeting()}

@@ -1,5 +1,6 @@
 import * as dns from 'node:dns/promises';
 import { Injectable, Logger } from '@nestjs/common';
+import { type Browser, type Page, launch } from 'puppeteer';
 import { ClaudeJsonService } from './claude-json.service';
 import { UNKNOWN } from './brief-facts';
 
@@ -43,6 +44,10 @@ const MAX_PAGES = 5;
 const MAX_BYTES = 900_000;
 const MAX_TEXT_PER_PAGE = 14_000;
 const FETCH_TIMEOUT_MS = 15_000;
+// Below this much readable text from a plain fetch, assume a client-rendered
+// SPA and re-fetch through headless Chromium so its JS content becomes readable.
+const MIN_STATIC_TEXT = 300;
+const RENDER_TIMEOUT_MS = 20_000;
 
 /** Same-origin paths worth reading beyond the homepage, in priority order. */
 const INTERESTING = [
@@ -213,18 +218,104 @@ export class WebsiteExtractorService {
       return [];
     }
 
-    const home = await this.fetchText(start.href);
-    if (!home) return [];
+    // A headless browser is launched lazily — only if a plain fetch turns out
+    // too thin (an SPA) — and reused across the crawl, then closed. Held on an
+    // object so the lazy assignment inside the closure survives narrowing.
+    const held: { browser: Browser | null } = { browser: null };
+    const getBrowser = async (): Promise<Browser> => {
+      if (!held.browser) held.browser = await this.launchBrowser();
+      return held.browser;
+    };
 
-    const pages = [{ url: start.href, text: htmlToText(home) }];
-    const links = this.pickLinks(home, start);
-    for (const link of links) {
-      if (pages.length >= MAX_PAGES) break;
-      const html = await this.fetchText(link);
-      if (!html) continue;
-      pages.push({ url: link, text: htmlToText(html) });
+    try {
+      const home = await this.loadPage(start.href, getBrowser);
+      if (!home) return [];
+
+      const pages = [{ url: start.href, text: home.text }];
+      const links = this.pickLinks(home.html, start);
+      for (const link of links) {
+        if (pages.length >= MAX_PAGES) break;
+        const p = await this.loadPage(link, getBrowser);
+        if (p) pages.push({ url: link, text: p.text });
+      }
+      return pages.filter((p) => p.text.length > 40);
+    } finally {
+      if (held.browser) await held.browser.close().catch(() => undefined);
     }
-    return pages.filter((p) => p.text.length > 40);
+  }
+
+  /**
+   * Loads one page as { html, text }. Tries a cheap plain fetch first; if it
+   * returns too little text (a client-rendered SPA shell) or fails, re-fetches
+   * through headless Chromium so JS-rendered content becomes readable. The
+   * rendered HTML is also what feeds link discovery, so SPA nav links are found.
+   */
+  private async loadPage(
+    url: string,
+    getBrowser: () => Promise<Browser>,
+  ): Promise<{ html: string; text: string } | null> {
+    const html = await this.fetchHtml(url);
+    if (html) {
+      const text = htmlToText(html);
+      if (text.length >= MIN_STATIC_TEXT) return { html, text };
+    }
+    const rendered = await this.renderHtml(url, getBrowser);
+    if (rendered) return { html: rendered, text: htmlToText(rendered) };
+    return html ? { html, text: htmlToText(html) } : null;
+  }
+
+  private async launchBrowser(): Promise<Browser> {
+    // System Chromium in prod (PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium),
+    // bundled binary locally. --no-sandbox: the container is the boundary.
+    return launch({
+      headless: true,
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+      ],
+    });
+  }
+
+  /** Renders a page with headless Chromium and returns its post-JS HTML. */
+  private async renderHtml(
+    url: string,
+    getBrowser: () => Promise<Browser>,
+  ): Promise<string | null> {
+    let page: Page | null = null;
+    try {
+      const browser = await getBrowser();
+      page = await browser.newPage();
+      await page.setUserAgent(
+        'Mozilla/5.0 (compatible; PortalStudioBriefBot/1.0; +https://portalstudio.co.il)',
+      );
+      // We only need text — skip images/media/fonts/styles. Faster, and a
+      // smaller surface when loading an untrusted external site.
+      await page.setRequestInterception(true);
+      page.on('request', (req) => {
+        if (
+          ['image', 'media', 'font', 'stylesheet'].includes(req.resourceType())
+        )
+          void req.abort();
+        else void req.continue();
+      });
+      await page.goto(url, {
+        waitUntil: 'domcontentloaded',
+        timeout: RENDER_TIMEOUT_MS,
+      });
+      // Let client-side rendering settle, bounded so a chatty site can't hang.
+      await page
+        .waitForNetworkIdle({ idleTime: 600, timeout: 6000 })
+        .catch(() => undefined);
+      const html = await page.content();
+      return html.slice(0, MAX_BYTES);
+    } catch (err) {
+      this.log.debug(`render failed ${url}: ${(err as Error).message}`);
+      return null;
+    } finally {
+      if (page) await page.close().catch(() => undefined);
+    }
   }
 
   /** Same-origin links whose path looks like an about/services/pricing page. */
@@ -252,7 +343,8 @@ export class WebsiteExtractorService {
     return [...found].slice(0, MAX_PAGES - 1);
   }
 
-  private async fetchText(url: string): Promise<string | null> {
+  /** Plain HTTP fetch of a page's HTML (no JS). Null on any failure. */
+  private async fetchHtml(url: string): Promise<string | null> {
     try {
       const res = await fetch(url, {
         redirect: 'follow',

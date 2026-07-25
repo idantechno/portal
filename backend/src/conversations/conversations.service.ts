@@ -146,7 +146,8 @@ export class ConversationsService {
           // Idempotent enqueue: one run per inbound message. If the same
           // customer message is appended twice (Meta retry that slips past the
           // wamid dedupe), BullMQ collapses both to a single job.
-          jobId: `run:${message.id}`,
+          // Hyphen, not colon — BullMQ forbids ':' in custom job ids.
+          jobId: `run-${message.id}`,
           // Retry transient failures (LLM 429/5xx, network) with exponential
           // backoff: ~5s, 10s, 20s. A persistently failing run lands in failed.
           attempts: 3,

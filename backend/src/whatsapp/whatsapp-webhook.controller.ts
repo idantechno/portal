@@ -20,6 +20,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { Request, Response } from 'express';
 import { Public } from '../auth/decorators/public.decorator';
 import { Channel } from '../common/enums/channel.enum';
+import { ConversationStatus } from '../common/enums/conversation-status.enum';
 import { MessageRole } from '../common/enums/message-role.enum';
 import { ConversationsService } from '../conversations/conversations.service';
 import { CustomerContactsService } from '../conversations/customer-contacts.service';
@@ -32,6 +33,17 @@ interface MetaWebhookChange {
     contacts?: Array<{ profile?: { name?: string }; wa_id?: string }>;
     messages?: Array<{
       from?: string;
+      id?: string;
+      timestamp?: string;
+      type?: string;
+      text?: { body?: string };
+    }>;
+    // Coexistence: messages the owner sent from the WhatsApp Business app,
+    // mirrored to us so we can pause the agent and keep the thread in sync.
+    // Arrives under field "smb_message_echoes".
+    message_echoes?: Array<{
+      from?: string;
+      to?: string;
       id?: string;
       timestamp?: string;
       type?: string;
@@ -235,11 +247,11 @@ export class WhatsappWebhookController {
     for (const entry of payload.entry ?? []) {
       for (const change of entry.changes ?? []) {
         const value = change.value;
-        if (!value?.messages) continue;
-        const contact = value.contacts?.[0];
-        const displayName = contact?.profile?.name ?? null;
+        if (!value) continue;
 
-        for (const msg of value.messages) {
+        // Inbound customer messages.
+        const displayName = value.contacts?.[0]?.profile?.name ?? null;
+        for (const msg of value.messages ?? []) {
           if (msg.type !== 'text' || !msg.text?.body || !msg.from || !msg.id) {
             continue;
           }
@@ -254,6 +266,26 @@ export class WhatsappWebhookController {
           } catch (err) {
             this.log.error(
               `Failed to ingest message ${msg.id} for business ${businessId}: ${(err as Error).message}`,
+            );
+          }
+        }
+
+        // Coexistence: the owner replied to a customer from the WhatsApp
+        // Business app. Mirror it into the thread and pause the agent so it
+        // won't also reply.
+        for (const echo of value.message_echoes ?? []) {
+          if (!echo.to || !echo.id) continue;
+          try {
+            await this.ingestOwnerEcho({
+              businessId,
+              wamid: echo.id,
+              toPhone: echo.to,
+              type: echo.type,
+              text: echo.text?.body,
+            });
+          } catch (err) {
+            this.log.error(
+              `Failed to ingest owner echo ${echo.id} for business ${businessId}: ${(err as Error).message}`,
             );
           }
         }
@@ -298,6 +330,58 @@ export class WhatsappWebhookController {
       role: MessageRole.Customer,
       content: input.text,
       externalMessageId: input.wamid,
+    });
+  }
+
+  private async ingestOwnerEcho(input: {
+    businessId: string;
+    wamid: string;
+    toPhone: string;
+    type?: string;
+    text?: string;
+  }): Promise<void> {
+    const contact = await this.contacts.upsert({
+      businessId: input.businessId,
+      channel: Channel.WhatsApp,
+      externalId: input.toPhone,
+      displayName: null,
+      phone: input.toPhone,
+    });
+    const conversation = await this.conversations.findOrCreate({
+      businessId: input.businessId,
+      channel: Channel.WhatsApp,
+      externalThreadId: input.toPhone,
+      customerContactId: contact.id,
+    });
+
+    // De-dupe by echo id (also guards against our own API sends echoing back).
+    const existing = await this.conversations.findMessageByExternalId(
+      input.businessId,
+      input.wamid,
+    );
+    if (existing) return;
+
+    // The owner is handling this conversation by hand — pause the agent so it
+    // won't also reply. Mirrors the cockpit behaviour (a manual reply = takeover).
+    if (conversation.status !== ConversationStatus.Human) {
+      await this.conversations.setStatus(
+        input.businessId,
+        conversation.id,
+        ConversationStatus.Human,
+        null,
+      );
+    }
+
+    // Record the owner's message (already delivered from the app — do NOT
+    // re-dispatch). Non-text echoes are stored as a short placeholder.
+    const content = input.text ?? `[${input.type ?? 'message'}]`;
+    await this.conversations.appendMessage({
+      businessId: input.businessId,
+      conversationId: conversation.id,
+      role: MessageRole.Agent,
+      content,
+      externalMessageId: input.wamid,
+      agentUserId: null,
     });
   }
 }

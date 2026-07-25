@@ -41,6 +41,7 @@ import { OverviewModule } from './overview/overview.module';
 import { ExpensesModule } from './expenses/expenses.module';
 import { QuestionnaireModule } from './questionnaire/questionnaire.module';
 import { BriefsModule } from './briefs/briefs.module';
+import { StrategiesModule } from './strategies/strategies.module';
 import { WorkspaceAgentModule } from './agents/workspace/workspace-agent.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
@@ -124,6 +125,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
     WorkspaceAgentModule,
     QuestionnaireModule,
     BriefsModule,
+    StrategiesModule,
   ],
   controllers: [AppController, HealthController],
   providers: [

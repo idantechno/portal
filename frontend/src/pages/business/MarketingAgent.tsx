@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { agentsApi } from "../../api/agents";
 import { briefsApi, type Brief } from "../../api/briefs";
+import { strategiesApi, type Strategy } from "../../api/strategies";
 import { leadsApi, type Lead } from "../../api/leads";
 import { apiErrorMessage } from "../../api/client";
 import {
@@ -18,8 +19,9 @@ import { Icon } from "../../components/icons";
 /**
  * The marketing agent's home. Entitlement-gated (only businesses an admin has
  * granted the "marketing" agent reach this — the backend enforces the same on
- * every /briefs route). From here the operator turns any questionnaire lead
- * into a business brief.
+ * every /briefs and /strategies route). From here the operator turns any
+ * questionnaire lead into a business brief, and any *approved* brief into a
+ * marketing strategy.
  */
 export default function MarketingAgent({ businessId }: { businessId: string }) {
   const navigate = useNavigate();
@@ -36,6 +38,11 @@ export default function MarketingAgent({ businessId }: { businessId: string }) {
     queryFn: () => briefsApi.list(businessId),
     enabled: Boolean(businessId),
   });
+  const strategies = useQuery({
+    queryKey: ["strategies", businessId],
+    queryFn: () => strategiesApi.list(businessId),
+    enabled: Boolean(businessId),
+  });
   const leads = useQuery({
     queryKey: ["leads", businessId],
     queryFn: () => leadsApi.list(businessId),
@@ -46,6 +53,13 @@ export default function MarketingAgent({ businessId }: { businessId: string }) {
     mutationFn: (id: string) => briefsApi.remove(businessId, id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["briefs", businessId] }),
     onError: (err) => setError(apiErrorMessage(err, "מחיקת הבריף נכשלה")),
+  });
+
+  const removeStrategy = useMutation({
+    mutationFn: (id: string) => strategiesApi.remove(businessId, id),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["strategies", businessId] }),
+    onError: (err) => setError(apiErrorMessage(err, "מחיקת האסטרטגיה נכשלה")),
   });
 
   if (agents.isLoading) {
@@ -62,6 +76,7 @@ export default function MarketingAgent({ businessId }: { businessId: string }) {
   }
 
   const briefList = briefs.data ?? [];
+  const strategyList = strategies.data ?? [];
   const briefByLead = new Map(
     briefList.filter((b) => b.leadId).map((b) => [b.leadId as string, b]),
   );
@@ -78,8 +93,8 @@ export default function MarketingAgent({ businessId }: { businessId: string }) {
         <div>
           <h1 className="text-2xl font-bold">סוכן שיווק</h1>
           <p className="text-sm text-neutral-600">
-            הופך שאלון אסטרטגיה שמילא לקוח לבריף עסקי מלא — מקור-אמת אחד לתוכן
-            ואסטרטגיה. שדות 🟠 הם טיוטה שדורשת אישור שלך.
+            הופך שאלון אסטרטגיה של לקוח לבריף עסקי, ובריף מאושר לאסטרטגיית שיווק
+            מלאה. שדות 🟠 והאסטרטגיה כולה הם טיוטה שדורשת אישור שלך.
           </p>
         </div>
       </header>
@@ -106,6 +121,41 @@ export default function MarketingAgent({ businessId }: { businessId: string }) {
                   if (confirm("למחוק את הבריף?")) remove.mutate(brief.id);
                 }}
                 deleting={remove.isPending && remove.variables === brief.id}
+                onStrategyGenerated={(strategy) => {
+                  void qc.invalidateQueries({
+                    queryKey: ["strategies", businessId],
+                  });
+                  navigate(
+                    `/app/businesses/${businessId}/strategies/${strategy.id}`,
+                  );
+                }}
+                onError={setError}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Existing strategies */}
+      {strategyList.length > 0 && (
+        <section className="mb-8">
+          <h2 className="mb-3 text-sm font-semibold text-navy-500">
+            אסטרטגיות שהופקו
+          </h2>
+          <div className="space-y-2.5">
+            {strategyList.map((strategy) => (
+              <StrategyRow
+                key={strategy.id}
+                strategy={strategy}
+                businessId={businessId}
+                onDelete={() => {
+                  if (confirm("למחוק את האסטרטגיה?"))
+                    removeStrategy.mutate(strategy.id);
+                }}
+                deleting={
+                  removeStrategy.isPending &&
+                  removeStrategy.variables === strategy.id
+                }
               />
             ))}
           </div>
@@ -156,17 +206,108 @@ function BriefRow({
   businessId,
   onDelete,
   deleting,
+  onStrategyGenerated,
+  onError,
 }: {
   brief: Brief;
   businessId: string;
   onDelete: () => void;
   deleting: boolean;
+  onStrategyGenerated: (strategy: Strategy) => void;
+  onError: (msg: string | null) => void;
 }) {
   const approved = brief.status === "approved";
+
+  // A strategy can only be built from an approved brief — the backend blocks it
+  // with 400 otherwise, so the button just mirrors that gate.
+  const generateStrategy = useMutation({
+    mutationFn: () => strategiesApi.generate(businessId, brief.id),
+    onSuccess: onStrategyGenerated,
+    onError: (err) =>
+      onError(apiErrorMessage(err, "הפקת האסטרטגיה נכשלה — נסה שוב")),
+  });
+
+  return (
+    <Card className="p-3.5">
+      <div className="flex items-center justify-between gap-3">
+        <Link
+          to={`/app/businesses/${businessId}/briefs/${brief.id}`}
+          className="flex min-w-0 flex-1 items-center gap-3"
+        >
+          <span
+            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${
+              approved
+                ? "bg-teal-50 text-teal-700 ring-teal-200"
+                : "bg-coral-50 text-coral-600 ring-coral-200"
+            }`}
+          >
+            {approved ? "מאושר" : "טיוטה"}
+          </span>
+          <span className="truncate text-sm font-medium text-navy-900">
+            {brief.title}
+          </span>
+          {brief.edited && (
+            <span className="shrink-0 text-xs text-navy-400">נערך ידנית</span>
+          )}
+        </Link>
+        <div className="flex shrink-0 items-center gap-1">
+          {/* Wrapped in a title span so the disabled button still shows the hint. */}
+          <span
+            title={approved ? undefined : "יש לאשר את הבריף קודם"}
+            className="inline-flex"
+          >
+            <Button
+              size="sm"
+              variant={approved ? "secondary" : "ghost"}
+              icon="megaphone"
+              disabled={!approved || generateStrategy.isPending}
+              onClick={() => {
+                onError(null);
+                generateStrategy.mutate();
+              }}
+            >
+              {generateStrategy.isPending ? "מפיק…" : "הפק אסטרטגיה"}
+            </Button>
+          </span>
+          <Button
+            size="sm"
+            variant="ghost"
+            icon="trash"
+            disabled={deleting}
+            onClick={onDelete}
+          >
+            מחיקה
+          </Button>
+          <Icon name="chevron-start" size={18} className="text-navy-300" />
+        </div>
+      </div>
+
+      {generateStrategy.isPending && (
+        <p className="mt-2.5 border-t border-navy-100 pt-2.5 text-xs text-navy-400">
+          בונה אסטרטגיה מהבריף — הניסוח המלא אורך 2–3 דקות. אפשר להמתין כאן, לא
+          לרענן את הדף.
+        </p>
+      )}
+    </Card>
+  );
+}
+
+function StrategyRow({
+  strategy,
+  businessId,
+  onDelete,
+  deleting,
+}: {
+  strategy: Strategy;
+  businessId: string;
+  onDelete: () => void;
+  deleting: boolean;
+}) {
+  const approved = strategy.status === "approved";
   return (
     <Card className="flex items-center justify-between gap-3 p-3.5">
       <Link
-        to={`/app/businesses/${businessId}/briefs/${brief.id}`}
+        to={`/app/businesses/${businessId}/strategies/${strategy.id}`}
         className="flex min-w-0 flex-1 items-center gap-3"
       >
         <span
@@ -176,12 +317,12 @@ function BriefRow({
               : "bg-coral-50 text-coral-600 ring-coral-200"
           }`}
         >
-          {approved ? "מאושר" : "טיוטה"}
+          {approved ? "מאושרת" : "טיוטה"}
         </span>
         <span className="truncate text-sm font-medium text-navy-900">
-          {brief.title}
+          {strategy.title}
         </span>
-        {brief.edited && (
+        {strategy.edited && (
           <span className="shrink-0 text-xs text-navy-400">נערך ידנית</span>
         )}
       </Link>

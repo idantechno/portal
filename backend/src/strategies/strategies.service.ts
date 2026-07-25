@@ -3,6 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FilesystemService } from '../context-files/filesystem.service';
 import { Strategy, StrategyStatus } from './strategy.entity';
+import { StrategyDraft } from './strategy-drafter.service';
+import { renderClientStrategy } from './client-strategy-renderer';
 
 export interface CreateStrategyInput {
   businessId: string;
@@ -59,6 +61,37 @@ export class StrategiesService {
     });
     if (!strategy) throw new NotFoundException(`Strategy ${id} not found`);
     return strategy;
+  }
+
+  /**
+   * The client-facing version of the strategy: the same plan rendered clean of
+   * the agency's internal notes. Built from the stored structured draft; if a
+   * strategy predates the draft-payload it falls back to the stored markdown.
+   */
+  async clientMarkdown(businessId: string, id: string): Promise<string> {
+    const strategy = await this.findByIdScoped(businessId, id);
+    // The generator stores { draft, briefId, generatedAt } — the StrategyDraft
+    // lives under `.draft`. Without a draft (older rows) fall back to markdown.
+    const payload = strategy.payload as {
+      draft?: StrategyDraft;
+      generatedAt?: string;
+    } | null;
+    if (!payload?.draft) return strategy.markdown;
+    const generatedAt = payload.generatedAt
+      ? new Date(payload.generatedAt)
+      : strategy.updatedAt;
+    return renderClientStrategy(
+      payload.draft,
+      this.businessNameFrom(strategy.markdown),
+      generatedAt,
+    );
+  }
+
+  /** The strategy H1 is always `# אסטרטגיית שיווק — <name>` (see the renderer). */
+  private businessNameFrom(markdown: string): string {
+    const first = (markdown.split('\n')[0] ?? '').trim();
+    const m = first.match(/^#\s*אסטרטגיית שיווק\s*—\s*(.+)$/);
+    return m ? m[1].trim() : 'העסק';
   }
 
   async create(input: CreateStrategyInput): Promise<Strategy> {

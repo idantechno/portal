@@ -33,6 +33,14 @@ export const strategiesApi = {
       .get<Strategy>(`/businesses/${businessId}/strategies/${id}`)
       .then((r) => r.data),
 
+  /** Clean, client-facing markdown (internal notes stripped). */
+  clientMarkdown: (businessId: string, id: string) =>
+    api
+      .get<{ markdown: string }>(
+        `/businesses/${businessId}/strategies/${id}/client`,
+      )
+      .then((r) => r.data.markdown),
+
   generate: (
     businessId: string,
     briefId: string,

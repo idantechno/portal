@@ -37,6 +37,9 @@ export default function StrategyDetail() {
   const [edit, setEdit] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The clean client-facing version, shown in a modal once fetched.
+  const [clientMd, setClientMd] = useState<string | null>(null);
+  const [clientCopied, setClientCopied] = useState(false);
 
   const strategy = useQuery({
     queryKey: ["strategy", businessId, strategyId],
@@ -88,6 +91,14 @@ export default function StrategyDetail() {
     onError: (err) => setError(apiErrorMessage(err, "המחיקה נכשלה")),
   });
 
+  // Fetches the clean client-facing version (internal notes stripped).
+  const clientExport = useMutation({
+    mutationFn: () => strategiesApi.clientMarkdown(businessId, strategyId),
+    onSuccess: (md) => setClientMd(md),
+    onError: (err) =>
+      setError(apiErrorMessage(err, "יצירת גרסת הלקוח נכשלה")),
+  });
+
   const data = strategy.data;
   const stats = summaryOf(data);
   const approved = data?.status === "approved";
@@ -109,6 +120,29 @@ export default function StrategyDetail() {
     const a = document.createElement("a");
     a.href = url;
     a.download = `${name} — אסטרטגיה.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function copyClient() {
+    if (clientMd == null) return;
+    try {
+      await navigator.clipboard.writeText(clientMd);
+      setClientCopied(true);
+      setTimeout(() => setClientCopied(false), 2000);
+    } catch {
+      setError("ההעתקה נכשלה — אפשר לסמן ולהעתיק ידנית");
+    }
+  }
+
+  function downloadClient() {
+    if (clientMd == null) return;
+    const name = (data?.title ?? "strategy").replace(/[\\/:*?"<>|]/g, "-");
+    const blob = new Blob([clientMd], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${name} — ללקוח.md`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -167,6 +201,14 @@ export default function StrategyDetail() {
             onClick={download}
           >
             הורדה
+          </Button>
+          <Button
+            size="sm"
+            icon="send"
+            disabled={clientExport.isPending}
+            onClick={() => clientExport.mutate()}
+          >
+            {clientExport.isPending ? "מכין…" : "ייצוא ללקוח"}
           </Button>
           {editing ? (
             <>
@@ -302,6 +344,55 @@ export default function StrategyDetail() {
           </div>
         )}
       </div>
+      {clientMd !== null && (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-navy-900/40 p-4 sm:p-6"
+          onClick={() => setClientMd(null)}
+        >
+          <div
+            className="my-4 w-full max-w-3xl rounded-2xl bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 z-10 flex items-center justify-between gap-3 rounded-t-2xl border-b border-navy-100 bg-white px-5 py-3">
+              <div className="min-w-0">
+                <h2 className="text-base font-bold text-navy-900">גרסה ללקוח</h2>
+                <p className="text-xs text-navy-400">
+                  נקייה מהערות פנימיות — מוכנה להעברה.
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  icon="paperclip"
+                  onClick={copyClient}
+                >
+                  {clientCopied ? "הועתק" : "העתקה"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  icon="download"
+                  onClick={downloadClient}
+                >
+                  הורדה
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  icon="close"
+                  onClick={() => setClientMd(null)}
+                >
+                  סגירה
+                </Button>
+              </div>
+            </div>
+            <div className="px-5 py-5 sm:px-7">
+              <BriefMarkdown source={clientMd} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

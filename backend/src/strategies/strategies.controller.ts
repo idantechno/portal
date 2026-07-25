@@ -59,6 +59,15 @@ export class StrategiesController {
     return this.strategies.findByIdScoped(businessId, id);
   }
 
+  /** Clean, client-facing version — internal notes stripped, ready to hand over. */
+  @Get('strategies/:id/client')
+  async client(
+    @Param('businessId', ParseUUIDPipe) businessId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return { markdown: await this.strategies.clientMarkdown(businessId, id) };
+  }
+
   @Patch('strategies/:id')
   update(
     @Param('businessId', ParseUUIDPipe) businessId: string,

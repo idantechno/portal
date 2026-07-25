@@ -40,7 +40,7 @@ export const EMPTY_EXTRACTION: WebExtraction = {
   notes: '',
 };
 
-const MAX_PAGES = 5;
+const MAX_PAGES = 7;
 const MAX_BYTES = 900_000;
 const MAX_TEXT_PER_PAGE = 14_000;
 const FETCH_TIMEOUT_MS = 15_000;
@@ -49,21 +49,36 @@ const FETCH_TIMEOUT_MS = 15_000;
 const MIN_STATIC_TEXT = 300;
 const RENDER_TIMEOUT_MS = 20_000;
 
-/** Same-origin paths worth reading beyond the homepage, in priority order. */
+/**
+ * Same-origin paths worth reading beyond the homepage, in PRIORITY order —
+ * `pickLinks` reads the earliest-matching pages first. Commerce/pricing pages
+ * lead because prices usually live on a store or product page, not the home.
+ */
 const INTERESTING = [
-  'about',
-  'אודות',
-  'services',
-  'שירותים',
-  'service',
-  'products',
-  'מוצרים',
+  // Commerce & pricing — most likely to carry prices/products.
   'price',
   'pricing',
   'מחיר',
   'מחירון',
   'packages',
   'חבילות',
+  'store',
+  'shop',
+  'חנות',
+  'product', // matches /product/... and /products
+  'מוצרים',
+  'catalog',
+  'קטלוג',
+  'buy',
+  'לרכישה',
+  'sale',
+  'מבצע',
+  // Informational pages.
+  'services',
+  'שירותים',
+  'service',
+  'about',
+  'אודות',
   'testimonial',
   'reviews',
   'המלצות',
@@ -318,9 +333,14 @@ export class WebsiteExtractorService {
     }
   }
 
-  /** Same-origin links whose path looks like an about/services/pricing page. */
+  /**
+   * Same-origin links that look like an interesting page, returned in priority
+   * order (commerce/pricing pages first — see INTERESTING). Each link is scored
+   * by its earliest-matching keyword so, with a small page budget, the pages
+   * most likely to carry prices/products are read before about/contact.
+   */
   private pickLinks(html: string, base: URL): string[] {
-    const found = new Set<string>();
+    const scored = new Map<string, number>(); // href -> best (lowest) keyword index
     const re = /href\s*=\s*["']([^"'#]+)["']/gi;
     let m: RegExpExecArray | null;
     while ((m = re.exec(html)) !== null) {
@@ -335,12 +355,17 @@ export class WebsiteExtractorService {
       if (/\.(pdf|jpe?g|png|gif|svg|webp|zip|mp4|css|js)$/i.test(url.pathname))
         continue;
       const path = decodeURIComponent(url.pathname).toLowerCase();
-      if (!INTERESTING.some((k) => path.includes(k))) continue;
+      const idx = INTERESTING.findIndex((k) => path.includes(k));
+      if (idx === -1) continue;
       url.hash = '';
-      found.add(url.href);
-      if (found.size >= 12) break;
+      const prev = scored.get(url.href);
+      if (prev === undefined || idx < prev) scored.set(url.href, idx);
+      if (scored.size >= 30) break;
     }
-    return [...found].slice(0, MAX_PAGES - 1);
+    return [...scored.entries()]
+      .sort((a, b) => a[1] - b[1])
+      .map(([href]) => href)
+      .slice(0, MAX_PAGES - 1);
   }
 
   /** Plain HTTP fetch of a page's HTML (no JS). Null on any failure. */

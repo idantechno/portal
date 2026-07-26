@@ -125,6 +125,15 @@ export class WhatsappAgentDto {
   @Min(0)
   @Max(168)
   autoReturnHours?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  busyMode?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  busyLabel?: string;
 }
 
 export class UpdateBusinessDto {

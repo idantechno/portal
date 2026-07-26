@@ -55,6 +55,10 @@ export interface WhatsappAgentConfig {
   windows?: WhatsappAgentWindow[];
   /** Hand a manual thread back to the agent after N idle hours. 0 = off. */
   autoReturnHours?: number;
+  /** Calendar-aware "busy": tell customers when the owner is in an event now. */
+  busyMode?: boolean;
+  /** Custom phrasing instead of the calendar event's title. */
+  busyLabel?: string | null;
 }
 
 export interface Business {

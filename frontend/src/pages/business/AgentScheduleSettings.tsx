@@ -108,19 +108,24 @@ function Form({
     cfg?.autoReturnHours ?? 6,
   );
   const [ownerPhone, setOwnerPhone] = useState(business.ownerPhone ?? "");
+  const [busyMode, setBusyMode] = useState<boolean>(cfg?.busyMode ?? false);
+  const [busyLabel, setBusyLabel] = useState(cfg?.busyLabel ?? "");
   const [error, setError] = useState<string | null>(null);
 
   const save = useMutation({
     mutationFn: () => {
-      const payload: WhatsappAgentConfig =
-        mode === "scheduled"
+      const payload: WhatsappAgentConfig = {
+        mode,
+        autoReturnHours: autoReturn,
+        busyMode,
+        busyLabel: busyLabel.trim() || null,
+        ...(mode === "scheduled"
           ? {
-              mode,
               timezone: "Asia/Jerusalem",
               windows: [{ days: [...days].sort(), start, end }],
-              autoReturnHours: autoReturn,
             }
-          : { mode, autoReturnHours: autoReturn };
+          : {}),
+      };
       return businessesApi.update(businessId, {
         whatsappAgent: payload,
         ownerPhone: ownerPhone.trim(),
@@ -257,6 +262,45 @@ function Form({
         <div className="text-[11px] text-neutral-400 mt-1">
           0 = מבוטל (השיחה נשארת ידנית עד שתחזיר אותה בעצמך).
         </div>
+      </div>
+
+      {/* Busy awareness — read the calendar and tell customers when in an event */}
+      <div className="rounded-xl border border-neutral-200 p-4 mb-5">
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={busyMode}
+            onChange={(e) => setBusyMode(e.target.checked)}
+            className="mt-0.5 size-4 accent-brand-600"
+          />
+          <span>
+            <span className="text-sm font-medium text-neutral-700">
+              מצב "עסוק" — מודעות ליומן
+            </span>
+            <p className="text-xs text-neutral-500 mt-0.5">
+              כשמופעל, לפני שהסוכן עונה הוא בודק ביומן אם אתה כרגע באירוע. אם כן —
+              הוא מספר ללקוח שאתה כרגע במה שכתוב ביומן (למשל "בפגישה", "בסשן")
+              וממשיך לעזור. דורש יומן Google מחובר.
+            </p>
+          </span>
+        </label>
+
+        {busyMode && (
+          <div className="mt-3 ps-7">
+            <label className="block text-xs font-medium text-neutral-600 mb-1">
+              ניסוח מותאם (לא חובה)
+            </label>
+            <input
+              value={busyLabel}
+              onChange={(e) => setBusyLabel(e.target.value)}
+              placeholder="ברירת מחדל: מה שכתוב ביומן"
+              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+            />
+            <div className="text-[11px] text-neutral-400 mt-1">
+              אם תשאיר ריק — הסוכן ישתמש בכותרת האירוע מהיומן.
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Owner alert phone — for "an appointment was booked" WhatsApp alerts */}

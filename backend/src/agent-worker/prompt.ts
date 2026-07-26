@@ -179,16 +179,36 @@ export function buildAppointmentsBlock(
   return lines.join('\n');
 }
 
+/**
+ * Busy awareness: the owner is in a calendar event right now (`activity` is its
+ * title, e.g. "פגישה", "סשן"). Tells the agent to let the customer know — warmly
+ * and in their language — that the owner is currently in that activity, while
+ * still helping. Null activity → no block (owner is free / not busy-aware).
+ */
+export function buildBusyBlock(activity: string | null): string | null {
+  if (!activity || !activity.trim()) return null;
+  return (
+    '=== The owner is busy right now ===\n' +
+    `The business owner is currently in: "${activity.trim()}". Early in your ` +
+    'reply, gently let the customer know the owner is currently ' +
+    `in ${activity.trim()} and can't respond personally at the moment — but ` +
+    'that you (their assistant) are here and happy to help. Match their ' +
+    'language and keep it warm and brief. Then continue helping as normal.'
+  );
+}
+
 export function buildSystemPrompt(
   business: Business,
   contextBlock?: string | null,
   contactBlock?: string | null,
   appointmentsBlock?: string | null,
+  busyBlock?: string | null,
 ): string[] {
   const dynamicParts = [`You are assisting customers of ${business.name}.`];
   if (contextBlock) dynamicParts.push(contextBlock);
   if (contactBlock) dynamicParts.push(contactBlock);
   if (appointmentsBlock) dynamicParts.push(appointmentsBlock);
+  if (busyBlock) dynamicParts.push(busyBlock);
   return [
     STATIC_SYSTEM_PROMPT,
     SYSTEM_PROMPT_DYNAMIC_BOUNDARY,

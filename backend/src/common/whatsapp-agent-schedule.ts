@@ -35,6 +35,19 @@ export interface WhatsappAgentConfig {
    * reply. 0 / undefined disables it.
    */
   autoReturnHours?: number;
+  /**
+   * Calendar-aware "busy" awareness. When true, before replying the agent
+   * checks the owner's connected calendar; if an event is happening right now,
+   * the agent lets the customer know the owner is currently in <event> (e.g.
+   * "בפגישה", "בסשן") while still helping. Independent of `mode` — it only
+   * colours replies the agent is already making.
+   */
+  busyMode?: boolean;
+  /**
+   * Optional phrasing to use instead of the calendar event's own title when
+   * busy. Empty/undefined = use the event title verbatim.
+   */
+  busyLabel?: string | null;
 }
 
 export const DEFAULT_TIMEZONE = 'Asia/Jerusalem';

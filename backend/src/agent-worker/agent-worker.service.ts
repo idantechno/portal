@@ -12,11 +12,13 @@ import { WaitlistService } from '../appointments/waitlist.service';
 import { AgentRunner } from '../agents/agent-runner.service';
 import { AgentsService } from '../agents/agents.service';
 import { BillingService } from '../billing/billing.service';
+import { CalendarService } from '../integrations/calendar.service';
 import { ConversationStatus } from '../common/enums/conversation-status.enum';
 import { MessageRole } from '../common/enums/message-role.enum';
 import { AgentRunJobData } from './agent-worker.constants';
 import {
   buildAppointmentsBlock,
+  buildBusyBlock,
   buildContactBlock,
   buildSystemPrompt,
   buildUserPrompt,
@@ -50,6 +52,7 @@ export class AgentWorkerService {
     private readonly runner: AgentRunner,
     private readonly agents: AgentsService,
     private readonly billing: BillingService,
+    private readonly calendar: CalendarService,
   ) {}
 
   async runAgent(data: AgentRunJobData): Promise<void> {
@@ -171,12 +174,31 @@ export class AgentWorkerService {
           : null,
     });
 
+    // Busy awareness: if the owner turned it on and is in a calendar event right
+    // now, tell the customer the owner is currently in <event> (its title, or a
+    // custom label). Best-effort — a calendar hiccup never blocks the reply.
+    let busyBlock: string | null = null;
+    if (business.whatsappAgent?.busyMode) {
+      try {
+        const event = await this.calendar.currentEvent(business.id);
+        if (event) {
+          const label = business.whatsappAgent.busyLabel?.trim() || event.title;
+          busyBlock = buildBusyBlock(label);
+        }
+      } catch (err) {
+        this.log.warn(
+          `[agent] busy check failed for business ${business.id}: ${(err as Error).message}`,
+        );
+      }
+    }
+
     const { finalText } = await this.runner.run({
       systemPrompt: buildSystemPrompt(
         business,
         contextBlock,
         contactBlock,
         appointmentsBlock,
+        busyBlock,
       ),
       prompt: buildUserPrompt(history),
       cwd,

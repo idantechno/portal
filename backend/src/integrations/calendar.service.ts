@@ -138,6 +138,37 @@ export class CalendarService {
     return ids.length ? ids.slice(0, MAX_CALENDARS) : ['primary'];
   }
 
+  /**
+   * The timed event happening RIGHT NOW on the business's calendar, if any —
+   * used for the agent's "busy" awareness. All-day events are ignored (they
+   * don't mean the owner is unreachable this minute). Returns null when nothing
+   * is ongoing or the calendar isn't connected.
+   */
+  async currentEvent(businessId: string): Promise<CalendarEvent | null> {
+    if (!(await this.isConnected(businessId))) return null;
+    const now = Date.now();
+    // Look back far enough to catch a long session already in progress.
+    const from = new Date(now - 12 * 60 * 60 * 1000).toISOString();
+    const to = new Date(now + 60 * 60 * 1000).toISOString();
+    let events: CalendarEvent[];
+    try {
+      events = await this.listEvents(businessId, from, to);
+    } catch (err) {
+      this.log.warn(
+        `[calendar] currentEvent failed: ${(err as Error).message}`,
+      );
+      return null;
+    }
+    return (
+      events.find((e) => {
+        if (e.allDay || !e.start) return false;
+        const start = new Date(e.start).getTime();
+        const end = e.end ? new Date(e.end).getTime() : start + 60 * 60 * 1000;
+        return start <= now && now < end;
+      }) ?? null
+    );
+  }
+
   async createEvent(
     businessId: string,
     input: { title: string; start: string; end?: string },

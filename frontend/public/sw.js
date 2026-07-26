@@ -13,7 +13,7 @@
  *
  * Bump CACHE_VERSION to force every client to drop old caches on activate.
  */
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v2";
 const CACHE = `portal-${CACHE_VERSION}`;
 const APP_SHELL = "/index.html";
 

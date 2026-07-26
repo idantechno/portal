@@ -9,6 +9,7 @@ import {
 } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { businessesApi } from "../../api/businesses";
+import { billingApi } from "../../api/billing";
 import { useAuthStore } from "../../store/auth";
 import { isPlatformStaff } from "../../lib/roles";
 import { NotificationBell } from "../../components/NotificationBell";
@@ -60,6 +61,16 @@ export default function BusinessLayout() {
   const branding = biz.data?.branding ?? null;
   const themeVars = businessThemeVars(branding);
 
+  // Plan capabilities drive which paid-feature nav items show. The operator
+  // (staff / entered-as-staff) always sees everything. The backend routes are
+  // guarded independently — this only hides links the tier can't use.
+  const caps = useQuery({
+    queryKey: ["billing", "capabilities", businessId],
+    queryFn: () => billingApi.capabilities(businessId),
+  });
+  const hasCap = (c: string) =>
+    staff || viaStaff || (caps.data?.includes(c) ?? false);
+
   // Sidebar = business "departments". Individual agents do NOT live here — they
   // are all reached from the single "סוכנים" hub (the agents page) so there is
   // one place for every agent.
@@ -77,9 +88,24 @@ export default function BusinessLayout() {
       title: "עבודה",
       items: [
         { to: "agents", label: "סוכנים", icon: "agents", show: true },
-        { to: "calendar", label: "יומן", icon: "calendar", show: true },
-        { to: "appointments", label: "תורים", icon: "clock", show: true },
-        { to: "tasks", label: "משימות", icon: "tasks", show: true },
+        {
+          to: "calendar",
+          label: "יומן",
+          icon: "calendar",
+          show: hasCap("calendar_manual"),
+        },
+        {
+          to: "appointments",
+          label: "תורים",
+          icon: "clock",
+          show: hasCap("calendar_manual"),
+        },
+        {
+          to: "tasks",
+          label: "משימות",
+          icon: "tasks",
+          show: hasCap("calendar_manual"),
+        },
       ],
     },
     {

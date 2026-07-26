@@ -11,12 +11,14 @@ import {
 import { BusinessScopeGuard } from '../businesses/guards/business-scope.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../auth/auth.types';
+import { RequireCapabilityGuard } from '../billing/guards/require-capability.guard';
+import { RequireCapability } from '../billing/decorators/require-capability.decorator';
 import { IntegrationsService } from './integrations.service';
 import { GmailService } from './gmail.service';
 import { SendEmailDto } from './dto/send-email.dto';
 import { isIntegrationProvider } from './integration.constants';
 
-@UseGuards(BusinessScopeGuard)
+@UseGuards(BusinessScopeGuard, RequireCapabilityGuard)
 @Controller('businesses/:businessId/integrations')
 export class IntegrationsController {
   constructor(
@@ -25,6 +27,7 @@ export class IntegrationsController {
   ) {}
 
   @Post('gmail/send')
+  @RequireCapability('google')
   sendEmail(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Body() dto: SendEmailDto,
@@ -38,6 +41,7 @@ export class IntegrationsController {
   }
 
   @Get(':provider/auth-url')
+  @RequireCapability('google')
   authUrl(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('provider') provider: string,

@@ -11,6 +11,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { BusinessScopeGuard } from '../businesses/guards/business-scope.guard';
+import { RequireCapabilityGuard } from '../billing/guards/require-capability.guard';
+import { RequireCapability } from '../billing/decorators/require-capability.decorator';
 import { AppointmentsService } from './appointments.service';
 import {
   CreateAppointmentDto,
@@ -19,11 +21,14 @@ import {
 } from './dto/appointment.dto';
 import { parseIsraelDate } from '../common/time/israel-time';
 
-@UseGuards(BusinessScopeGuard)
+@UseGuards(BusinessScopeGuard, RequireCapabilityGuard)
 @Controller('businesses/:businessId/appointments')
 export class AppointmentsController {
   constructor(private readonly appointments: AppointmentsService) {}
 
+  // Reads stay open (dashboard widgets); manual booking/editing is gated. The
+  // agent's own booking path goes through the service, not this controller, and
+  // is gated separately by the `agent_scheduling` capability.
   @Get()
   list(
     @Param('businessId', ParseUUIDPipe) businessId: string,
@@ -37,6 +42,7 @@ export class AppointmentsController {
   }
 
   @Post()
+  @RequireCapability('calendar_manual')
   create(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Body() dto: CreateAppointmentDto,
@@ -61,6 +67,7 @@ export class AppointmentsController {
   }
 
   @Post(':appointmentId/cancel')
+  @RequireCapability('calendar_manual')
   cancel(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('appointmentId', ParseUUIDPipe) appointmentId: string,
@@ -69,6 +76,7 @@ export class AppointmentsController {
   }
 
   @Patch(':appointmentId/status')
+  @RequireCapability('calendar_manual')
   setStatus(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('appointmentId', ParseUUIDPipe) appointmentId: string,

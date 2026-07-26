@@ -179,6 +179,32 @@ export const AGENT_CATALOG: readonly AgentDefinition[] = [
   },
 ];
 
+/**
+ * Which plan capability unlocks each agent by default. `null` = always available
+ * (infra agents that every tenant needs). This is the plan→agent default; an
+ * explicit `business_agents` row still overrides it BOTH ways, so an admin can
+ * grant an above-plan agent to one business or revoke an in-plan one. To move an
+ * agent between tiers, change the one line here (see `plan-capabilities.ts`).
+ */
+export const AGENT_REQUIRED_CAPABILITY: Record<
+  AgentKey,
+  import('../billing/plan-capabilities').PlanCapability | null
+> = {
+  orchestrator: null, // always-on router
+  main: 'chat', // entry agent — every paying tier
+  chat: 'chat', // basic+
+  crm: 'crm', // basic+
+  documents: 'pro_agents', // growth+
+  marketing: 'pro_agents', // growth+
+  analytics: 'pro_agents', // growth+
+  sales: 'all_agents', // exclusive
+  quote: 'all_agents', // exclusive
+  accounting: 'all_agents', // exclusive
+  ideas: 'all_agents', // exclusive
+  designer: 'all_agents', // exclusive
+  reminders: 'all_agents', // exclusive
+};
+
 export function isAgentKey(key: string): key is AgentKey {
   return (AGENT_KEYS as readonly string[]).includes(key);
 }

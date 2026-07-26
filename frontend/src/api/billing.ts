@@ -3,9 +3,12 @@ import { api } from "./client";
 export interface BillingPlan {
   code: string;
   name: string;
+  nameEn: string;
+  tagline: string;
   priceCents: number;
   interval: "month" | "year";
   currency: string;
+  monthlyConversationCap: number | null;
   features: string[];
 }
 
@@ -56,6 +59,12 @@ export const billingApi = {
     api
       .get<Subscription>(`/businesses/${businessId}/billing/subscription`)
       .then((r) => r.data),
+  capabilities: (businessId: string) =>
+    api
+      .get<{ capabilities: string[] }>(
+        `/businesses/${businessId}/billing/capabilities`,
+      )
+      .then((r) => r.data.capabilities),
   setPlan: (businessId: string, planCode: string) =>
     api
       .put<Subscription>(`/businesses/${businessId}/billing/subscription`, {

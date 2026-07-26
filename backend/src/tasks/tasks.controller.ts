@@ -13,16 +13,20 @@ import {
 import { BusinessScopeGuard } from '../businesses/guards/business-scope.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../auth/auth.types';
+import { RequireCapabilityGuard } from '../billing/guards/require-capability.guard';
+import { RequireCapability } from '../billing/decorators/require-capability.decorator';
 import { TasksService } from './tasks.service';
 import { TaskStatus } from './task.entity';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 
-@UseGuards(BusinessScopeGuard)
+@UseGuards(BusinessScopeGuard, RequireCapabilityGuard)
 @Controller('businesses/:businessId/tasks')
 export class TasksController {
   constructor(private readonly tasks: TasksService) {}
 
+  // Reads stay open so dashboard/overview widgets don't 403 on lower tiers;
+  // creating/editing tasks is the gated capability.
   @Get()
   list(
     @Param('businessId', ParseUUIDPipe) businessId: string,
@@ -32,6 +36,7 @@ export class TasksController {
   }
 
   @Post()
+  @RequireCapability('calendar_manual')
   create(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Body() dto: CreateTaskDto,
@@ -51,6 +56,7 @@ export class TasksController {
   }
 
   @Patch(':id')
+  @RequireCapability('calendar_manual')
   update(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('id', ParseUUIDPipe) id: string,
@@ -60,6 +66,7 @@ export class TasksController {
   }
 
   @Delete(':id')
+  @RequireCapability('calendar_manual')
   async remove(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('id', ParseUUIDPipe) id: string,

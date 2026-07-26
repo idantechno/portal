@@ -43,11 +43,6 @@ export default function Billing() {
     enabled: Boolean(businessId),
   });
 
-  const setPlanMut = useMutation({
-    mutationFn: (code: string) => billingApi.setPlan(businessId, code),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: billingKeys.subscription(businessId) }),
-  });
   const checkoutMut = useMutation({
     mutationFn: (code: string) => billingApi.checkout(businessId, code),
     onSuccess: (url) => {
@@ -89,10 +84,10 @@ export default function Billing() {
     setSearchParams(searchParams, { replace: true });
   }
 
-  function choosePlan(code: string, priceCents: number) {
+  function choosePlan(code: string) {
+    // Every plan is paid now, so choosing one always opens checkout.
     setCheckoutError(null);
-    if (priceCents === 0) setPlanMut.mutate(code);
-    else checkoutMut.mutate(code);
+    checkoutMut.mutate(code);
   }
 
   const markPaidMut = useMutation({
@@ -137,15 +132,23 @@ export default function Billing() {
                 key={plan.code}
                 className={`p-5 flex flex-col ${active ? "border-brand-400 ring-2 ring-brand-100" : ""}`}
               >
-                <div className="font-semibold text-navy-900">{plan.name}</div>
+                <div className="flex items-baseline gap-2">
+                  <span className="font-semibold text-navy-900">
+                    {plan.name}
+                  </span>
+                  <span className="text-xs text-navy-400" dir="ltr">
+                    {plan.nameEn}
+                  </span>
+                </div>
+                <p className="text-xs text-navy-500 mt-1 min-h-[2.5rem]">
+                  {plan.tagline}
+                </p>
                 <div className="text-2xl font-bold text-navy-900 my-2">
-                  {plan.priceCents === 0 ? "חינם" : shekels(plan.priceCents)}
-                  {plan.priceCents > 0 && (
-                    <span className="text-sm font-normal text-navy-400">
-                      {" "}
-                      / חודש
-                    </span>
-                  )}
+                  {shekels(plan.priceCents)}
+                  <span className="text-sm font-normal text-navy-400">
+                    {" "}
+                    / חודש
+                  </span>
                 </div>
                 <ul className="text-xs text-navy-500 space-y-1 mb-4 flex-1">
                   {plan.features.map((f) => (
@@ -155,17 +158,11 @@ export default function Billing() {
                 <Button
                   size="sm"
                   variant={active ? "ghost" : "primary"}
-                  disabled={
-                    active || setPlanMut.isPending || checkoutMut.isPending
-                  }
-                  onClick={() => choosePlan(plan.code, plan.priceCents)}
+                  disabled={active || checkoutMut.isPending}
+                  onClick={() => choosePlan(plan.code)}
                   className="w-full"
                 >
-                  {active
-                    ? "המסלול הנוכחי"
-                    : plan.priceCents === 0
-                      ? "בחר מסלול"
-                      : "שדרג ושלם"}
+                  {active ? "המסלול הנוכחי" : "בחר מסלול"}
                 </Button>
               </Card>
             );

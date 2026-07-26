@@ -6,6 +6,7 @@ import { ConversationsModule } from '../conversations/conversations.module';
 import { LeadsModule } from '../leads/leads.module';
 import { AppointmentsModule } from '../appointments/appointments.module';
 import { AgentsModule } from '../agents/agents.module';
+import { BillingModule } from '../billing/billing.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { AGENT_RUNS_QUEUE } from './agent-worker.constants';
 import { AgentWorkerService } from './agent-worker.service';
@@ -20,6 +21,7 @@ import { AgentWorkerProcessor } from './agent-worker.processor';
     LeadsModule,
     AppointmentsModule,
     AgentsModule,
+    BillingModule,
     NotificationsModule,
   ],
   providers: [AgentWorkerService, AgentWorkerProcessor],

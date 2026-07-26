@@ -11,6 +11,7 @@ import { AppointmentsService } from '../appointments/appointments.service';
 import { WaitlistService } from '../appointments/waitlist.service';
 import { AgentRunner } from '../agents/agent-runner.service';
 import { AgentsService } from '../agents/agents.service';
+import { BillingService } from '../billing/billing.service';
 import { ConversationStatus } from '../common/enums/conversation-status.enum';
 import { MessageRole } from '../common/enums/message-role.enum';
 import { AgentRunJobData } from './agent-worker.constants';
@@ -48,6 +49,7 @@ export class AgentWorkerService {
     private readonly channels: ChannelRegistry,
     private readonly runner: AgentRunner,
     private readonly agents: AgentsService,
+    private readonly billing: BillingService,
   ) {}
 
   async runAgent(data: AgentRunJobData): Promise<void> {
@@ -96,16 +98,30 @@ export class AgentWorkerService {
       waitlist: this.waitlist,
     };
 
+    // Appointment/waitlist tools are a top-tier capability. Only businesses
+    // whose plan includes `agent_scheduling` get them wired into the agent — a
+    // lower-tier chat agent literally never receives a booking tool, so it
+    // cannot schedule, cancel or move appointments no matter what a customer
+    // asks. This is the enforced boundary behind the pricing tiers.
+    const canSchedule = await this.billing.hasCapability(
+      business.id,
+      'agent_scheduling',
+    );
+
     const mcpServer = createSdkMcpServer({
       name: MCP_SERVER_NAME,
       version: '0.1.0',
       tools: [
         captureLeadTool(toolCtx),
         escalateToHumanTool(toolCtx),
-        scheduleAppointmentTool(toolCtx),
-        joinWaitlistTool(toolCtx),
-        cancelAppointmentTool(toolCtx),
-        rescheduleAppointmentTool(toolCtx),
+        ...(canSchedule
+          ? [
+              scheduleAppointmentTool(toolCtx),
+              joinWaitlistTool(toolCtx),
+              cancelAppointmentTool(toolCtx),
+              rescheduleAppointmentTool(toolCtx),
+            ]
+          : []),
       ],
     });
 
@@ -168,10 +184,14 @@ export class AgentWorkerService {
       allowedMcpTools: [
         `mcp__${MCP_SERVER_NAME}__capture_lead`,
         `mcp__${MCP_SERVER_NAME}__escalate_to_human`,
-        `mcp__${MCP_SERVER_NAME}__schedule_appointment`,
-        `mcp__${MCP_SERVER_NAME}__join_waitlist`,
-        `mcp__${MCP_SERVER_NAME}__cancel_appointment`,
-        `mcp__${MCP_SERVER_NAME}__reschedule_appointment`,
+        ...(canSchedule
+          ? [
+              `mcp__${MCP_SERVER_NAME}__schedule_appointment`,
+              `mcp__${MCP_SERVER_NAME}__join_waitlist`,
+              `mcp__${MCP_SERVER_NAME}__cancel_appointment`,
+              `mcp__${MCP_SERVER_NAME}__reschedule_appointment`,
+            ]
+          : []),
       ],
       runLabel: `conversation=${conversation.id}`,
     });

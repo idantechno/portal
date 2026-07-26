@@ -9,7 +9,23 @@ import { Repository } from 'typeorm';
 import { Subscription } from './subscription.entity';
 import { Invoice, InvoiceLineItem } from './invoice.entity';
 import { getPlan, PLAN_CATALOG } from './billing-plans';
+import {
+  PlanCapability,
+  planCapabilities,
+} from './plan-capabilities';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
+
+/**
+ * GROW hosted payment-page links, keyed by plan code. Public URLs (not secrets)
+ * pasted from the GROW dashboard; an env override still takes precedence (see
+ * growPaymentUrl). The charged amount lives on the GROW page — keep it in sync
+ * with each plan's priceCents in billing-plans.ts.
+ */
+const GROW_PAYMENT_LINKS: Record<string, string> = {
+  basic: 'https://mrng.to/7hq0bWZCAI',
+  growth: 'https://mrng.to/IQxohdw2E3',
+  exclusive: 'https://mrng.to/RgSB4IhMeF',
+};
 
 /** Whether an external billing provider is wired (its keys are in env). */
 export interface ProviderStatus {
@@ -59,16 +75,17 @@ export class BillingService {
   }
 
   /**
-   * The GROW hosted payment-page URL for a plan, from env
-   * `GROW_PAYMENT_URL_<CODE>` (e.g. GROW_PAYMENT_URL_GROWTH). Kept in env so the
-   * operator can paste the links straight from the GROW dashboard — no payment
-   * secrets live in the codebase.
+   * The GROW hosted payment-page URL for a plan. These are public payment-page
+   * links (not secrets), so they live in code. An env override
+   * `GROW_PAYMENT_URL_<CODE>` still wins, so a link can be swapped without a code
+   * change. Amounts are set on the GROW page itself — keep them in sync with the
+   * plan's `priceCents` in billing-plans.ts.
    */
   private growPaymentUrl(planCode: string): string | undefined {
-    const raw = this.config.get<string>(
-      `GROW_PAYMENT_URL_${planCode.toUpperCase()}`,
-    );
-    return raw?.trim() || undefined;
+    const env = this.config
+      .get<string>(`GROW_PAYMENT_URL_${planCode.toUpperCase()}`)
+      ?.trim();
+    return env || GROW_PAYMENT_LINKS[planCode] || undefined;
   }
 
   /**
@@ -87,20 +104,46 @@ export class BillingService {
     return { url };
   }
 
-  /** Returns the business's subscription, lazily creating a free one. */
+  /**
+   * Returns the business's subscription, lazily creating a default one. There is
+   * no free plan any more, so a brand-new business starts on the entry paid tier
+   * (`basic`) via manual provisioning — the operator manages who exists and can
+   * bump the plan up. This keeps the chat agent working for provisioned tenants
+   * without granting any of the higher-tier capabilities.
+   */
   async getSubscription(businessId: string): Promise<Subscription> {
     let sub = await this.subscriptions.findOne({ where: { businessId } });
     if (!sub) {
       sub = await this.subscriptions.save(
         this.subscriptions.create({
           businessId,
-          planCode: 'free',
+          planCode: 'basic',
           status: 'active',
           provider: 'manual',
         }),
       );
     }
     return sub;
+  }
+
+  /**
+   * The capabilities a business currently has, derived from its plan — but only
+   * while the subscription is live (active/trialing). This is the enforcement
+   * seam: agent tools, Google integration and the manual calendar all resolve
+   * access through here rather than trusting a plan's marketing copy.
+   */
+  async getCapabilities(businessId: string): Promise<Set<PlanCapability>> {
+    const sub = await this.getSubscription(businessId);
+    const live = sub.status === 'active' || sub.status === 'trialing';
+    return new Set(live ? planCapabilities(sub.planCode) : []);
+  }
+
+  /** Convenience: does the business's live plan include a given capability? */
+  async hasCapability(
+    businessId: string,
+    capability: PlanCapability,
+  ): Promise<boolean> {
+    return (await this.getCapabilities(businessId)).has(capability);
   }
 
   async setPlan(businessId: string, planCode: string): Promise<Subscription> {

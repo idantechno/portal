@@ -7,6 +7,7 @@ import { WaitlistService } from './waitlist.service';
 import { AppointmentsController } from './appointments.controller';
 import { WaitlistController } from './waitlist.controller';
 import { BusinessesModule } from '../businesses/businesses.module';
+import { BillingModule } from '../billing/billing.module';
 import { IntegrationsModule } from '../integrations/integrations.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { UsersModule } from '../users/users.module';
@@ -17,6 +18,7 @@ import { ConversationsModule } from '../conversations/conversations.module';
   imports: [
     TypeOrmModule.forFeature([Appointment, WaitlistEntry]),
     BusinessesModule,
+    BillingModule,
     IntegrationsModule,
     NotificationsModule,
     UsersModule,

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BusinessesModule } from '../businesses/businesses.module';
+import { BillingModule } from '../billing/billing.module';
 import { AuditModule } from '../audit/audit.module';
 import { ContextFilesModule } from '../context-files/context-files.module';
 import { AgentRunner } from './agent-runner.service';
@@ -17,6 +18,7 @@ import { RequireAgentGuard } from './guards/require-agent.guard';
   imports: [
     TypeOrmModule.forFeature([BusinessAgent]),
     BusinessesModule,
+    BillingModule,
     AuditModule,
     ContextFilesModule,
   ],

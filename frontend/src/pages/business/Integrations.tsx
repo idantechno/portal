@@ -5,7 +5,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { integrationsApi } from "../../api/integrations";
 import type { IntegrationProvider, IntegrationView } from "../../api/integrations";
 import { greenInvoiceApi } from "../../api/greenInvoice";
+import { billingApi } from "../../api/billing";
 import { apiErrorMessage } from "../../api/client";
+import { useAuthStore } from "../../store/auth";
+import { isPlatformStaff } from "../../lib/roles";
 import { Button, Card, FormError, Input, Spinner, Textarea } from "../../components/ui";
 import { Icon, ServerIcon } from "../../components/icons";
 
@@ -21,6 +24,16 @@ export default function Integrations() {
     queryFn: () => integrationsApi.list(businessId),
     enabled: Boolean(businessId),
   });
+
+  // Google integration is an exclusive-tier capability. The operator (platform
+  // staff) can always connect; the backend guard is authoritative either way.
+  const caps = useQuery({
+    queryKey: ["billing", "capabilities", businessId],
+    queryFn: () => billingApi.capabilities(businessId),
+    enabled: Boolean(businessId),
+  });
+  const staff = isPlatformStaff(useAuthStore((s) => s.user)?.role);
+  const googleAllowed = staff || (caps.data?.includes("google") ?? false);
 
   const connectMut = useMutation({
     mutationFn: (provider: IntegrationProvider) =>
@@ -77,6 +90,7 @@ export default function Integrations() {
             key={it.provider}
             it={it}
             connecting={connectMut.isPending}
+            allowed={googleAllowed}
             onConnect={() => connectMut.mutate(it.provider)}
             onDisconnect={() => disconnectMut.mutate(it.provider)}
           />
@@ -106,11 +120,13 @@ export default function Integrations() {
 function ProviderRow({
   it,
   connecting,
+  allowed,
   onConnect,
   onDisconnect,
 }: {
   it: IntegrationView;
   connecting: boolean;
+  allowed: boolean;
   onConnect: () => void;
   onDisconnect: () => void;
 }) {
@@ -132,6 +148,11 @@ function ProviderRow({
         <Button variant="ghost" size="sm" onClick={onDisconnect}>
           נתק
         </Button>
+      ) : !allowed ? (
+        // Google connect is sold on the Exclusive tier only.
+        <span className="shrink-0 rounded-full bg-navy-100 px-2.5 py-1 text-xs text-navy-500">
+          אקסקלוסיב
+        </span>
       ) : (
         <Button
           size="sm"

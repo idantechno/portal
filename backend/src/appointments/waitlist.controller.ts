@@ -9,11 +9,13 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { BusinessScopeGuard } from '../businesses/guards/business-scope.guard';
+import { RequireCapabilityGuard } from '../billing/guards/require-capability.guard';
+import { RequireCapability } from '../billing/decorators/require-capability.decorator';
 import { WaitlistService } from './waitlist.service';
 import { CreateWaitlistDto, ListWaitlistQueryDto } from './dto/waitlist.dto';
 import { parseIsraelDate } from '../common/time/israel-time';
 
-@UseGuards(BusinessScopeGuard)
+@UseGuards(BusinessScopeGuard, RequireCapabilityGuard)
 @Controller('businesses/:businessId/waitlist')
 export class WaitlistController {
   constructor(private readonly waitlist: WaitlistService) {}
@@ -27,6 +29,7 @@ export class WaitlistController {
   }
 
   @Post()
+  @RequireCapability('calendar_manual')
   create(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Body() dto: CreateWaitlistDto,
@@ -46,6 +49,7 @@ export class WaitlistController {
   }
 
   @Post(':entryId/cancel')
+  @RequireCapability('calendar_manual')
   cancel(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('entryId', ParseUUIDPipe) entryId: string,

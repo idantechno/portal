@@ -6,6 +6,7 @@ import { Invoice } from './invoice.entity';
 import { BillingService } from './billing.service';
 import { StripeService } from './stripe.service';
 import { BillingController } from './billing.controller';
+import { RequireCapabilityGuard } from './guards/require-capability.guard';
 
 @Module({
   imports: [
@@ -13,7 +14,7 @@ import { BillingController } from './billing.controller';
     BusinessesModule,
   ],
   controllers: [BillingController],
-  providers: [BillingService, StripeService],
-  exports: [BillingService, StripeService],
+  providers: [BillingService, StripeService, RequireCapabilityGuard],
+  exports: [BillingService, StripeService, RequireCapabilityGuard],
 })
 export class BillingModule {}

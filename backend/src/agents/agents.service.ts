@@ -2,11 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { BusinessesService } from '../businesses/businesses.service';
+import { BillingService } from '../billing/billing.service';
+import type { PlanCapability } from '../billing/plan-capabilities';
 import { BusinessAgent } from './business-agent.entity';
 import {
   AGENT_CATALOG,
+  AGENT_REQUIRED_CAPABILITY,
   AgentDefinition,
-  getAgentDefinition,
+  AgentKey,
 } from './agent-catalog';
 
 export interface AgentAccessView extends AgentDefinition {
@@ -14,10 +17,12 @@ export interface AgentAccessView extends AgentDefinition {
 }
 
 /**
- * Per-business agent entitlements. Access is "default deny" except that a
- * business with no explicit grant row for an agent falls back to that agent's
- * catalog `defaultEnabled` — so existing/new businesses keep the base agents
- * working until an admin explicitly grants or revokes (which writes a row).
+ * Per-business agent entitlements. Access is derived from the business's PLAN
+ * (see `AGENT_REQUIRED_CAPABILITY`): each agent is on by default when the plan
+ * unlocks its required capability. An explicit `business_agents` row overrides
+ * that default BOTH ways — an admin can grant an above-plan agent to one
+ * business or revoke an in-plan one, which is the manual escape hatch on top of
+ * automatic plan-based access.
  */
 @Injectable()
 export class AgentsService {
@@ -25,18 +30,28 @@ export class AgentsService {
     @InjectRepository(BusinessAgent)
     private readonly agents: Repository<BusinessAgent>,
     private readonly businesses: BusinessesService,
+    private readonly billing: BillingService,
   ) {}
 
   catalog(): readonly AgentDefinition[] {
     return AGENT_CATALOG;
   }
 
+  /**
+   * Effective access for one agent given the business's capability set and any
+   * explicit grant row. Explicit row wins (manual override); otherwise the agent
+   * is on iff the plan includes its required capability (null = always on).
+   */
   private effectiveEnabled(
     key: string,
     row: BusinessAgent | undefined,
+    caps: Set<PlanCapability>,
   ): boolean {
     if (row) return row.enabled;
-    return getAgentDefinition(key)?.defaultEnabled ?? false;
+    const required = AGENT_REQUIRED_CAPABILITY[key as AgentKey];
+    if (required === undefined) return false; // unknown agent → deny
+    if (required === null) return true; // infra agent → always on
+    return caps.has(required);
   }
 
   private async rowsByKey(
@@ -47,26 +62,33 @@ export class AgentsService {
   }
 
   async hasAccess(businessId: string, agentKey: string): Promise<boolean> {
-    const row = await this.agents.findOne({
-      where: { businessId, agentKey },
-    });
-    return this.effectiveEnabled(agentKey, row ?? undefined);
+    const [row, caps] = await Promise.all([
+      this.agents.findOne({ where: { businessId, agentKey } }),
+      this.billing.getCapabilities(businessId),
+    ]);
+    return this.effectiveEnabled(agentKey, row ?? undefined, caps);
   }
 
   /** Full catalog merged with this business's effective state (admin view). */
   async accessForBusiness(businessId: string): Promise<AgentAccessView[]> {
-    const byKey = await this.rowsByKey(businessId);
+    const [byKey, caps] = await Promise.all([
+      this.rowsByKey(businessId),
+      this.billing.getCapabilities(businessId),
+    ]);
     return AGENT_CATALOG.map((a) => ({
       ...a,
-      enabled: this.effectiveEnabled(a.key, byKey.get(a.key)),
+      enabled: this.effectiveEnabled(a.key, byKey.get(a.key), caps),
     }));
   }
 
   /** Only the agents the business may actually use (business-facing). */
   async entitledForBusiness(businessId: string): Promise<AgentDefinition[]> {
-    const byKey = await this.rowsByKey(businessId);
+    const [byKey, caps] = await Promise.all([
+      this.rowsByKey(businessId),
+      this.billing.getCapabilities(businessId),
+    ]);
     return AGENT_CATALOG.filter((a) =>
-      this.effectiveEnabled(a.key, byKey.get(a.key)),
+      this.effectiveEnabled(a.key, byKey.get(a.key), caps),
     );
   }
 
@@ -88,9 +110,22 @@ export class AgentsService {
       m.set(r.agentKey, r);
       byBusiness.set(r.businessId, m);
     }
+    // Each business's capabilities depend on its own plan.
+    const capsById = new Map<string, Set<PlanCapability>>(
+      await Promise.all(
+        ids.map(
+          async (id) =>
+            [id, await this.billing.getCapabilities(id)] as const,
+        ),
+      ),
+    );
     return AGENT_CATALOG.filter((a) =>
       ids.some((id) =>
-        this.effectiveEnabled(a.key, byBusiness.get(id)?.get(a.key)),
+        this.effectiveEnabled(
+          a.key,
+          byBusiness.get(id)?.get(a.key),
+          capsById.get(id) ?? new Set(),
+        ),
       ),
     );
   }

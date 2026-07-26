@@ -56,6 +56,18 @@ export class BillingController {
   }
 
   /**
+   * The capabilities the business's plan currently unlocks. The frontend uses
+   * this to hide features the tier doesn't include (e.g. the manual calendar or
+   * the Google connect button). UI hiding is not authoritative — the routes
+   * themselves are still guarded with @RequireCapability.
+   */
+  @Get('capabilities')
+  async capabilities(@Param('businessId', ParseUUIDPipe) businessId: string) {
+    const caps = await this.billing.getCapabilities(businessId);
+    return { capabilities: [...caps] };
+  }
+
+  /**
    * Manually set a plan WITHOUT payment. This bypasses Stripe checkout, so it
    * is restricted to platform staff (the operator) — a business member must go
    * through /checkout. Otherwise any member could self-upgrade to a paid plan

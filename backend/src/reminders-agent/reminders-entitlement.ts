@@ -5,7 +5,7 @@
  * the trial window is derived from the business's createdAt.
  */
 export const REMINDERS_TRIAL_DAYS = 3;
-const PAID_PLANS = ['growth', 'scale'];
+const PAID_PLANS = ['exclusive'];
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export interface RemindersEntitlement {

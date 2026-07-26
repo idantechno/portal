@@ -26,7 +26,7 @@ export class Subscription {
   @Column({ type: 'uuid', name: 'business_id' })
   businessId!: string;
 
-  @Column({ type: 'varchar', length: 32, name: 'plan_code', default: 'free' })
+  @Column({ type: 'varchar', length: 32, name: 'plan_code', default: 'basic' })
   planCode!: string;
 
   @Column({ type: 'varchar', length: 16, default: 'active' })

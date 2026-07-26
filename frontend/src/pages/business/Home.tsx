@@ -20,6 +20,7 @@ import {
 import { Icon, ServerIcon } from "../../components/icons";
 import type { IconName } from "../../components/icons";
 import BusinessProfileForm from "../../components/BusinessProfileForm";
+import WhatsappStatusBanner from "../../components/WhatsappStatusBanner";
 
 function greeting(): string {
   const h = new Date().getHours();
@@ -141,6 +142,9 @@ export default function Home() {
           </p>
         </div>
       </div>
+
+      {/* WhatsApp connection status — read-only reassurance for the owner. */}
+      <WhatsappStatusBanner />
 
       {/* First-run: get to know the business (feeds all agents) */}
       {needsOnboarding && biz.data && (

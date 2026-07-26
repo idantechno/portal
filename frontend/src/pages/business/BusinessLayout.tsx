@@ -3,6 +3,7 @@ import {
   Link,
   NavLink,
   Outlet,
+  useLocation,
   useNavigate,
   useParams,
 } from "react-router-dom";
@@ -30,8 +31,18 @@ interface NavGroup {
 
 export default function BusinessLayout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const params = useParams<{ businessId: string }>();
   const businessId = params.businessId!;
+  const homePath = `/app/businesses/${businessId}/home`;
+  const onHome = location.pathname === homePath;
+  // Back goes to the previous in-app screen. When there's no history to pop
+  // (deep link / fresh app launch), fall back to the business home so the
+  // control never strands the user or leaves the app.
+  const goBack = () => {
+    if (location.key !== "default") navigate(-1);
+    else navigate(homePath);
+  };
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
 
@@ -259,8 +270,20 @@ export default function BusinessLayout() {
           >
             <Icon name="menu" size={22} />
           </button>
+          {/* Back — mobile only, hidden on the home screen. Gives every inner
+              page a way back without opening the drawer. */}
+          {!onHome && (
+            <button
+              type="button"
+              onClick={goBack}
+              aria-label="חזור"
+              className="lg:hidden rounded-lg p-2 text-navy-600 hover:bg-navy-100 transition-colors"
+            >
+              <Icon name="arrow-start" size={22} />
+            </button>
+          )}
           <Link
-            to={`/app/businesses/${businessId}/home`}
+            to={homePath}
             className="lg:hidden font-display text-navy-800 truncate"
           >
             {biz.data?.name ?? "Portal Studio"}

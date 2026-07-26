@@ -10,7 +10,7 @@ export interface BillingPlan {
 }
 
 export interface ProviderStatus {
-  name: "stripe" | "greeninvoice";
+  name: "grow" | "greeninvoice";
   label: string;
   configured: boolean;
 }
@@ -20,7 +20,7 @@ export interface Subscription {
   businessId: string;
   planCode: string;
   status: "active" | "trialing" | "past_due" | "canceled";
-  provider: "manual" | "stripe" | "greeninvoice";
+  provider: "manual" | "grow" | "stripe" | "greeninvoice";
   currentPeriodEnd: string | null;
 }
 

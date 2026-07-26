@@ -125,20 +125,74 @@ export class OverviewService {
       });
       if (!res.ok) return null;
       const xml = await res.text();
-      const item = /<item>([\s\S]*?)<\/item>/.exec(xml)?.[1];
-      if (!item) return null;
-      const rawTitle = /<title>([\s\S]*?)<\/title>/.exec(item)?.[1] ?? '';
-      const link = /<link>([\s\S]*?)<\/link>/.exec(item)?.[1] ?? '';
-      const decoded = this.decodeXml(rawTitle);
-      // Google News titles read "Headline - Source"; split the trailing source.
-      const idx = decoded.lastIndexOf(' - ');
-      const title = idx > 0 ? decoded.slice(0, idx) : decoded;
-      const source = idx > 0 ? decoded.slice(idx + 3) : '';
-      if (!title) return null;
-      return { title, link: link.trim(), source };
+
+      // Collect the top candidates rather than blindly trusting the first hit —
+      // Google News ranks by recency/popularity, not by relevance to THIS
+      // business, so the first item is often off-topic.
+      const candidates: NewsItem[] = [];
+      const itemRe = /<item>([\s\S]*?)<\/item>/g;
+      let m: RegExpExecArray | null;
+      while ((m = itemRe.exec(xml)) && candidates.length < 10) {
+        const block = m[1];
+        const rawTitle = /<title>([\s\S]*?)<\/title>/.exec(block)?.[1] ?? '';
+        const link = /<link>([\s\S]*?)<\/link>/.exec(block)?.[1] ?? '';
+        const decoded = this.decodeXml(rawTitle);
+        // Google News titles read "Headline - Source"; split the trailing source.
+        const idx = decoded.lastIndexOf(' - ');
+        const title = idx > 0 ? decoded.slice(0, idx) : decoded;
+        const source = idx > 0 ? decoded.slice(idx + 3) : '';
+        if (title) candidates.push({ title, link: link.trim(), source });
+      }
+      if (candidates.length === 0) return null;
+
+      return await this.pickRelevantNews(business, candidates);
     } catch (err) {
       this.log.warn(
         `news failed for ${business.id}: ${(err as Error).message}`,
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Let the model choose the ONE candidate genuinely relevant to this business's
+   * field/brand and useful to the owner — or none. Returning null when nothing
+   * fits is the point: a shown news item must be trustworthy, so "nothing
+   * relevant today" hides the card rather than surfacing noise. Falls back to
+   * null (not the first item) if the model is unavailable or its answer can't be
+   * parsed — we never guess relevance.
+   */
+  private async pickRelevantNews(
+    business: Business,
+    candidates: NewsItem[],
+  ): Promise<NewsItem | null> {
+    try {
+      const cwd = this.filesystem.businessRoot(business.id);
+      const profile = renderOnboardingProfile(business);
+      const list = candidates
+        .map((c, i) => `${i + 1}. ${c.title}${c.source ? ` (${c.source})` : ''}`)
+        .join('\n');
+      const system = [
+        `You select news for a business owner's dashboard. Given the business profile and a numbered list of recent headlines, choose the SINGLE headline that is genuinely relevant to this business's industry/brand and useful to the owner.`,
+        `Be strict: relevance must be clear. If none are clearly relevant, choose none.`,
+        `Output ONLY the chosen number (e.g. "3"), or "0" if none are relevant. No other text.`,
+        profile ?? `The business is called ${business.name}.`,
+      ].join('\n\n');
+      const { finalText } = await this.runner.run({
+        systemPrompt: system,
+        prompt: `Headlines:\n${list}\n\nWhich number is genuinely relevant to this business? Reply with the number only.`,
+        cwd,
+        allowedBuiltinTools: [],
+        maxTurns: 1,
+        timeoutMs: 30000,
+        runLabel: `overview-news business=${business.id}`,
+      });
+      const pick = parseInt((finalText.match(/\d+/)?.[0] ?? '0'), 10);
+      if (!pick || pick < 1 || pick > candidates.length) return null;
+      return candidates[pick - 1];
+    } catch (err) {
+      this.log.warn(
+        `news pick failed for ${business.id}: ${(err as Error).message}`,
       );
       return null;
     }

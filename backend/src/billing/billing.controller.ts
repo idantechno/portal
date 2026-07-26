@@ -27,13 +27,10 @@ export class BillingController {
     private readonly stripe: StripeService,
   ) {}
 
-  /** Start a Stripe Checkout for a paid plan; returns the hosted payment URL. */
+  /** Start a GROW checkout for a paid plan; returns the hosted payment URL. */
   @Post('checkout')
-  checkout(
-    @Param('businessId', ParseUUIDPipe) businessId: string,
-    @Body() dto: SetPlanDto,
-  ) {
-    return this.stripe.createCheckoutSession(businessId, dto.planCode);
+  checkout(@Body() dto: SetPlanDto) {
+    return this.billing.growCheckout(dto.planCode);
   }
 
   /** Confirm a returned Checkout session and activate the subscription. */

@@ -4,6 +4,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { billingApi } from "../../api/billing";
 import type { Invoice } from "../../api/billing";
+import { apiErrorMessage } from "../../api/client";
 import { billingKeys } from "../../lib/queryKeys";
 import { Button, Card, Input, Spinner } from "../../components/ui";
 
@@ -23,6 +24,7 @@ export default function Billing() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [showInvoice, setShowInvoice] = useState(false);
   const [paidShown, setPaidShown] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const canceled = searchParams.get("canceled") === "1";
 
   const plans = useQuery({
@@ -51,6 +53,16 @@ export default function Billing() {
     onSuccess: (url) => {
       window.location.href = url;
     },
+    onError: (err) => {
+      // Never fail silently — tell the owner what happened. The most common
+      // case today is the GROW payment link not being set for this plan yet.
+      const raw = apiErrorMessage(err, "");
+      setCheckoutError(
+        raw.includes("PAYMENT_NOT_CONFIGURED")
+          ? "התשלום המקוון עדיין בהגדרה. נחזור אליך להשלמת השדרוג."
+          : "אירעה תקלה בפתיחת התשלום. נסה שוב עוד רגע.",
+      );
+    },
   });
   const confirmMut = useMutation({
     mutationFn: (sessionId: string) =>
@@ -78,6 +90,7 @@ export default function Billing() {
   }
 
   function choosePlan(code: string, priceCents: number) {
+    setCheckoutError(null);
     if (priceCents === 0) setPlanMut.mutate(code);
     else checkoutMut.mutate(code);
   }
@@ -158,8 +171,21 @@ export default function Billing() {
             );
           })}
         </div>
+        {checkoutError && (
+          <div className="mt-3 rounded-xl bg-coral-50 border border-coral-200 px-4 py-3 text-sm text-coral-800 flex items-center justify-between gap-3">
+            <span>{checkoutError}</span>
+            <button
+              onClick={() => setCheckoutError(null)}
+              className="text-coral-500 hover:text-coral-700 shrink-0"
+              aria-label="סגור"
+            >
+              ✕
+            </button>
+          </div>
+        )}
         {providers.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-3">
+
             {providers.map((p) => (
               <span
                 key={p.name}

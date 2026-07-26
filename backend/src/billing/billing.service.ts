@@ -13,7 +13,7 @@ import { CreateInvoiceDto } from './dto/create-invoice.dto';
 
 /** Whether an external billing provider is wired (its keys are in env). */
 export interface ProviderStatus {
-  name: 'stripe' | 'greeninvoice';
+  name: 'grow' | 'greeninvoice';
   label: string;
   configured: boolean;
 }
@@ -39,9 +39,9 @@ export class BillingService {
   providerStatus(): ProviderStatus[] {
     return [
       {
-        name: 'stripe',
-        label: 'Stripe',
-        configured: Boolean(this.config.get<string>('STRIPE_SECRET_KEY')),
+        name: 'grow',
+        label: 'GROW',
+        configured: this.growConfigured(),
       },
       {
         name: 'greeninvoice',
@@ -49,6 +49,42 @@ export class BillingService {
         configured: Boolean(this.config.get<string>('GREEN_INVOICE_API_KEY')),
       },
     ];
+  }
+
+  /** GROW is "ready" once at least one paid plan has a payment link in env. */
+  private growConfigured(): boolean {
+    return PLAN_CATALOG.some(
+      (p) => p.priceCents > 0 && Boolean(this.growPaymentUrl(p.code)),
+    );
+  }
+
+  /**
+   * The GROW hosted payment-page URL for a plan, from env
+   * `GROW_PAYMENT_URL_<CODE>` (e.g. GROW_PAYMENT_URL_GROWTH). Kept in env so the
+   * operator can paste the links straight from the GROW dashboard — no payment
+   * secrets live in the codebase.
+   */
+  private growPaymentUrl(planCode: string): string | undefined {
+    const raw = this.config.get<string>(
+      `GROW_PAYMENT_URL_${planCode.toUpperCase()}`,
+    );
+    return raw?.trim() || undefined;
+  }
+
+  /**
+   * Start an upgrade: return the plan's GROW payment link. Throws a typed error
+   * the UI can surface (rather than failing silently) when the link isn't set
+   * yet or a free plan is passed.
+   */
+  growCheckout(planCode: string): { url: string } {
+    const plan = getPlan(planCode);
+    if (!plan) throw new BadRequestException(`Unknown plan: ${planCode}`);
+    if (plan.priceCents === 0) {
+      throw new BadRequestException('FREE_PLAN_NO_CHECKOUT');
+    }
+    const url = this.growPaymentUrl(planCode);
+    if (!url) throw new BadRequestException('PAYMENT_NOT_CONFIGURED');
+    return { url };
   }
 
   /** Returns the business's subscription, lazily creating a free one. */

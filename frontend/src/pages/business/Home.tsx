@@ -328,7 +328,7 @@ export default function Home() {
         <div>
           <SectionTitle eyebrow="סוכן" title="העוזר החכם" />
           <div
-            className="rounded-3xl p-6 text-white shadow-sm h-[calc(100%-2rem)] flex flex-col"
+            className="rounded-3xl p-6 text-white shadow-sm lg:h-[calc(100%-2rem)] flex flex-col"
             style={{
               background:
                 "linear-gradient(135deg, var(--brand-primary), var(--brand-secondary))",

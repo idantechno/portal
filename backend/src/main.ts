@@ -82,7 +82,9 @@ async function bootstrap360dialog(app: NestExpressApplication): Promise<void> {
     });
     log.log(`Connected 360dialog to business "${target.name}" (${target.id}).`);
     log.log(`WEBHOOK URL -> ${conns.webhookUrl(target.id)}`);
-    log.warn('Bootstrap done — now REMOVE the DIALOG360_BOOTSTRAP_KEY env var.');
+    log.warn(
+      'Bootstrap done — now REMOVE the DIALOG360_BOOTSTRAP_KEY env var.',
+    );
   } catch (err) {
     log.error(`360dialog bootstrap failed: ${(err as Error).message}`);
   }

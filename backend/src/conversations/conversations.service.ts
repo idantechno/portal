@@ -10,9 +10,15 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { Conversation } from './conversation.entity';
 import { Message } from './message.entity';
+import { Business } from '../businesses/business.entity';
 import { Channel } from '../common/enums/channel.enum';
 import { ConversationStatus } from '../common/enums/conversation-status.enum';
 import { MessageRole } from '../common/enums/message-role.enum';
+import {
+  DEFAULT_WHATSAPP_AGENT,
+  WhatsappAgentConfig,
+  whatsappAgentActiveNow,
+} from '../common/whatsapp-agent-schedule';
 import {
   AGENT_RUNS_QUEUE,
   AgentRunJobData,
@@ -45,6 +51,8 @@ export class ConversationsService {
     private readonly conversations: Repository<Conversation>,
     @InjectRepository(Message)
     private readonly messages: Repository<Message>,
+    @InjectRepository(Business)
+    private readonly businesses: Repository<Business>,
     @InjectQueue(AGENT_RUNS_QUEUE)
     private readonly agentRuns: Queue<AgentRunJobData>,
     private readonly inbox: InboxEventsService,
@@ -105,6 +113,7 @@ export class ConversationsService {
       input.businessId,
       input.conversationId,
     );
+    const previousLastMessageAt = conv.lastMessageAt;
     const msg = await this.messages.save(
       this.messages.create({
         conversationId: conv.id,
@@ -123,6 +132,7 @@ export class ConversationsService {
     this.inbox.conversationUpdated(conv);
 
     if (input.role === MessageRole.Customer) {
+      await this.maybeAutoReturnToAgent(conv, previousLastMessageAt);
       await this.enqueueAgentRun(conv, msg);
     }
 
@@ -133,7 +143,7 @@ export class ConversationsService {
     conversation: Conversation,
     message: Message,
   ): Promise<void> {
-    if (conversation.status !== ConversationStatus.Bot) return;
+    if (!(await this.shouldAgentReply(conversation))) return;
     try {
       await this.agentRuns.add(
         'run',
@@ -161,6 +171,55 @@ export class ConversationsService {
         `Failed to enqueue agent run for conversation ${conversation.id}: ${(err as Error).message}`,
       );
     }
+  }
+
+  /**
+   * Whether the agent may auto-answer this conversation right now.
+   *  - status must be `bot` (a human takeover or closed thread is left alone);
+   *  - the website widget always uses the agent;
+   *  - WhatsApp follows the business's agent schedule (mode/hours).
+   */
+  private async shouldAgentReply(conversation: Conversation): Promise<boolean> {
+    if (conversation.status !== ConversationStatus.Bot) return false;
+    if (conversation.channel === Channel.Web) return true;
+    const config = await this.getWhatsappAgentConfig(conversation.businessId);
+    return whatsappAgentActiveNow(config);
+  }
+
+  async getWhatsappAgentConfig(
+    businessId: string,
+  ): Promise<WhatsappAgentConfig> {
+    const business = await this.businesses.findOne({
+      where: { id: businessId },
+    });
+    return business?.whatsappAgent ?? DEFAULT_WHATSAPP_AGENT;
+  }
+
+  /**
+   * If a manually-handled WhatsApp thread has been idle beyond the configured
+   * window, hand it back to the agent so an after-hours follow-up still gets a
+   * reply (subject to the schedule). Mutates & persists `conversation` in place.
+   */
+  private async maybeAutoReturnToAgent(
+    conversation: Conversation,
+    previousLastMessageAt: Date | null,
+  ): Promise<void> {
+    if (conversation.channel !== Channel.WhatsApp) return;
+    if (conversation.status !== ConversationStatus.Human) return;
+    if (!previousLastMessageAt) return;
+    const config = await this.getWhatsappAgentConfig(conversation.businessId);
+    const hours = config.autoReturnHours ?? 0;
+    if (hours <= 0) return;
+    const idleMs = Date.now() - previousLastMessageAt.getTime();
+    if (idleMs < hours * 3_600_000) return;
+    conversation.status = ConversationStatus.Bot;
+    conversation.assignedAgentUserId = null;
+    await this.conversations.save(conversation);
+    this.inbox.conversationUpdated(conversation);
+    this.log.log(
+      `Auto-returned conversation ${conversation.id} to the agent after ` +
+        `${Math.round(idleMs / 3_600_000)}h idle`,
+    );
   }
 
   /**

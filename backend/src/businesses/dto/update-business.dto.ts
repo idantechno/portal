@@ -3,9 +3,14 @@ import {
   IsArray,
   IsBoolean,
   IsHexColor,
+  IsIn,
+  IsInt,
   IsOptional,
   IsString,
+  Matches,
+  Max,
   MaxLength,
+  Min,
   MinLength,
   ValidateNested,
 } from 'class-validator';
@@ -82,6 +87,46 @@ export class OnboardingDto {
   city?: string;
 }
 
+export class WhatsappAgentWindowDto {
+  @IsArray()
+  @ArrayMaxSize(7)
+  @IsInt({ each: true })
+  @Min(0, { each: true })
+  @Max(6, { each: true })
+  days!: number[];
+
+  @IsString()
+  @Matches(/^\d{2}:\d{2}$/)
+  start!: string;
+
+  @IsString()
+  @Matches(/^\d{2}:\d{2}$/)
+  end!: string;
+}
+
+export class WhatsappAgentDto {
+  @IsIn(['always', 'off', 'scheduled'])
+  mode!: 'always' | 'off' | 'scheduled';
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  timezone?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ValidateNested({ each: true })
+  @Type(() => WhatsappAgentWindowDto)
+  windows?: WhatsappAgentWindowDto[];
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(168)
+  autoReturnHours?: number;
+}
+
 export class UpdateBusinessDto {
   @IsOptional()
   @IsString()
@@ -120,4 +165,9 @@ export class UpdateBusinessDto {
   @ValidateNested()
   @Type(() => OnboardingDto)
   onboarding?: OnboardingDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => WhatsappAgentDto)
+  whatsappAgent?: WhatsappAgentDto;
 }

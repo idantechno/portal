@@ -38,6 +38,25 @@ export interface BusinessOnboarding {
   city?: string;
 }
 
+export interface WhatsappAgentWindow {
+  /** 0 = Sunday … 6 = Saturday. */
+  days: number[];
+  /** 'HH:mm' */
+  start: string;
+  /** 'HH:mm' — if end <= start the window wraps past midnight. */
+  end: string;
+}
+
+export type WhatsappAgentMode = "always" | "off" | "scheduled";
+
+export interface WhatsappAgentConfig {
+  mode: WhatsappAgentMode;
+  timezone?: string;
+  windows?: WhatsappAgentWindow[];
+  /** Hand a manual thread back to the agent after N idle hours. 0 = off. */
+  autoReturnHours?: number;
+}
+
 export interface Business {
   id: string;
   name: string;
@@ -50,6 +69,7 @@ export interface Business {
   widgetAllowedOrigins: string[];
   branding?: BusinessBranding | null;
   onboarding?: BusinessOnboarding | null;
+  whatsappAgent?: WhatsappAgentConfig | null;
   createdAt: string;
   updatedAt: string;
   /** The current caller's role in this business (null for platform staff). */

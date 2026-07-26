@@ -7,6 +7,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { AccountStatus } from '../common/enums/account-status.enum';
+import type { WhatsappAgentConfig } from '../common/whatsapp-agent-schedule';
 
 /**
  * Owner-supplied characterization of the business, captured once in an
@@ -88,6 +89,10 @@ export class Business {
 
   @Column({ type: 'jsonb', name: 'onboarding', nullable: true })
   onboarding!: BusinessOnboarding | null;
+
+  /** WhatsApp agent schedule/mode. Null = always on (legacy default). */
+  @Column({ type: 'jsonb', name: 'whatsapp_agent', nullable: true })
+  whatsappAgent!: WhatsappAgentConfig | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;

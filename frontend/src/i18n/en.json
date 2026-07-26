@@ -119,6 +119,7 @@
   },
   "inbox": {
     "title": "Inbox",
+    "agentSettings": "Agent settings",
     "empty": "No conversations yet. They'll appear here once customers start chatting.",
     "selectConversation": "Select a conversation from the list",
     "tabAll": "All",

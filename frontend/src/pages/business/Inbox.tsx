@@ -16,6 +16,7 @@ import { apiErrorMessage } from "../../api/client";
 import { Button, Spinner, Textarea } from "../../components/ui";
 import { Icon } from "../../components/icons";
 import type { IconName } from "../../components/icons";
+import AgentScheduleSettings from "./AgentScheduleSettings";
 
 type Tab = "all" | "bot" | "human" | "closed";
 
@@ -88,6 +89,7 @@ export default function Inbox() {
   const [composer, setComposer] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [socketReady, setSocketReady] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const socketRef = useRef<Socket | null>(null);
   const threadEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -209,19 +211,30 @@ export default function Inbox() {
         <header className="px-5 py-4 border-b border-neutral-100">
           <div className="flex items-center justify-between mb-3">
             <h1 className="text-lg font-bold">{t("inbox.title")}</h1>
-            <span
-              className={`inline-flex items-center gap-1 text-[11px] ${
-                socketReady ? "text-green-700" : "text-neutral-400"
-              }`}
-              title={socketReady ? t("inbox.live") : t("inbox.offline")}
-            >
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowSettings(true)}
+                className="rounded-lg p-1.5 text-neutral-500 hover:bg-neutral-100"
+                title={t("inbox.agentSettings")}
+                aria-label={t("inbox.agentSettings")}
+              >
+                <Icon name="settings" size={18} />
+              </button>
               <span
-                className={`inline-block size-2 rounded-full ${
-                  socketReady ? "bg-green-500" : "bg-neutral-300"
+                className={`inline-flex items-center gap-1 text-[11px] ${
+                  socketReady ? "text-green-700" : "text-neutral-400"
                 }`}
-              />
-              {socketReady ? t("inbox.live") : t("inbox.offline")}
-            </span>
+                title={socketReady ? t("inbox.live") : t("inbox.offline")}
+              >
+                <span
+                  className={`inline-block size-2 rounded-full ${
+                    socketReady ? "bg-green-500" : "bg-neutral-300"
+                  }`}
+                />
+                {socketReady ? t("inbox.live") : t("inbox.offline")}
+              </span>
+            </div>
           </div>
           <div className="flex gap-1">
             {tabs.map((tt) => (
@@ -408,6 +421,9 @@ export default function Inbox() {
           </>
         )}
       </div>
+      {showSettings && (
+        <AgentScheduleSettings onClose={() => setShowSettings(false)} />
+      )}
     </div>
   );
 }

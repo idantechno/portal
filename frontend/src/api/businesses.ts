@@ -5,6 +5,7 @@ import type {
   BusinessMember,
   BusinessOnboarding,
   BusinessRole,
+  WhatsappAgentConfig,
 } from "./types";
 
 export const businessesApi = {
@@ -22,6 +23,7 @@ export const businessesApi = {
       widgetAllowedOrigins?: string[];
       branding?: BusinessBranding;
       onboarding?: BusinessOnboarding;
+      whatsappAgent?: WhatsappAgentConfig;
     },
   ) => api.patch<Business>(`/businesses/${id}`, input).then((r) => r.data),
 

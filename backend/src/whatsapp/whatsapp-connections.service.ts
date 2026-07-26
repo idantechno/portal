@@ -4,6 +4,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -154,6 +155,60 @@ export class WhatsappConnectionsService {
       conn.connectedAt = new Date();
     }
     return this.connections.save(conn);
+  }
+
+  /**
+   * Bridge onboarding: connect a business by its 360dialog channel API key.
+   * Validates the key and points the channel's inbound webhook back at us in one
+   * call (a bad key makes 360dialog reject the webhook config, so this doubles as
+   * verification), then stores the connection. The operator does this during the
+   * guided setup call so the customer never touches the key.
+   */
+  async connectWith360dialogApiKey(
+    businessId: string,
+    apiKey: string,
+    displayPhoneNumber?: string | null,
+  ): Promise<WhatsappConnection> {
+    const base = (
+      this.cfg.get<string>('DIALOG360_API_BASE') ??
+      'https://waba-v2.360dialog.io'
+    ).replace(/\/$/, '');
+    const webhook = this.webhookUrl(businessId);
+
+    let res: Response;
+    try {
+      res = await fetch(`${base}/v1/configs/webhook`, {
+        method: 'POST',
+        headers: {
+          'D360-API-KEY': apiKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url: webhook }),
+      });
+    } catch (err) {
+      throw new BadRequestException(
+        `Could not reach 360dialog: ${(err as Error).message}`,
+      );
+    }
+
+    if (res.status === 401 || res.status === 403) {
+      throw new UnauthorizedException('המפתח שהוזן אינו תקין');
+    }
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      this.log.warn(
+        `360dialog webhook config failed for business ${businessId}: HTTP ${res.status} ${body.slice(0, 200)}`,
+      );
+      throw new BadRequestException(
+        `הגדרת ה-webhook נכשלה (HTTP ${res.status})`,
+      );
+    }
+
+    return this.connect360dialog({
+      businessId,
+      apiKey,
+      displayPhoneNumber: displayPhoneNumber ?? null,
+    });
   }
 
   /**

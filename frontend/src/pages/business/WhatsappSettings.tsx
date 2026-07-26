@@ -5,14 +5,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { whatsappApi, type WhatsappStatus } from "../../api/whatsapp";
 import { apiErrorMessage } from "../../api/client";
 import { Button, Card, FormError, Spinner } from "../../components/ui";
-import { runEmbeddedSignup } from "../../lib/meta-embedded-signup";
-
-const META_APP_ID = import.meta.env.VITE_META_APP_ID as string | undefined;
-const META_CONFIG_ID = import.meta.env.VITE_META_EMBEDDED_SIGNUP_CONFIG_ID as
-  | string
-  | undefined;
-const META_GRAPH_VERSION =
-  (import.meta.env.VITE_META_GRAPH_API_VERSION as string | undefined) ?? "v21.0";
 
 function statusBadge(
   status: WhatsappStatus | undefined,
@@ -40,29 +32,28 @@ export default function WhatsappSettings() {
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
 
+  const [apiKey, setApiKey] = useState("");
+  const [displayNumber, setDisplayNumber] = useState("");
+
   const conn = useQuery({
     queryKey: ["whatsapp", businessId],
     queryFn: () => whatsappApi.get(businessId),
     enabled: Boolean(businessId),
   });
 
-  const exchange = useMutation({
-    mutationFn: async () => {
-      if (!META_APP_ID || !META_CONFIG_ID) {
-        throw new Error(t("whatsapp.notConfigured"));
-      }
-      const result = await runEmbeddedSignup({
-        appId: META_APP_ID,
-        configId: META_CONFIG_ID,
-        graphVersion: META_GRAPH_VERSION,
-      });
-      return whatsappApi.exchange(businessId, result);
-    },
+  const connectKey = useMutation({
+    mutationFn: () =>
+      whatsappApi.connect360dialog(businessId, {
+        apiKey: apiKey.trim(),
+        displayPhoneNumber: displayNumber.trim() || undefined,
+      }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["whatsapp", businessId] });
+      setApiKey("");
+      setDisplayNumber("");
       setError(null);
+      qc.invalidateQueries({ queryKey: ["whatsapp", businessId] });
     },
-    onError: (err) => setError(apiErrorMessage(err, t("whatsapp.connectFailed"))),
+    onError: (err) => setError(apiErrorMessage(err, "החיבור נכשל")),
   });
 
   const remove = useMutation({
@@ -76,7 +67,6 @@ export default function WhatsappSettings() {
     failed: t("whatsapp.statusFailed"),
   };
 
-  const metaConfigured = Boolean(META_APP_ID && META_CONFIG_ID);
   const isConnected = conn.data?.status === "active";
 
   return (
@@ -98,14 +88,6 @@ export default function WhatsappSettings() {
           </div>
           <div className="text-sm text-red-800 font-mono break-all" dir="ltr">
             {conn.data.lastError}
-          </div>
-        </Card>
-      )}
-
-      {!metaConfigured && (
-        <Card className="p-4 mb-4 border-amber-200 bg-amber-50">
-          <div className="text-sm text-amber-900">
-            {t("whatsapp.notConfigured")}
           </div>
         </Card>
       )}
@@ -132,26 +114,73 @@ export default function WhatsappSettings() {
             )}
           </div>
         ) : (
-          <div className="space-y-4">
-            <p className="text-sm text-neutral-700">
-              {t("whatsapp.connectIntro")}
-            </p>
+          <div className="space-y-5">
+            <div>
+              <h2 className="text-base font-semibold mb-1">
+                חיבור עם מפתח 360dialog
+              </h2>
+              <p className="text-sm text-neutral-600">
+                בפגישת ההקמה עם הלקוח: אחרי שהוא חיבר את המספר ב־360dialog, הדבק
+                כאן את מפתח ה־API שלו. נאמת אותו ונחבר את המספר אוטומטית — הלקוח
+                לא צריך לגעת בכלום.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-neutral-600 mb-1">
+                מפתח API (D360-API-KEY)
+              </label>
+              <input
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder="הדבק כאן את המפתח…"
+                className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm font-mono"
+                dir="ltr"
+                autoComplete="off"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-neutral-600 mb-1">
+                מספר לתצוגה (לא חובה)
+              </label>
+              <input
+                value={displayNumber}
+                onChange={(e) => setDisplayNumber(e.target.value)}
+                placeholder="+972 50-123-4567"
+                className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm"
+                dir="ltr"
+                autoComplete="off"
+              />
+            </div>
+
             <Button
-              disabled={!metaConfigured || exchange.isPending}
+              disabled={apiKey.trim().length < 8 || connectKey.isPending}
               onClick={() => {
                 setError(null);
-                exchange.mutate();
+                connectKey.mutate();
               }}
             >
-              {exchange.isPending ? (
+              {connectKey.isPending ? (
                 <>
-                  <Spinner /> {t("whatsapp.connecting")}
+                  <Spinner /> מחבר…
                 </>
               ) : (
-                t("whatsapp.connect")
+                "חבר וואטסאפ"
               )}
             </Button>
             <FormError message={error} />
+
+            <details className="text-xs text-neutral-500">
+              <summary className="cursor-pointer select-none">
+                איפה הלקוח מוצא את המפתח?
+              </summary>
+              <ol className="list-decimal ms-5 mt-2 space-y-1">
+                <li>נכנסים ל־360dialog Hub של הלקוח.</li>
+                <li>בוחרים את המספר → API Key.</li>
+                <li>מייצרים מפתח (Generate) ומעתיקים — מדביקים כאן.</li>
+              </ol>
+            </details>
           </div>
         )}
       </Card>

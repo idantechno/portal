@@ -40,6 +40,17 @@ export const whatsappApi = {
       )
       .then((r) => r.data),
 
+  connect360dialog: (
+    businessId: string,
+    input: { apiKey: string; displayPhoneNumber?: string },
+  ) =>
+    api
+      .post<WhatsappConnectionPublic>(
+        `/businesses/${businessId}/channels/whatsapp/connect-360dialog`,
+        input,
+      )
+      .then((r) => r.data),
+
   delete: (businessId: string) =>
     api
       .delete<{ ok: boolean }>(`/businesses/${businessId}/channels/whatsapp`)

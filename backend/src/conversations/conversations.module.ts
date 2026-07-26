@@ -9,6 +9,7 @@ import { CustomerContact } from './customer-contact.entity';
 import { ConversationsService } from './conversations.service';
 import { CustomerContactsService } from './customer-contacts.service';
 import { ConversationsController } from './conversations.controller';
+import { ContactsController } from './contacts.controller';
 import { AGENT_RUNS_QUEUE } from '../agent-worker/agent-worker.constants';
 
 @Module({
@@ -22,7 +23,7 @@ import { AGENT_RUNS_QUEUE } from '../agent-worker/agent-worker.constants';
     BusinessesModule,
     BullModule.registerQueue({ name: AGENT_RUNS_QUEUE }),
   ],
-  controllers: [ConversationsController],
+  controllers: [ConversationsController, ContactsController],
   providers: [ConversationsService, CustomerContactsService],
   exports: [ConversationsService, CustomerContactsService],
 })

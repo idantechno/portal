@@ -24,6 +24,7 @@ export const businessesApi = {
       branding?: BusinessBranding;
       onboarding?: BusinessOnboarding;
       whatsappAgent?: WhatsappAgentConfig;
+      ownerPhone?: string;
     },
   ) => api.patch<Business>(`/businesses/${id}`, input).then((r) => r.data),
 

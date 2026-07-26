@@ -58,7 +58,8 @@ export default function BusinessLayout() {
       items: [
         { to: "home", label: "בית", icon: "home", show: true },
         { to: "inbox", label: "שיחות", icon: "chat", show: true },
-        { to: "leads", label: "לידים", icon: "leads", show: true },
+        { to: "contacts/lead", label: "לידים", icon: "leads", show: true },
+        { to: "contacts/customer", label: "לקוחות", icon: "user", show: true },
       ],
     },
     {
@@ -66,6 +67,7 @@ export default function BusinessLayout() {
       items: [
         { to: "agents", label: "סוכנים", icon: "agents", show: true },
         { to: "calendar", label: "יומן", icon: "calendar", show: true },
+        { to: "appointments", label: "תורים", icon: "clock", show: true },
         { to: "tasks", label: "משימות", icon: "tasks", show: true },
       ],
     },

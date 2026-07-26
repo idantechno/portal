@@ -107,6 +107,7 @@ function Form({
   const [autoReturn, setAutoReturn] = useState<number>(
     cfg?.autoReturnHours ?? 6,
   );
+  const [ownerPhone, setOwnerPhone] = useState(business.ownerPhone ?? "");
   const [error, setError] = useState<string | null>(null);
 
   const save = useMutation({
@@ -120,7 +121,10 @@ function Form({
               autoReturnHours: autoReturn,
             }
           : { mode, autoReturnHours: autoReturn };
-      return businessesApi.update(businessId, { whatsappAgent: payload });
+      return businessesApi.update(businessId, {
+        whatsappAgent: payload,
+        ownerPhone: ownerPhone.trim(),
+      });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["business", businessId] });
@@ -252,6 +256,28 @@ function Form({
         </div>
         <div className="text-[11px] text-neutral-400 mt-1">
           0 = מבוטל (השיחה נשארת ידנית עד שתחזיר אותה בעצמך).
+        </div>
+      </div>
+
+      {/* Owner alert phone — for "an appointment was booked" WhatsApp alerts */}
+      <div className="rounded-xl border border-neutral-200 p-4 mb-5">
+        <div className="text-sm font-medium text-neutral-700 mb-1">
+          וואטסאפ פרטי להתראות
+        </div>
+        <p className="text-xs text-neutral-500 mb-3">
+          כשהסוכן קובע פגישה, תקבל הודעת וואטסאפ למספר הזה. אתה תמיד מקבל גם התראה
+          במערכת.
+        </p>
+        <input
+          type="tel"
+          value={ownerPhone}
+          onChange={(e) => setOwnerPhone(e.target.value)}
+          placeholder="972501234567"
+          className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+          dir="ltr"
+        />
+        <div className="text-[11px] text-neutral-400 mt-1">
+          כולל קידומת מדינה, ללא + או רווחים (למשל 972501234567).
         </div>
       </div>
 

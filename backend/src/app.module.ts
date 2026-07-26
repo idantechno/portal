@@ -43,6 +43,7 @@ import { QuestionnaireModule } from './questionnaire/questionnaire.module';
 import { WebsiteFactsModule } from './website-facts/website-facts.module';
 import { BriefsModule } from './briefs/briefs.module';
 import { StrategiesModule } from './strategies/strategies.module';
+import { AppointmentsModule } from './appointments/appointments.module';
 import { WorkspaceAgentModule } from './agents/workspace/workspace-agent.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
@@ -127,6 +128,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
     QuestionnaireModule,
     BriefsModule,
     StrategiesModule,
+    AppointmentsModule,
     WebsiteFactsModule,
   ],
   controllers: [AppController, HealthController],

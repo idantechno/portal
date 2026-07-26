@@ -3,6 +3,21 @@ import { api } from "./client";
 export type Channel = "web" | "whatsapp" | "instagram";
 export type ConversationStatus = "bot" | "human" | "closed";
 export type MessageRole = "customer" | "bot" | "agent" | "system" | "tool";
+export type ContactStatus = "lead" | "customer";
+
+export interface CustomerContact {
+  id: string;
+  businessId: string;
+  channel: Channel;
+  externalId: string;
+  displayName: string | null;
+  phone: string | null;
+  email: string | null;
+  status: ContactStatus;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export interface Conversation {
   id: string;
@@ -15,6 +30,18 @@ export interface Conversation {
   lastMessageAt: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Resolved contact card, attached by the list/detail endpoints. */
+  contact?: CustomerContact | null;
+}
+
+export interface ContactCard {
+  contact: CustomerContact;
+  conversations: Conversation[];
+  stats: {
+    messageCount: number;
+    firstMessageAt: string | null;
+    lastMessageAt: string | null;
+  };
 }
 
 export interface Message {
@@ -80,6 +107,36 @@ export const conversationsApi = {
     api
       .post<Conversation>(
         `/businesses/${businessId}/conversations/${conversationId}/close`,
+      )
+      .then((r) => r.data),
+};
+
+export interface ContactListItem extends CustomerContact {
+  lastActivityAt: string | null;
+}
+
+export const contactsApi = {
+  list: (businessId: string, status: ContactStatus) =>
+    api
+      .get<ContactListItem[]>(`/businesses/${businessId}/contacts`, {
+        params: { status },
+      })
+      .then((r) => r.data),
+
+  card: (businessId: string, contactId: string) =>
+    api
+      .get<ContactCard>(`/businesses/${businessId}/contacts/${contactId}`)
+      .then((r) => r.data),
+
+  update: (
+    businessId: string,
+    contactId: string,
+    patch: Partial<Pick<CustomerContact, "status" | "notes" | "displayName">>,
+  ) =>
+    api
+      .patch<CustomerContact>(
+        `/businesses/${businessId}/contacts/${contactId}`,
+        patch,
       )
       .then((r) => r.data),
 };

@@ -70,6 +70,8 @@ export interface Business {
   branding?: BusinessBranding | null;
   onboarding?: BusinessOnboarding | null;
   whatsappAgent?: WhatsappAgentConfig | null;
+  /** Owner's private phone (E.164) for WhatsApp alerts like new bookings. */
+  ownerPhone?: string | null;
   createdAt: string;
   updatedAt: string;
   /** The current caller's role in this business (null for platform staff). */

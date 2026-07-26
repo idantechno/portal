@@ -94,6 +94,14 @@ export class Business {
   @Column({ type: 'jsonb', name: 'whatsapp_agent', nullable: true })
   whatsappAgent!: WhatsappAgentConfig | null;
 
+  /**
+   * Owner's private phone (E.164, e.g. 972501234567) for direct WhatsApp
+   * alerts such as "an appointment was booked". Distinct from the business's
+   * customer-facing WABA number.
+   */
+  @Column({ type: 'varchar', length: 32, name: 'owner_phone', nullable: true })
+  ownerPhone!: string | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 

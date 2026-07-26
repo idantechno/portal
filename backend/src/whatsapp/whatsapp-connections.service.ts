@@ -252,4 +252,55 @@ export class WhatsappConnectionsService {
     }
     return conn;
   }
+
+  /**
+   * Sends a plain-text WhatsApp message from the business's number to an
+   * arbitrary recipient (e.g. the business owner's private number for an
+   * appointment alert) — not tied to a customer conversation.
+   *
+   * NOTE: WhatsApp only allows free-form text inside the 24-hour customer
+   * service window. A cold owner alert (owner hasn't messaged the business
+   * number recently) needs an approved *template* message instead; this text
+   * send will be rejected by WhatsApp in that case. Wire a template here once
+   * one is approved. Best-effort: throws on failure for the caller to swallow.
+   */
+  async sendText(
+    businessId: string,
+    to: string,
+    body: string,
+  ): Promise<{ externalMessageId?: string }> {
+    const conn = await this.findByBusinessId(businessId);
+    if (!conn || conn.status !== 'active') {
+      throw new NotFoundException(
+        'WhatsApp is not connected for this business',
+      );
+    }
+    const apiKey = this.decryptAccessToken(conn);
+    const base =
+      this.cfg.get<string>('DIALOG360_API_BASE') ??
+      'https://waba-v2.360dialog.io';
+    const url = `${base.replace(/\/$/, '')}/messages`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'D360-API-KEY': apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to,
+        type: 'text',
+        text: { body, preview_url: false },
+      }),
+    });
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '');
+      throw new Error(
+        `WhatsApp owner-send failed (HTTP ${res.status}): ${errBody.slice(0, 300)}`,
+      );
+    }
+    const json = (await res.json()) as { messages?: Array<{ id?: string }> };
+    return { externalMessageId: json.messages?.[0]?.id };
+  }
 }

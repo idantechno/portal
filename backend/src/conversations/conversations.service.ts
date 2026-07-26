@@ -324,4 +324,44 @@ export class ConversationsService {
   ): Promise<Conversation> {
     return this.setStatus(businessId, conversationId, ConversationStatus.Bot);
   }
+
+  /** All conversations belonging to a contact (usually one per channel). */
+  listByContact(
+    businessId: string,
+    contactId: string,
+  ): Promise<Conversation[]> {
+    return this.conversations.find({
+      where: { businessId, customerContactId: contactId },
+      order: { lastMessageAt: 'DESC', createdAt: 'DESC' },
+    });
+  }
+
+  /** Lifetime engagement stats for a contact, for the contact card header. */
+  async contactStats(
+    businessId: string,
+    contactId: string,
+  ): Promise<{
+    messageCount: number;
+    firstMessageAt: Date | null;
+    lastMessageAt: Date | null;
+  }> {
+    const row = await this.messages
+      .createQueryBuilder('m')
+      .select('COUNT(*)', 'count')
+      .addSelect('MIN(m.created_at)', 'first')
+      .addSelect('MAX(m.created_at)', 'last')
+      .where('m.business_id = :businessId', { businessId })
+      .andWhere(
+        'm.conversation_id IN ' +
+          '(SELECT id FROM conversations WHERE business_id = :businessId ' +
+          'AND customer_contact_id = :contactId)',
+        { contactId },
+      )
+      .getRawOne<{ count: string; first: Date | null; last: Date | null }>();
+    return {
+      messageCount: Number(row?.count ?? 0),
+      firstMessageAt: row?.first ?? null,
+      lastMessageAt: row?.last ?? null,
+    };
+  }
 }

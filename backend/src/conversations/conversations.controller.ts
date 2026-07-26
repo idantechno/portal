@@ -12,34 +12,56 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { BusinessScopeGuard } from '../businesses/guards/business-scope.guard';
 import { ConversationsService } from './conversations.service';
+import { CustomerContactsService } from './customer-contacts.service';
+import { CustomerContact } from './customer-contact.entity';
+import { Conversation } from './conversation.entity';
 import { ChannelRegistry } from '../channels/channel-registry.service';
 import { MessageRole } from '../common/enums/message-role.enum';
 import { ConversationStatus } from '../common/enums/conversation-status.enum';
 import { ListConversationsQueryDto } from './dto/list-conversations.dto';
 import { SendAgentReplyDto } from './dto/send-agent-reply.dto';
 
+/** Conversation plus the resolved contact card (status/name/notes). */
+type ConversationView = Conversation & { contact: CustomerContact | null };
+
 @UseGuards(BusinessScopeGuard)
 @Controller('businesses/:businessId/conversations')
 export class ConversationsController {
   constructor(
     private readonly conversations: ConversationsService,
+    private readonly contacts: CustomerContactsService,
     private readonly channels: ChannelRegistry,
   ) {}
 
   @Get()
-  list(
+  async list(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Query() query: ListConversationsQueryDto,
-  ) {
-    return this.conversations.list(businessId, query);
+  ): Promise<ConversationView[]> {
+    const rows = await this.conversations.list(businessId, query);
+    const contacts = await this.contacts.findManyScoped(
+      businessId,
+      rows.map((c) => c.customerContactId).filter(Boolean),
+    );
+    return rows.map((c) => ({
+      ...c,
+      contact: contacts.get(c.customerContactId) ?? null,
+    }));
   }
 
   @Get(':conversationId')
-  get(
+  async get(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('conversationId', ParseUUIDPipe) conversationId: string,
-  ) {
-    return this.conversations.findByIdScoped(businessId, conversationId);
+  ): Promise<ConversationView> {
+    const conv = await this.conversations.findByIdScoped(
+      businessId,
+      conversationId,
+    );
+    const contact = conv.customerContactId
+      ? await this.contacts.findByIdScoped(businessId, conv.customerContactId)
+      : null;
+    return { ...conv, contact };
   }
 
   @Get(':conversationId/messages')

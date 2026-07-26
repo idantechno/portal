@@ -116,6 +116,9 @@ export class BusinessesService {
       // Replace wholesale — the settings screen always sends the full config.
       business.whatsappAgent = dto.whatsappAgent;
     }
+    if (dto.ownerPhone !== undefined) {
+      business.ownerPhone = dto.ownerPhone.trim() || null;
+    }
     return this.businesses.save(business);
   }
 

@@ -170,4 +170,9 @@ export class UpdateBusinessDto {
   @ValidateNested()
   @Type(() => WhatsappAgentDto)
   whatsappAgent?: WhatsappAgentDto;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  ownerPhone?: string;
 }

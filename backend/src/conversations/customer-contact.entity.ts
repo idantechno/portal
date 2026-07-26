@@ -7,6 +7,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { Channel } from '../common/enums/channel.enum';
+import { ContactStatus } from '../common/enums/contact-status.enum';
 
 /**
  * A unique end-user per (business, channel, external_id) — e.g. one WhatsApp
@@ -44,6 +45,23 @@ export class CustomerContact {
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   email!: string | null;
+
+  /**
+   * Relationship stage. Drives how the agent addresses this person — a paying
+   * customer is greeted with familiarity and priority, a lead is nurtured.
+   * Defaults to `lead`; an operator (or the agent, once it captures a sale)
+   * promotes them to `customer`.
+   */
+  @Column({
+    type: 'enum',
+    enum: ContactStatus,
+    default: ContactStatus.Lead,
+  })
+  status!: ContactStatus;
+
+  /** Free-text operator notes about this person (allergies, preferences, …). */
+  @Column({ type: 'text', nullable: true })
+  notes!: string | null;
 
   @Column({ type: 'jsonb', default: () => "'{}'::jsonb" })
   metadata!: Record<string, unknown>;

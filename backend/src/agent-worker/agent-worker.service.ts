@@ -1,18 +1,33 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { createSdkMcpServer } from '@anthropic-ai/claude-agent-sdk';
 import { ConversationsService } from '../conversations/conversations.service';
+import { CustomerContactsService } from '../conversations/customer-contacts.service';
 import { BusinessesService } from '../businesses/businesses.service';
 import { FilesystemService } from '../context-files/filesystem.service';
 import { BusinessContextService } from '../context-files/business-context.service';
 import { ChannelRegistry } from '../channels/channel-registry.service';
 import { LeadsService } from '../leads/leads.service';
+import { AppointmentsService } from '../appointments/appointments.service';
+import { WaitlistService } from '../appointments/waitlist.service';
 import { AgentRunner } from '../agents/agent-runner.service';
 import { AgentsService } from '../agents/agents.service';
 import { ConversationStatus } from '../common/enums/conversation-status.enum';
 import { MessageRole } from '../common/enums/message-role.enum';
 import { AgentRunJobData } from './agent-worker.constants';
-import { buildSystemPrompt, buildUserPrompt } from './prompt';
-import { captureLeadTool, escalateToHumanTool } from './tools';
+import {
+  buildAppointmentsBlock,
+  buildContactBlock,
+  buildSystemPrompt,
+  buildUserPrompt,
+} from './prompt';
+import {
+  cancelAppointmentTool,
+  captureLeadTool,
+  escalateToHumanTool,
+  joinWaitlistTool,
+  rescheduleAppointmentTool,
+  scheduleAppointmentTool,
+} from './tools';
 
 const MCP_SERVER_NAME = 'portal';
 const HISTORY_LIMIT = 50;
@@ -23,8 +38,11 @@ export class AgentWorkerService {
 
   constructor(
     private readonly conversations: ConversationsService,
+    private readonly contacts: CustomerContactsService,
     private readonly businesses: BusinessesService,
     private readonly leads: LeadsService,
+    private readonly appointments: AppointmentsService,
+    private readonly waitlist: WaitlistService,
     private readonly filesystem: FilesystemService,
     private readonly businessContext: BusinessContextService,
     private readonly channels: ChannelRegistry,
@@ -74,24 +92,86 @@ export class AgentWorkerService {
       channel: conversation.channel,
       leads: this.leads,
       conversations: this.conversations,
+      appointments: this.appointments,
+      waitlist: this.waitlist,
     };
 
     const mcpServer = createSdkMcpServer({
       name: MCP_SERVER_NAME,
       version: '0.1.0',
-      tools: [captureLeadTool(toolCtx), escalateToHumanTool(toolCtx)],
+      tools: [
+        captureLeadTool(toolCtx),
+        escalateToHumanTool(toolCtx),
+        scheduleAppointmentTool(toolCtx),
+        joinWaitlistTool(toolCtx),
+        cancelAppointmentTool(toolCtx),
+        rescheduleAppointmentTool(toolCtx),
+      ],
     });
 
     const contextBlock = await this.businessContext.promptBlock(business.id);
 
+    // Personalisation: who is on the other end (paying customer vs lead) and
+    // whether we've spoken before, so the agent addresses them by name and
+    // history instead of treating every message as a cold first contact.
+    const contact = conversation.customerContactId
+      ? await this.contacts.findByIdScoped(
+          business.id,
+          conversation.customerContactId,
+        )
+      : null;
+    const stats = await this.conversations.contactStats(
+      business.id,
+      conversation.customerContactId,
+    );
+    const contactBlock = buildContactBlock({
+      contact,
+      messageCount: stats.messageCount,
+      firstMessageAt: stats.firstMessageAt,
+    });
+
+    // Appointment awareness: the customer's own upcoming appointments (so the
+    // agent can cancel/move the right one) and any freed-slot offer awaiting
+    // their answer (so a bare "yes" books it). Both scoped to this contact.
+    const [upcoming, pendingOffer] = await Promise.all([
+      this.appointments.listUpcomingForContact(
+        business.id,
+        conversation.customerContactId,
+      ),
+      this.waitlist.findOpenOfferForContact(
+        business.id,
+        conversation.customerContactId,
+      ),
+    ]);
+    const appointmentsBlock = buildAppointmentsBlock({
+      upcoming,
+      pendingOffer:
+        pendingOffer && pendingOffer.offeredSlotStart
+          ? {
+              service: pendingOffer.service,
+              offeredSlotStart: pendingOffer.offeredSlotStart,
+              moveAppointmentId: pendingOffer.moveAppointmentId,
+            }
+          : null,
+    });
+
     const { finalText } = await this.runner.run({
-      systemPrompt: buildSystemPrompt(business, contextBlock),
+      systemPrompt: buildSystemPrompt(
+        business,
+        contextBlock,
+        contactBlock,
+        appointmentsBlock,
+      ),
       prompt: buildUserPrompt(history),
       cwd,
       mcpServers: { [MCP_SERVER_NAME]: mcpServer },
       allowedMcpTools: [
         `mcp__${MCP_SERVER_NAME}__capture_lead`,
         `mcp__${MCP_SERVER_NAME}__escalate_to_human`,
+        `mcp__${MCP_SERVER_NAME}__schedule_appointment`,
+        `mcp__${MCP_SERVER_NAME}__join_waitlist`,
+        `mcp__${MCP_SERVER_NAME}__cancel_appointment`,
+        `mcp__${MCP_SERVER_NAME}__reschedule_appointment`,
       ],
       runLabel: `conversation=${conversation.id}`,
     });

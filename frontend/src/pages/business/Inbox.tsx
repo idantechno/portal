@@ -8,15 +8,18 @@ import {
   conversationsApi,
   type Conversation,
   type ConversationStatus,
+  type ContactStatus,
   type Message,
   type MessageRole,
 } from "../../api/conversations";
 import { useAuthStore } from "../../store/auth";
 import { apiErrorMessage } from "../../api/client";
+import { businessesApi } from "../../api/businesses";
 import { Button, Spinner, Textarea } from "../../components/ui";
 import { Icon } from "../../components/icons";
 import type { IconName } from "../../components/icons";
 import AgentScheduleSettings from "./AgentScheduleSettings";
+import ContactPanel from "./ContactPanel";
 
 type Tab = "all" | "bot" | "human" | "closed";
 
@@ -49,6 +52,80 @@ function channelIcon(channel: Conversation["channel"]): IconName {
   if (channel === "whatsapp") return "whatsapp";
   if (channel === "instagram") return "instagram";
   return "chat";
+}
+
+function contactStatusBadge(
+  status: ContactStatus,
+  t: (k: string) => string,
+) {
+  const isCustomer = status === "customer";
+  const tone = isCustomer
+    ? "bg-teal-100 text-teal-800"
+    : "bg-amber-100 text-amber-800";
+  const label = isCustomer
+    ? t("inbox.contactCustomer")
+    : t("inbox.contactLead");
+  return (
+    <span
+      className={`inline-block rounded-full text-[10px] px-2 py-0.5 font-medium ${tone}`}
+    >
+      {label}
+    </span>
+  );
+}
+
+/** Display label for a thread: the person's name if known, else their number. */
+function contactLabel(c: Conversation): string {
+  return c.contact?.displayName?.trim() || c.externalThreadId;
+}
+
+/** Visible label + colour for the WhatsApp agent's current mode. */
+function agentModeMeta(mode: string | undefined): {
+  label: string;
+  tone: string;
+  dot: string;
+} {
+  switch (mode) {
+    case "off":
+      return {
+        label: "כבוי",
+        tone: "bg-neutral-100 text-neutral-600 hover:bg-neutral-200",
+        dot: "bg-neutral-400",
+      };
+    case "scheduled":
+      return {
+        label: "מתוזמן",
+        tone: "bg-amber-100 text-amber-800 hover:bg-amber-200",
+        dot: "bg-amber-500",
+      };
+    default:
+      return {
+        label: "פעיל",
+        tone: "bg-green-100 text-green-800 hover:bg-green-200",
+        dot: "bg-green-500",
+      };
+  }
+}
+
+/** Calendar-day key (local) for grouping messages under date separators. */
+function dayKey(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
+function dayLabel(iso: string, lang: string, t: (k: string) => string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const key = dayKey(iso);
+  if (key === dayKey(now.toISOString())) return t("inbox.today");
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (key === dayKey(yesterday.toISOString())) return t("inbox.yesterday");
+  return d.toLocaleDateString(lang === "he" ? "he-IL" : "en-US", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 }
 
 function timeShort(iso: string | null, lang: string): string {
@@ -90,6 +167,7 @@ export default function Inbox() {
   const [error, setError] = useState<string | null>(null);
   const [socketReady, setSocketReady] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showContact, setShowContact] = useState(false);
   const socketRef = useRef<Socket | null>(null);
   const threadEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -100,6 +178,13 @@ export default function Inbox() {
     enabled: Boolean(businessId),
     refetchInterval: socketReady ? false : 15_000,
   });
+
+  const business = useQuery({
+    queryKey: ["business", businessId],
+    queryFn: () => businessesApi.get(businessId),
+    enabled: Boolean(businessId),
+  });
+  const agentMode = agentModeMeta(business.data?.whatsappAgent?.mode);
 
   const messages = useQuery({
     queryKey: ["messages", businessId, selectedId],
@@ -212,14 +297,18 @@ export default function Inbox() {
           <div className="flex items-center justify-between mb-3">
             <h1 className="text-lg font-bold">{t("inbox.title")}</h1>
             <div className="flex items-center gap-2">
+              {/* Agent mode — always visible, click to change (schedule/off). */}
               <button
                 type="button"
                 onClick={() => setShowSettings(true)}
-                className="rounded-lg p-1.5 text-neutral-500 hover:bg-neutral-100"
+                className={`inline-flex items-center gap-1.5 rounded-full ps-2 pe-2.5 py-1 text-xs font-medium transition ${agentMode.tone}`}
                 title={t("inbox.agentSettings")}
-                aria-label={t("inbox.agentSettings")}
               >
-                <Icon name="settings" size={18} />
+                <span
+                  className={`inline-block size-2 rounded-full ${agentMode.dot}`}
+                />
+                <span>סוכן: {agentMode.label}</span>
+                <Icon name="settings" size={14} />
               </button>
               <span
                 className={`inline-flex items-center gap-1 text-[11px] ${
@@ -278,15 +367,21 @@ export default function Inbox() {
                       size={17}
                       className="text-navy-400"
                     />
-                    <span className="font-medium text-sm truncate" dir="ltr">
-                      {c.externalThreadId}
+                    <span
+                      className="font-medium text-sm truncate"
+                      dir={c.contact?.displayName ? "auto" : "ltr"}
+                    >
+                      {contactLabel(c)}
                     </span>
-                    <span className="ms-auto">
+                    <span className="ms-auto shrink-0">
                       {statusBadge(c.status, t)}
                     </span>
                   </div>
-                  <div className="text-[11px] text-neutral-500">
-                    {timeShort(c.lastMessageAt ?? c.createdAt, i18n.language)}
+                  <div className="flex items-center gap-2">
+                    {c.contact && contactStatusBadge(c.contact.status, t)}
+                    <span className="text-[11px] text-neutral-500">
+                      {timeShort(c.lastMessageAt ?? c.createdAt, i18n.language)}
+                    </span>
                   </div>
                 </button>
               </li>
@@ -324,14 +419,32 @@ export default function Inbox() {
                 size={19}
                 className="text-navy-400"
               />
-              <div className="flex-1 min-w-0">
-                <div className="font-semibold text-sm truncate" dir="ltr">
-                  {selected.externalThreadId}
+              <button
+                type="button"
+                onClick={() => selected.contact && setShowContact(true)}
+                disabled={!selected.contact}
+                className="flex-1 min-w-0 text-start rounded-lg -mx-1 px-1 py-0.5 hover:bg-neutral-50 disabled:hover:bg-transparent"
+                title={t("inbox.contactOpenCard")}
+              >
+                <div className="flex items-center gap-2">
+                  <span
+                    className="font-semibold text-sm truncate"
+                    dir={selected.contact?.displayName ? "auto" : "ltr"}
+                  >
+                    {contactLabel(selected)}
+                  </span>
+                  {selected.contact &&
+                    contactStatusBadge(selected.contact.status, t)}
                 </div>
+                {selected.contact?.displayName && (
+                  <div className="text-[11px] text-neutral-500" dir="ltr">
+                    {selected.externalThreadId}
+                  </div>
+                )}
                 <div className="text-xs text-neutral-500">
                   {timeShort(selected.lastMessageAt, i18n.language)}
                 </div>
-              </div>
+              </button>
               {statusBadge(selected.status, t)}
               {selected.status === "human" && (
                 <Button
@@ -362,19 +475,32 @@ export default function Inbox() {
                     {t("common.loading")}
                   </div>
                 )}
-                {messages.data?.map((m) => (
-                  <div
-                    key={m.id}
-                    className={`max-w-[75%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap ${roleClass(
-                      m.role,
-                    )}`}
-                  >
-                    {m.content}
-                    <div className="text-[10px] opacity-70 mt-1">
-                      {timeShort(m.createdAt, i18n.language)}
+                {messages.data?.map((m, idx) => {
+                  const prev = messages.data![idx - 1];
+                  const showDay =
+                    !prev || dayKey(prev.createdAt) !== dayKey(m.createdAt);
+                  return (
+                    <div key={m.id} className="contents">
+                      {showDay && (
+                        <div className="self-center my-2">
+                          <span className="inline-block rounded-full bg-neutral-200/70 text-neutral-600 text-[11px] px-3 py-1">
+                            {dayLabel(m.createdAt, i18n.language, t)}
+                          </span>
+                        </div>
+                      )}
+                      <div
+                        className={`max-w-[75%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap ${roleClass(
+                          m.role,
+                        )}`}
+                      >
+                        {m.content}
+                        <div className="text-[10px] opacity-70 mt-1">
+                          {timeShort(m.createdAt, i18n.language)}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
                 <div ref={threadEndRef} />
               </div>
             </div>
@@ -423,6 +549,14 @@ export default function Inbox() {
       </div>
       {showSettings && (
         <AgentScheduleSettings onClose={() => setShowSettings(false)} />
+      )}
+      {showContact && selected?.contact && (
+        <ContactPanel
+          businessId={businessId}
+          contact={selected.contact}
+          phoneFallback={selected.externalThreadId}
+          onClose={() => setShowContact(false)}
+        />
       )}
     </div>
   );

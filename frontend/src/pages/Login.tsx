@@ -50,7 +50,7 @@ export default function Login() {
           <div className="text-sm text-navy-400 mt-1">{t("tagline")}</div>
         </div>
         <Card className="p-7">
-          <h1 className="text-xl font-semibold mb-6 text-navy-900">
+          <h1 className="text-xl mb-6 text-navy-900">
             {t("auth.login")}
           </h1>
           <form className="space-y-4" onSubmit={submit}>

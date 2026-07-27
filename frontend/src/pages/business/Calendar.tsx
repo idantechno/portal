@@ -4,10 +4,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiErrorMessage } from "../../api/client";
 import { tasksApi } from "../../api/tasks";
 import { calendarApi } from "../../api/calendar";
+import { appointmentsApi } from "../../api/appointments";
 import { Button, Card, FormError, Spinner } from "../../components/ui";
 import { Icon } from "../../components/icons";
 
-type ItemKind = "reminder" | "google";
+type ItemKind = "reminder" | "google" | "appointment";
 interface CalItem {
   id: string;
   title: string;
@@ -97,6 +98,19 @@ export default function Calendar() {
       ),
     enabled: Boolean(businessId) && connected,
   });
+  // Appointments the agent (or operator) booked — meetings, calls, etc.
+  // These are calendar entries in their own right and must show up here, not
+  // only in the appointments screen.
+  const appointments = useQuery({
+    queryKey: ["appointments", businessId, gridStart.toISOString()],
+    queryFn: () =>
+      appointmentsApi.list(businessId, {
+        from: gridStart.toISOString(),
+        to: rangeTo.toISOString(),
+        status: "scheduled",
+      }),
+    enabled: Boolean(businessId),
+  });
 
   const items: CalItem[] = useMemo(() => {
     const out: CalItem[] = [];
@@ -111,6 +125,14 @@ export default function Calendar() {
         });
       }
     }
+    for (const a of appointments.data ?? []) {
+      out.push({
+        id: `a-${a.id}`,
+        title: a.customerName ? `${a.title} · ${a.customerName}` : a.title,
+        date: new Date(a.startAt),
+        kind: "appointment",
+      });
+    }
     for (const e of google.data ?? []) {
       out.push({
         id: `g-${e.id}`,
@@ -120,7 +142,7 @@ export default function Calendar() {
       });
     }
     return out;
-  }, [tasks.data, google.data]);
+  }, [tasks.data, appointments.data, google.data]);
 
   const itemsOn = (d: Date) =>
     items
@@ -130,6 +152,7 @@ export default function Calendar() {
   const invalidate = () => {
     void qc.invalidateQueries({ queryKey: ["tasks", businessId] });
     void qc.invalidateQueries({ queryKey: ["calendar", "google", businessId] });
+    void qc.invalidateQueries({ queryKey: ["appointments", businessId] });
   };
 
   const create = useMutation({
@@ -276,7 +299,9 @@ export default function Calendar() {
                       className={`truncate rounded px-1 py-0.5 text-[10px] leading-tight ${
                         it.kind === "google"
                           ? "bg-teal-100 text-teal-800"
-                          : "bg-brand-100 text-brand-800"
+                          : it.kind === "appointment"
+                            ? "bg-coral-100 text-coral-800"
+                            : "bg-brand-100 text-brand-800"
                       }`}
                     >
                       {it.title}
@@ -315,7 +340,11 @@ export default function Calendar() {
               <div key={it.id} className="flex items-center gap-3 px-4 py-2.5">
                 <span
                   className={`h-2 w-2 rounded-full shrink-0 ${
-                    it.kind === "google" ? "bg-teal-500" : "bg-brand-500"
+                    it.kind === "google"
+                      ? "bg-teal-500"
+                      : it.kind === "appointment"
+                        ? "bg-coral-500"
+                        : "bg-brand-500"
                   }`}
                 />
                 <div className="text-xs text-navy-400 tabular-nums w-12" dir="ltr">
@@ -328,7 +357,11 @@ export default function Calendar() {
                   {it.title}
                 </div>
                 <span className="text-[10px] text-navy-400 shrink-0">
-                  {it.kind === "google" ? "Google" : "תזכורת"}
+                  {it.kind === "google"
+                    ? "Google"
+                    : it.kind === "appointment"
+                      ? "פגישה"
+                      : "תזכורת"}
                 </span>
                 {it.taskId && (
                   <button

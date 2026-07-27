@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { tasksApi } from "../../api/tasks";
+import { appointmentsApi } from "../../api/appointments";
+import { calendarApi } from "../../api/calendar";
 import { notificationsApi } from "../../api/notifications";
 import { businessesApi } from "../../api/businesses";
 import { billingApi } from "../../api/billing";
@@ -48,6 +50,39 @@ export default function Home() {
     queryFn: () => tasksApi.list(businessId),
     enabled: Boolean(businessId),
   });
+  // Range for the "coming week" brief. Computed once per mount so the query
+  // keys stay stable across re-renders.
+  const weekRange = useMemo(() => {
+    const from = new Date();
+    const to = new Date(from.getTime() + 7 * 24 * 60 * 60 * 1000);
+    return { fromISO: from.toISOString(), toISO: to.toISOString() };
+  }, []);
+  const appointments = useQuery({
+    queryKey: ["appointments", businessId, "week"],
+    queryFn: () =>
+      appointmentsApi.list(businessId, {
+        from: weekRange.fromISO,
+        to: weekRange.toISO,
+        status: "scheduled",
+      }),
+    enabled: Boolean(businessId),
+  });
+  const calStatus = useQuery({
+    queryKey: ["calendar", "status", businessId],
+    queryFn: () => calendarApi.status(businessId),
+    enabled: Boolean(businessId),
+  });
+  const googleConnected = calStatus.data?.connected ?? false;
+  const googleEvents = useQuery({
+    queryKey: ["calendar", "google", businessId, "week"],
+    queryFn: () =>
+      calendarApi.googleEvents(
+        businessId,
+        weekRange.fromISO,
+        weekRange.toISO,
+      ),
+    enabled: Boolean(businessId) && googleConnected,
+  });
   const notifs = useQuery({
     queryKey: ["notifications", businessId],
     queryFn: () => notificationsApi.list(businessId),
@@ -71,21 +106,35 @@ export default function Home() {
   });
 
   const allTasks = useMemo(() => tasks.data ?? [], [tasks.data]);
+  // The weekly brief merges every dated source the calendar knows about:
+  // system reminders (tasks with a due date), booked appointments, and Google
+  // Calendar events. Reading tasks alone made the home brief say "השבוע פנוי"
+  // while the calendar showed real entries.
   const weekEvents = useMemo(() => {
     const now = new Date().getTime();
     const weekAhead = now + 7 * 24 * 60 * 60 * 1000;
-    return allTasks
-      .filter((t) => {
-        if (!t.dueAt || t.status === "done") return false;
-        const due = new Date(t.dueAt).getTime();
-        return due >= now && due <= weekAhead;
-      })
-      .sort(
-        (a, b) =>
-          new Date(a.dueAt as string).getTime() -
-          new Date(b.dueAt as string).getTime(),
-      );
-  }, [allTasks]);
+    const out: { id: string; title: string; dateISO: string }[] = [];
+    for (const t of allTasks) {
+      if (!t.dueAt || t.status === "done") continue;
+      const due = new Date(t.dueAt).getTime();
+      if (due >= now && due <= weekAhead)
+        out.push({ id: `t-${t.id}`, title: t.title, dateISO: t.dueAt });
+    }
+    for (const a of appointments.data ?? []) {
+      const start = new Date(a.startAt).getTime();
+      if (start >= now && start <= weekAhead)
+        out.push({ id: `a-${a.id}`, title: a.title, dateISO: a.startAt });
+    }
+    for (const e of googleEvents.data ?? []) {
+      const start = new Date(e.start).getTime();
+      if (start >= now && start <= weekAhead)
+        out.push({ id: `g-${e.id}`, title: e.title, dateISO: e.start });
+    }
+    return out.sort(
+      (a, b) =>
+        new Date(a.dateISO).getTime() - new Date(b.dateISO).getTime(),
+    );
+  }, [allTasks, appointments.data, googleEvents.data]);
 
   const paidInvoices = useMemo(
     () => (invoices.data ?? []).filter((i) => i.status === "paid"),
@@ -315,7 +364,7 @@ export default function Home() {
                     className="text-xs text-navy-500 tabular-nums w-16 shrink-0"
                     dir="ltr"
                   >
-                    {new Date(t.dueAt as string).toLocaleDateString("he-IL", {
+                    {new Date(t.dateISO).toLocaleDateString("he-IL", {
                       day: "2-digit",
                       month: "2-digit",
                     })}

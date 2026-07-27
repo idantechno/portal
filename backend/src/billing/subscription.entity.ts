@@ -14,7 +14,11 @@ export type SubscriptionStatus =
   | 'canceled';
 
 /** How the subscription is billed/collected. */
-export type BillingProviderName = 'manual' | 'stripe' | 'greeninvoice';
+export type BillingProviderName =
+  | 'manual'
+  | 'stripe'
+  | 'greeninvoice'
+  | 'morning';
 
 /** One row per business — its current plan and billing status. */
 @Entity({ name: 'subscriptions' })

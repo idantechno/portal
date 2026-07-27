@@ -8,11 +8,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Subscription } from './subscription.entity';
 import { Invoice, InvoiceLineItem } from './invoice.entity';
-import { getPlan, PLAN_CATALOG } from './billing-plans';
-import {
-  PlanCapability,
-  planCapabilities,
-} from './plan-capabilities';
+import { BillingPlan, getPlan, PLAN_CATALOG } from './billing-plans';
+import { PlanCapability, planCapabilities } from './plan-capabilities';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 
 /**
@@ -153,6 +150,32 @@ export class BillingService {
     const sub = await this.getSubscription(businessId);
     sub.planCode = planCode;
     sub.status = 'active';
+    return this.subscriptions.save(sub);
+  }
+
+  /**
+   * Map a paid amount (in agorot) back to the plan it corresponds to. GROW
+   * payment links are shared per plan and the plan isn't in the webhook, so the
+   * amount is how we recover which plan was bought. Returns undefined if no plan
+   * matches — the caller then refuses to activate rather than guess.
+   */
+  planForAmountCents(amountCents: number): BillingPlan | undefined {
+    return PLAN_CATALOG.find(
+      (p) => p.priceCents > 0 && p.priceCents === amountCents,
+    );
+  }
+
+  /** Activate/upgrade a subscription after a successful GROW/morning payment. */
+  async activateFromMorning(
+    businessId: string,
+    planCode: string,
+    ref: string | null,
+  ): Promise<Subscription> {
+    const sub = await this.getSubscription(businessId);
+    sub.planCode = planCode;
+    sub.status = 'active';
+    sub.provider = 'morning';
+    sub.providerRef = ref;
     return this.subscriptions.save(sub);
   }
 

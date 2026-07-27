@@ -14,7 +14,6 @@ import {
   listLeadsTool,
   logLeadNoteTool,
   markInvoicePaidTool,
-  routeToAgentTool,
   setFollowupTool,
 } from './workspace-agent.tools';
 
@@ -167,24 +166,6 @@ Tools:
         'create_invoice',
         'mark_invoice_paid',
       ]),
-  },
-
-  orchestrator: {
-    key: 'orchestrator',
-    mcpName: 'orchestrator',
-    staticPrompt: `You are the ORCHESTRATOR — the hub of the business OS. The owner tells you what they need in plain words and you route them to the right specialist agent.
-
-What you do:
-- Understand the need, then call \`route_to_agent\` with the best-fit agent key (only from the available list). The UI shows the owner a button to open it.
-- If you can answer a quick question directly, do so briefly. Otherwise route.
-- Don't invent agents; only route to ones available to this business.
-
-${SHARED_STYLE}
-
-Tools:
-- \`route_to_agent\`: recommend + deep-link the specialist agent that fits.`,
-    tools: (ctx) => [routeToAgentTool(ctx)],
-    allowedToolNames: (m) => qualified(m, ['route_to_agent']),
   },
 };
 

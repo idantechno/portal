@@ -42,6 +42,13 @@ export default function AgentWorkspace() {
     return <Navigate to={`/app/businesses/${businessId}/inbox`} replace />;
   }
 
+  // "orchestrator" was folded into the Main agent — keep old links/bookmarks alive.
+  if (agentKey === "orchestrator") {
+    return (
+      <Navigate to={`/app/businesses/${businessId}/agents/main`} replace />
+    );
+  }
+
   const Bespoke = BESPOKE[agentKey];
   if (Bespoke) return <Bespoke businessId={businessId} />;
 

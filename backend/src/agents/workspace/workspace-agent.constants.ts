@@ -12,7 +12,6 @@ export const WORKSPACE_AGENT_KEYS = [
   'crm',
   'quote',
   'accounting',
-  'orchestrator',
 ] as const;
 
 export type WorkspaceAgentKey = (typeof WORKSPACE_AGENT_KEYS)[number];

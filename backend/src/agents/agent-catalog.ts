@@ -5,15 +5,15 @@
  * table by an admin; this file is just the source-of-truth list of what exists.
  *
  * This roster is the target architecture of the Portal "Business OS": Meta's
- * WhatsApp agent answers at the edge (ingested, not built here); the Portal
- * Orchestrator is the hub that reads context and dispatches to the specialized
- * agents below. `status: 'soon'` agents are catalogued (so the vision is visible
- * and admins can pre-grant) but their generation flow may still be a stub.
+ * WhatsApp agent answers at the edge (ingested, not built here); the Main agent
+ * ("הסוכן הראשי") is the always-on hub that reads context, dispatches to the
+ * specialized agents below, and escalates to staff. `status: 'soon'` agents are
+ * catalogued (so the vision is visible and admins can pre-grant) but their
+ * generation flow may still be a stub.
  */
 export const AGENT_KEYS = [
   'main',
   'chat',
-  'orchestrator',
   'sales',
   'crm',
   'documents',
@@ -56,9 +56,12 @@ export const AGENT_CATALOG: readonly AgentDefinition[] = [
     key: 'main',
     name: 'הסוכן הראשי',
     description:
-      'הכניסה למערכת: מכיר את כל הסוכנים, מפנה אותך לְמה שאתה צריך, ומעביר פניות לצוות.',
+      'הלב של המערכת: מבין מה אתה צריך, מנתב לסוכן הנכון, ומעביר פניות לצוות.',
     icon: 'compass',
-    defaultEnabled: false,
+    // The always-available entry point + router — never admin-gated (capability
+    // null below), so every business always has somewhere to start. Folds in the
+    // former "Portal Orchestrator", which did the same job with less.
+    defaultEnabled: true,
     status: 'live',
     pillar: 'orchestration',
   },
@@ -70,18 +73,6 @@ export const AGENT_CATALOG: readonly AgentDefinition[] = [
     defaultEnabled: false,
     status: 'live',
     pillar: 'conversations',
-  },
-  {
-    key: 'orchestrator',
-    name: 'Portal Orchestrator',
-    description:
-      'הלב של המערכת: קורא את ההקשר העסקי ומנתב כל משימה לסוכן המתאים.',
-    icon: 'compass',
-    // The router is the always-available entry point — never admin-gated, so a
-    // business always has somewhere to start and get pointed to the right agent.
-    defaultEnabled: true,
-    status: 'live',
-    pillar: 'orchestration',
   },
   {
     key: 'sales',
@@ -190,8 +181,7 @@ export const AGENT_REQUIRED_CAPABILITY: Record<
   AgentKey,
   import('../billing/plan-capabilities').PlanCapability | null
 > = {
-  orchestrator: null, // always-on router
-  main: 'chat', // entry agent — every paying tier
+  main: null, // always-on entry point + router (folds in the old orchestrator)
   chat: 'chat', // basic+
   crm: 'crm', // basic+
   documents: 'pro_agents', // growth+

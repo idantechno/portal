@@ -97,14 +97,4 @@ export const WORKSPACE_AGENT_UI: Record<string, WorkspaceAgentUiConfig> = {
     ],
     related: { label: "חיוב", to: "billing" },
   },
-  orchestrator: {
-    subtitle: "ספר מה אתה צריך — ואנתב אותך לסוכן הנכון.",
-    placeholder: "לדוגמה: אני צריך לגבות כסף מלקוח שמאחר.",
-    emptyTitle: "מאיפה נתחיל?",
-    emptyText:
-      "לא בטוח לאיזה סוכן לפנות? תאר לי במילים שלך מה אתה צריך, ואפנה אותך לסוכן המתאים עם כפתור פתיחה.",
-    quickActions: [
-      { label: "מאיפה להתחיל?", prompt: "אני חדש כאן — עזור לי להבין מאיפה להתחיל." },
-    ],
-  },
 };

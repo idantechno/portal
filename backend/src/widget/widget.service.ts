@@ -1,6 +1,7 @@
 import {
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -9,6 +10,7 @@ import { BusinessesService } from '../businesses/businesses.service';
 import { Business } from '../businesses/business.entity';
 import { ConversationsService } from '../conversations/conversations.service';
 import { CustomerContactsService } from '../conversations/customer-contacts.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { Channel } from '../common/enums/channel.enum';
 import { MessageRole } from '../common/enums/message-role.enum';
 import { ConversationStatus } from '../common/enums/conversation-status.enum';
@@ -58,11 +60,21 @@ function normalizeOrigin(value: string | null | undefined): string | null {
  */
 @Injectable()
 export class WidgetService {
+  private readonly log = new Logger(WidgetService.name);
+
   constructor(
     private readonly businesses: BusinessesService,
     private readonly contacts: CustomerContactsService,
     private readonly conversations: ConversationsService,
+    private readonly notifications: NotificationsService,
   ) {}
+
+  /** The business's configured allowlist, normalized (empty = not locked). */
+  private normalizedAllowlist(business: Business): string[] {
+    return (business.widgetAllowedOrigins ?? [])
+      .map((o) => normalizeOrigin(o))
+      .filter((o): o is string => o !== null);
+  }
 
   /**
    * Reject a widget request coming from a site the business hasn't authorized.
@@ -86,14 +98,77 @@ export class WidgetService {
     business: Business,
     req: WidgetRequestOrigin | undefined,
   ): void {
-    const allowed = (business.widgetAllowedOrigins ?? [])
-      .map((o) => normalizeOrigin(o))
-      .filter((o): o is string => o !== null);
+    const allowed = this.normalizedAllowlist(business);
     if (allowed.length === 0) return; // not configured → permissive
     const requestOrigin =
       normalizeOrigin(req?.origin) ?? normalizeOrigin(req?.referer);
     if (requestOrigin && allowed.includes(requestOrigin)) return;
     throw new ForbiddenException('This widget is not authorized for this site');
+  }
+
+  /**
+   * Watch which sites use a business's widget and raise an in-app notification
+   * (the cockpit bell) so the operator can spot — and manually block — abuse.
+   *
+   * - Locked mode (allowlist filled): a request from an origin NOT on the list
+   *   is alerted as a blocked attempt, then rejected by the caller with a 403.
+   * - Open mode (allowlist empty): the FIRST session from any given domain is
+   *   alerted as a new site — once per domain, not per session — so a stranger
+   *   embedding the widget surfaces without drowning the bell in noise.
+   *
+   * Never throws: monitoring must not break a real customer's chat.
+   */
+  private async monitorWidgetOrigin(
+    business: Business,
+    requestOrigin: string | null,
+  ): Promise<void> {
+    try {
+      const allowed = this.normalizedAllowlist(business);
+      if (allowed.length > 0) {
+        if (!requestOrigin || !allowed.includes(requestOrigin)) {
+          await this.raiseOriginAlert(business, requestOrigin, 'blocked');
+        }
+        return;
+      }
+      // Open mode: alert only the first time a domain appears.
+      if (
+        requestOrigin &&
+        !(await this.contacts.hasWebContactFromOrigin(
+          business.id,
+          requestOrigin,
+        ))
+      ) {
+        await this.raiseOriginAlert(business, requestOrigin, 'new');
+      }
+    } catch (err) {
+      this.log.warn(
+        `[widget] origin monitoring failed for business ${business.id}: ${String(err)}`,
+      );
+    }
+  }
+
+  private raiseOriginAlert(
+    business: Business,
+    requestOrigin: string | null,
+    kind: 'new' | 'blocked',
+  ): Promise<unknown> {
+    const domain = requestOrigin ?? 'מקור לא ידוע';
+    const title =
+      kind === 'blocked'
+        ? `נחסמה שיחת צ'אט מאתר לא מורשה: ${domain}`
+        : `אתר חדש התחיל להשתמש בצ'אט האתר: ${domain}`;
+    const body =
+      kind === 'blocked'
+        ? `מישהו ניסה להפעיל את צ'אט האתר שלך מ-${domain}, שאינו ברשימת הדומיינים המורשים. הבקשה נחסמה. אם זה אתר לגיטימי, הוסף אותו בהגדרות → ווידג'ט אתר.`
+        : `שיחת צ'אט חדשה נפתחה מהאתר ${domain}. אם אינך מזהה אותו, אפשר לנעול את הצ'אט לאתרים ידועים בלבד בהגדרות → ווידג'ט אתר.`;
+    return this.notifications.notify({
+      businessId: business.id,
+      type: 'system',
+      title,
+      body,
+      link: `/app/businesses/${business.id}/settings`,
+      channels: ['email'],
+    });
   }
 
   async createSession(
@@ -111,6 +186,10 @@ export class WidgetService {
     if (business.status === AccountStatus.Suspended) {
       throw new NotFoundException('Unknown widget public key');
     }
+    const requestOrigin =
+      normalizeOrigin(req?.origin) ?? normalizeOrigin(req?.referer);
+    // Monitor + alert BEFORE enforcing, so a blocked attempt still notifies.
+    await this.monitorWidgetOrigin(business, requestOrigin);
     this.assertOriginAllowed(business, req);
     const sessionToken = generateSessionToken();
     const contact = await this.contacts.upsert({
@@ -118,6 +197,9 @@ export class WidgetService {
       channel: Channel.Web,
       externalId: sessionToken,
       displayName: null,
+      // Stamp the source site so it's visible on the conversation and so a
+      // first-seen domain can be detected on the next session.
+      metadata: requestOrigin ? { origin: requestOrigin } : undefined,
     });
     const conversation = await this.conversations.findOrCreate({
       businessId: business.id,

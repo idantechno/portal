@@ -80,6 +80,25 @@ export class CustomerContactsService {
     return this.contacts.findOne({ where: { channel, externalId } });
   }
 
+  /**
+   * Has this business ever had a web-widget session from `origin` before?
+   * Used to alert only the FIRST time a new site starts using the widget,
+   * rather than on every session. `origin` is a normalized `scheme://host`.
+   */
+  async hasWebContactFromOrigin(
+    businessId: string,
+    origin: string,
+  ): Promise<boolean> {
+    const count = await this.contacts
+      .createQueryBuilder('c')
+      .where('c.business_id = :businessId', { businessId })
+      .andWhere('c.channel = :channel', { channel: Channel.Web })
+      .andWhere("c.metadata ->> 'origin' = :origin", { origin })
+      .limit(1)
+      .getCount();
+    return count > 0;
+  }
+
   /** Scoped lookup — never leak a contact across tenants. */
   async findByIdScoped(
     businessId: string,

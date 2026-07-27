@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import type { Request, Response, NextFunction } from 'express';
 import { DataSource } from 'typeorm';
 import { AppModule } from './app.module';
 import { Business } from './businesses/business.entity';
@@ -43,21 +44,24 @@ async function bootstrap() {
   // the security boundary: which sites may actually use a given widget is
   // enforced per-business in WidgetService via `widgetAllowedOrigins` (a 403),
   // not by CORS. Registered first so it wins for widget paths.
-  app.use(`/${apiPrefix}/widget`, (req, res, next) => {
-    const origin = req.headers.origin;
-    if (origin) {
-      res.setHeader('Access-Control-Allow-Origin', origin);
-      res.setHeader('Vary', 'Origin');
-    }
-    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    res.setHeader('Access-Control-Max-Age', '600');
-    if (req.method === 'OPTIONS') {
-      res.status(204).end();
-      return;
-    }
-    next();
-  });
+  app.use(
+    `/${apiPrefix}/widget`,
+    (req: Request, res: Response, next: NextFunction) => {
+      const origin = req.headers.origin;
+      if (origin) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Vary', 'Origin');
+      }
+      res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+      res.setHeader('Access-Control-Max-Age', '600');
+      if (req.method === 'OPTIONS') {
+        res.status(204).end();
+        return;
+      }
+      next();
+    },
+  );
 
   // Auth is via bearer tokens (Authorization header), not cookies, so we do
   // NOT enable credentials — a '*'+credentials combo is contradictory and

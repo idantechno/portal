@@ -304,13 +304,22 @@ export class AppointmentsService {
     const saved = await this.appointments.save(appointment);
     // Offer the freed slot: first to the waitlist; if no one is waiting, invite
     // an existing customer with a later appointment to move earlier. Best-effort.
+    // Never offer the slot back to the customer who just vacated it — after a
+    // reschedule their own new (later) appointment must not be pulled back into
+    // the slot they just left.
     try {
+      const excludeContactId = saved.customerContactId;
       const offered = await this.waitlist.offerForFreedSlot(
         businessId,
         saved.startAt,
+        excludeContactId,
       );
       if (!offered) {
-        await this.offerEarlierToLaterCustomer(businessId, saved.startAt);
+        await this.offerEarlierToLaterCustomer(
+          businessId,
+          saved.startAt,
+          excludeContactId,
+        );
       }
     } catch (err) {
       this.log.error(
@@ -327,6 +336,7 @@ export class AppointmentsService {
   private async offerEarlierToLaterCustomer(
     businessId: string,
     freedStart: Date,
+    excludeContactId?: string | null,
   ): Promise<void> {
     if (freedStart.getTime() < Date.now()) return; // never offer a past slot
     const candidates = await this.appointments.find({
@@ -340,6 +350,9 @@ export class AppointmentsService {
     });
     for (const c of candidates) {
       if (!c.customerContactId) continue;
+      // Skip the customer who freed this slot — don't offer someone the very
+      // opening they just created by moving/cancelling their appointment.
+      if (excludeContactId && c.customerContactId === excludeContactId) continue;
       const duration = c.endAt.getTime() - c.startAt.getTime();
       const end = new Date(freedStart.getTime() + duration);
       // The freed slot must actually fit their appointment length.

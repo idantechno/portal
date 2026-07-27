@@ -143,6 +143,7 @@ export class WaitlistService {
   async offerForFreedSlot(
     businessId: string,
     slotStart: Date,
+    excludeContactId?: string | null,
   ): Promise<WaitlistEntry | null> {
     const waiting = await this.waitlist.find({
       where: { businessId, status: WaitlistStatus.Waiting },
@@ -150,6 +151,8 @@ export class WaitlistService {
     });
     const match = waiting.find(
       (e) =>
+        // Don't offer the slot back to the customer who just vacated it.
+        (!excludeContactId || e.customerContactId !== excludeContactId) &&
         (!e.preferredFrom || slotStart >= e.preferredFrom) &&
         (!e.preferredTo || slotStart <= e.preferredTo),
     );

@@ -4,6 +4,7 @@ import { businessesApi } from "../api/businesses";
 import { apiErrorMessage } from "../api/client";
 import type { Business } from "../api/types";
 import { Button, FormError, Input, Label, Spinner, Textarea } from "./ui";
+import { BUSINESS_VALUES } from "../lib/businessValues";
 
 interface Props {
   businessId: string;
@@ -28,6 +29,8 @@ export default function BusinessProfileForm({
   const [audience, setAudience] = useState(o.audience ?? "");
   const [offerings, setOfferings] = useState(o.offerings ?? "");
   const [tone, setTone] = useState(o.tone ?? "");
+  const [values, setValues] = useState<string[]>(o.values ?? []);
+  const [feeling, setFeeling] = useState(o.feeling ?? "");
   const [goals, setGoals] = useState(o.goals ?? "");
   const [differentiators, setDifferentiators] = useState(
     o.differentiators ?? "",
@@ -46,6 +49,8 @@ export default function BusinessProfileForm({
           audience: audience.trim() || undefined,
           offerings: offerings.trim() || undefined,
           tone: tone.trim() || undefined,
+          values: values.length ? values : undefined,
+          feeling: feeling.trim() || undefined,
           goals: goals.trim() || undefined,
           differentiators: differentiators.trim() || undefined,
           notes: notes.trim() || undefined,
@@ -102,6 +107,46 @@ export default function BusinessProfileForm({
           value={tone}
           onChange={(e) => setTone(e.target.value)}
           placeholder="לדוגמה: חם ואישי / מקצועי / צעיר וקליל"
+        />
+      </div>
+
+      <div>
+        <Label>הערכים שמייצגים את העסק</Label>
+        <div className="flex flex-wrap gap-2 mt-1">
+          {BUSINESS_VALUES.map((v) => {
+            const on = values.includes(v);
+            return (
+              <button
+                key={v}
+                type="button"
+                onClick={() =>
+                  setValues((cur) =>
+                    cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v],
+                  )
+                }
+                className={`rounded-full px-3 py-1.5 text-sm border transition-colors ${
+                  on
+                    ? "bg-brand-500 border-brand-500 text-white"
+                    : "bg-white border-navy-200 text-navy-600 hover:border-brand-300"
+                }`}
+              >
+                {v}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="ob-feeling">
+          איזו תחושה שלקוח ייצא איתה מהמפגש
+        </Label>
+        <Textarea
+          id="ob-feeling"
+          value={feeling}
+          onChange={(e) => setFeeling(e.target.value)}
+          rows={2}
+          placeholder="לדוגמה: שקיבלו יחס אישי ומרגישים בטוחים בבחירה"
         />
       </div>
 

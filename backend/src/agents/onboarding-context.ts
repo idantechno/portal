@@ -16,6 +16,10 @@ export function renderOnboardingProfile(business: Business): string | null {
   if (o.audience) parts.push(`- Target customers: ${o.audience}`);
   if (o.offerings) parts.push(`- Main products / services: ${o.offerings}`);
   if (o.tone) parts.push(`- Desired tone of voice toward customers: ${o.tone}`);
+  if (o.values?.length)
+    parts.push(`- Brand values that represent it: ${o.values.join(', ')}`);
+  if (o.feeling)
+    parts.push(`- Feeling a customer should leave with: ${o.feeling}`);
   if (o.goals) parts.push(`- Business goals: ${o.goals}`);
   if (o.differentiators)
     parts.push(`- What sets it apart: ${o.differentiators}`);

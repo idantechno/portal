@@ -26,6 +26,10 @@ export interface BusinessOnboarding {
   offerings?: string;
   /** Desired tone of voice toward customers (affects agent outputs). */
   tone?: string;
+  /** Selected brand values that represent/distinguish the business. */
+  values?: string[];
+  /** The feeling/impression the business wants a customer to leave with. */
+  feeling?: string;
   /** Business goals for the coming period. */
   goals?: string;
   /** What sets the business apart from competitors. */

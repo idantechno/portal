@@ -67,6 +67,18 @@ export class OnboardingDto {
   tone?: string;
 
   @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @ArrayMaxSize(30)
+  @MaxLength(40, { each: true })
+  values?: string[];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  feeling?: string;
+
+  @IsOptional()
   @IsString()
   @MaxLength(1000)
   goals?: string;

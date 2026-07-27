@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { tasksApi } from "../../api/tasks";
@@ -12,7 +12,6 @@ import { overviewApi } from "../../api/overview";
 import { useAuthStore } from "../../store/auth";
 import { billingKeys } from "../../lib/queryKeys";
 import {
-  Button,
   Card,
   EmptyState,
   IconTile,
@@ -21,7 +20,6 @@ import {
 } from "../../components/ui";
 import { Icon, ServerIcon } from "../../components/icons";
 import type { IconName } from "../../components/icons";
-import BusinessProfileForm from "../../components/BusinessProfileForm";
 import WhatsappStatusBanner from "../../components/WhatsappStatusBanner";
 
 function greeting(): string {
@@ -160,8 +158,6 @@ export default function Home() {
   const recent = (notifs.data ?? []).slice(0, 5);
   const branding = biz.data?.branding ?? null;
   const firstName = user?.name ? user.name.split(" ")[0] : "";
-  const [showProfile, setShowProfile] = useState(false);
-  const needsOnboarding = Boolean(biz.data) && !biz.data?.onboarding?.completed;
 
   const ex = overview.data;
 
@@ -194,35 +190,6 @@ export default function Home() {
 
       {/* WhatsApp connection status — read-only reassurance for the owner. */}
       <WhatsappStatusBanner />
-
-      {/* First-run: get to know the business (feeds all agents) */}
-      {needsOnboarding && biz.data && (
-        <Card className="p-5 mb-6 border-brand-200 bg-brand-50/50">
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 font-semibold text-navy-900">
-                <Icon name="agents" size={17} className="text-brand-500" />
-                בוא נכיר את העסק שלך
-              </div>
-              <p className="text-sm text-navy-500 mt-0.5">
-                כמה שאלות קצרות — וכל הסוכנים יעבדו בול לפי העסק שלך.
-              </p>
-            </div>
-            <Button size="sm" onClick={() => setShowProfile((v) => !v)}>
-              {showProfile ? "סגור" : "בוא נתחיל"}
-            </Button>
-          </div>
-          {showProfile && (
-            <div className="mt-5 pt-5 border-t border-brand-100">
-              <BusinessProfileForm
-                businessId={businessId}
-                business={biz.data}
-                onSaved={() => setShowProfile(false)}
-              />
-            </div>
-          )}
-        </Card>
-      )}
 
       {/* Snapshot: deals / income / week's events */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">

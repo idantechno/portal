@@ -32,6 +32,8 @@ export interface BusinessOnboarding {
   audience?: string;
   offerings?: string;
   tone?: string;
+  values?: string[];
+  feeling?: string;
   goals?: string;
   differentiators?: string;
   notes?: string;

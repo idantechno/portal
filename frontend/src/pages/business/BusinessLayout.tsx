@@ -13,6 +13,7 @@ import { billingApi } from "../../api/billing";
 import { useAuthStore } from "../../store/auth";
 import { isPlatformStaff } from "../../lib/roles";
 import { NotificationBell } from "../../components/NotificationBell";
+import WelcomeWizard from "./WelcomeWizard";
 import { Icon } from "../../components/icons";
 import type { IconName } from "../../components/icons";
 import { businessThemeVars } from "../../lib/theme";
@@ -57,6 +58,10 @@ export default function BusinessLayout() {
   });
 
   const viaStaff = biz.data?.viaPlatformStaff ?? false;
+  // The one-time welcome wizard is the OWNER's first-login experience — never
+  // shown to the operator entering via staff, and never again once completed.
+  const needsWelcome =
+    Boolean(biz.data) && !viaStaff && !biz.data?.onboarding?.completed;
   const staff = isPlatformStaff(user?.role);
   const branding = biz.data?.branding ?? null;
   const themeVars = businessThemeVars(branding);
@@ -268,6 +273,11 @@ export default function BusinessLayout() {
       className="h-dvh overflow-hidden bg-cream-50 grid grid-cols-1 lg:grid-cols-[268px_1fr]"
       style={themeVars}
     >
+      {/* One-time owner welcome — a full-screen overlay above everything until done. */}
+      {needsWelcome && biz.data && (
+        <WelcomeWizard businessId={businessId} business={biz.data} />
+      )}
+
       {/* Desktop: sidebar is a static grid column. */}
       <div className="hidden lg:block h-full min-h-0">{sidebar}</div>
 

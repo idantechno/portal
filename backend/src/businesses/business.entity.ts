@@ -1,6 +1,7 @@
 import {
   Column,
   CreateDateColumn,
+  DeleteDateColumn,
   Entity,
   Index,
   PrimaryGeneratedColumn,
@@ -107,4 +108,14 @@ export class Business {
 
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt!: Date;
+
+  /**
+   * Soft-delete marker. When set, the tenant is scheduled for deletion: TypeORM
+   * automatically excludes the row from every find/findOne (so the business
+   * vanishes from all app queries immediately), while a daily job hard-purges
+   * it — and all its data — once the 30-day grace window elapses. Restoring
+   * before then (repo.restore) simply clears this back to null.
+   */
+  @DeleteDateColumn({ name: 'deleted_at', type: 'timestamptz', nullable: true })
+  deletedAt!: Date | null;
 }

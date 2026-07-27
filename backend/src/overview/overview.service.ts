@@ -170,7 +170,9 @@ export class OverviewService {
       const cwd = this.filesystem.businessRoot(business.id);
       const profile = renderOnboardingProfile(business);
       const list = candidates
-        .map((c, i) => `${i + 1}. ${c.title}${c.source ? ` (${c.source})` : ''}`)
+        .map(
+          (c, i) => `${i + 1}. ${c.title}${c.source ? ` (${c.source})` : ''}`,
+        )
         .join('\n');
       const system = [
         `You select news for a business owner's dashboard. Given the business profile and a numbered list of recent headlines, choose the SINGLE headline that is genuinely relevant to this business's industry/brand and useful to the owner.`,
@@ -187,7 +189,7 @@ export class OverviewService {
         timeoutMs: 30000,
         runLabel: `overview-news business=${business.id}`,
       });
-      const pick = parseInt((finalText.match(/\d+/)?.[0] ?? '0'), 10);
+      const pick = parseInt(finalText.match(/\d+/)?.[0] ?? '0', 10);
       if (!pick || pick < 1 || pick > candidates.length) return null;
       return candidates[pick - 1];
     } catch (err) {

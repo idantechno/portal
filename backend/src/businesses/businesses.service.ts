@@ -247,6 +247,23 @@ export class BusinessesService {
     await this.members.delete({ businessId, userId });
   }
 
+  /**
+   * Level-B step 1: schedule a tenant for deletion. Sets `deleted_at` (soft
+   * delete), so the business disappears from every app query at once, while its
+   * data survives for the 30-day grace window. The daily purge job hard-deletes
+   * it after the window. Reversible via {@link restore} until then.
+   */
+  async softDelete(businessId: string): Promise<void> {
+    const res = await this.businesses.softDelete(businessId);
+    if (!res.affected) throw new NotFoundException('Business not found');
+  }
+
+  /** Undo a scheduled deletion within the grace window — clears `deleted_at`. */
+  async restore(businessId: string): Promise<void> {
+    const res = await this.businesses.restore(businessId);
+    if (!res.affected) throw new NotFoundException('Business not found');
+  }
+
   private async uniqueSlug(base: string): Promise<string> {
     for (let i = 0; i < 50; i++) {
       const candidate = i === 0 ? base : `${base}-${i + 1}`;

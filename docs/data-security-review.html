@@ -1,0 +1,469 @@
+<title>סקירת אחסון ואבטחת מידע — Portal Studio</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --ink:        #12203f;
+    --ink-soft:   #40506e;
+    --ink-faint:  #6b799a;
+    --ground:     #f6f4ee;
+    --panel:      #ffffff;
+    --panel-2:    #f0eee6;
+    --line:       #e0ddd2;
+    --line-soft:  #ebe8df;
+    --navy:       #1c3468;
+    --blue:       #3f6fb8;
+    --blue-soft:  #e7edf7;
+    --teal:       #2a8f81;
+    --teal-soft:  #e2f0ec;
+    --amber:      #c98a2b;
+    --amber-soft: #f6ecd8;
+    --coral:      #d75f47;
+    --coral-soft: #f8e5df;
+    --shadow:     0 1px 2px rgba(18,32,63,.06), 0 8px 24px rgba(18,32,63,.06);
+    --radius: 14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink:        #eef1f7;
+      --ink-soft:   #b3bdd2;
+      --ink-faint:  #7e89a3;
+      --ground:     #0c1424;
+      --panel:      #131e33;
+      --panel-2:    #172441;
+      --line:       #26324c;
+      --line-soft:  #1d283f;
+      --navy:       #9fb8e6;
+      --blue:       #77a2df;
+      --blue-soft:  #182741;
+      --teal:       #63c3b2;
+      --teal-soft:  #11322c;
+      --amber:      #e0ad5c;
+      --amber-soft: #3a2c11;
+      --coral:      #f08267;
+      --coral-soft: #3a1a13;
+      --shadow:     0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="light"] {
+    --ink:#12203f;--ink-soft:#40506e;--ink-faint:#6b799a;--ground:#f6f4ee;--panel:#fff;--panel-2:#f0eee6;--line:#e0ddd2;--line-soft:#ebe8df;--navy:#1c3468;--blue:#3f6fb8;--blue-soft:#e7edf7;--teal:#2a8f81;--teal-soft:#e2f0ec;--amber:#c98a2b;--amber-soft:#f6ecd8;--coral:#d75f47;--coral-soft:#f8e5df;--shadow:0 1px 2px rgba(18,32,63,.06),0 8px 24px rgba(18,32,63,.06);
+  }
+  :root[data-theme="dark"] {
+    --ink:#eef1f7;--ink-soft:#b3bdd2;--ink-faint:#7e89a3;--ground:#0c1424;--panel:#131e33;--panel-2:#172441;--line:#26324c;--line-soft:#1d283f;--navy:#9fb8e6;--blue:#77a2df;--blue-soft:#182741;--teal:#63c3b2;--teal-soft:#11322c;--amber:#e0ad5c;--amber-soft:#3a2c11;--coral:#f08267;--coral-soft:#3a1a13;--shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    direction: rtl;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "Rubik", "Assistant", "Segoe UI", system-ui, -apple-system, sans-serif;
+    line-height: 1.6;
+    font-size: 17px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 940px; margin: 0 auto; padding: clamp(20px, 4vw, 56px) clamp(16px, 4vw, 40px) 80px; }
+
+  h1, h2, h3 { font-family: "Frank Ruhl Libre", "Rubik", Georgia, serif; font-weight: 700; line-height: 1.2; letter-spacing: -.01em; text-wrap: balance; }
+
+  .eyebrow {
+    font-size: 12.5px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--blue); margin: 0 0 12px;
+  }
+
+  /* ---- Header ---- */
+  header.hero {
+    background: linear-gradient(140deg, var(--navy), var(--blue) 160%);
+    color: #fff;
+    border-radius: 20px;
+    padding: clamp(26px, 5vw, 44px);
+    box-shadow: var(--shadow);
+    position: relative;
+    overflow: hidden;
+  }
+  header.hero::after {
+    content: ""; position: absolute; inset-inline-start: -60px; top: -60px;
+    width: 240px; height: 240px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,.14), transparent 70%);
+    pointer-events: none;
+  }
+  header.hero .eyebrow { color: rgba(255,255,255,.75); }
+  header.hero h1 { color:#fff; margin: 0 0 10px; font-size: clamp(27px, 5vw, 40px); }
+  header.hero p.lede { color: rgba(255,255,255,.85); margin: 0; max-width: 62ch; font-size: 17px; }
+
+  .verdict {
+    display: flex; flex-wrap: wrap; gap: 12px; margin-top: 26px;
+  }
+  .verdict .chip {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2);
+    color: #fff; border-radius: 999px; padding: 8px 15px; font-size: 14px; font-weight: 500;
+    backdrop-filter: blur(4px);
+  }
+  .verdict .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .dot.g { background: #6fd7c4; } .dot.a { background: #f0c471; } .dot.c { background: #f2917a; }
+  .updated { margin-top: 18px; font-size: 13.5px; color: rgba(255,255,255,.82); border-top: 1px solid rgba(255,255,255,.16); padding-top: 16px; }
+
+  /* ---- Sections ---- */
+  section { margin-top: 46px; }
+  section > h2 { font-size: clamp(21px, 3.4vw, 27px); margin: 0 0 6px; color: var(--ink); }
+  section > .sub { color: var(--ink-faint); margin: 0 0 22px; max-width: 64ch; }
+
+  .num {
+    display: inline-grid; place-items: center; width: 30px; height: 30px;
+    border-radius: 9px; background: var(--blue-soft); color: var(--blue);
+    font-family: "Rubik", sans-serif; font-weight: 700; font-size: 15px;
+    margin-inline-end: 12px; vertical-align: 2px;
+  }
+
+  /* ---- Storage cards ---- */
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 20px; box-shadow: var(--shadow);
+  }
+  .card .tag { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-faint); }
+  .card h3 { font-size: 18px; margin: 6px 0 8px; color: var(--ink); }
+  .card p { margin: 0; font-size: 14.5px; color: var(--ink-soft); }
+  .card .loc { margin-top: 12px; font-size: 13px; color: var(--blue); font-weight: 500; }
+
+  /* ---- Table ---- */
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); background: var(--panel); }
+  table { width: 100%; border-collapse: collapse; min-width: 640px; font-size: 15px; }
+  thead th {
+    text-align: right; background: var(--panel-2); color: var(--ink-soft);
+    font-weight: 600; font-size: 13px; letter-spacing: .02em; padding: 13px 16px;
+    border-bottom: 1px solid var(--line); white-space: nowrap;
+  }
+  tbody td { padding: 14px 16px; border-bottom: 1px solid var(--line-soft); vertical-align: top; color: var(--ink-soft); }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody td:first-child { color: var(--ink); font-weight: 500; }
+  .grouprow td {
+    background: var(--panel-2); font-family:"Frank Ruhl Libre",serif; font-weight:700; color: var(--navy);
+    font-size: 15px; padding: 11px 16px;
+  }
+
+  .pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 4px 10px; font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+  .pill::before { content:""; width:7px; height:7px; border-radius:50%; }
+  .pill.enc  { background: var(--teal-soft);  color: var(--teal);  } .pill.enc::before  { background: var(--teal); }
+  .pill.hash { background: var(--blue-soft);  color: var(--blue);  } .pill.hash::before { background: var(--blue); }
+  .pill.plain{ background: var(--amber-soft); color: var(--amber); } .pill.plain::before{ background: var(--amber); }
+
+  /* ---- Status list ---- */
+  .status { display: grid; gap: 12px; }
+  .srow {
+    display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: start;
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 16px 18px; box-shadow: var(--shadow);
+  }
+  .srow .badge { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; font-size: 18px; flex: none; }
+  .badge.g { background: var(--teal-soft); } .badge.a { background: var(--amber-soft); } .badge.c { background: var(--coral-soft); }
+  .srow h3 { font-family:"Rubik",sans-serif; font-size: 16px; margin: 0 0 3px; color: var(--ink); font-weight: 600; }
+  .srow p { margin: 0; font-size: 14.5px; color: var(--ink-soft); }
+  .lead-in { color: var(--teal); font-weight: 600; }
+  .lead-in.a { color: var(--amber); } .lead-in.c { color: var(--coral); }
+  code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: .88em; background: var(--panel-2); border: 1px solid var(--line-soft); border-radius: 5px; padding: 1px 6px; color: var(--ink); direction: ltr; unicode-bidi: embed; }
+
+  /* ---- Legal ---- */
+  .legal { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+  .legal .lhead { padding: 20px 22px; border-bottom: 1px solid var(--line-soft); }
+  .legal .lhead h3 { font-size: 18px; margin: 0 0 4px; color: var(--ink); display:flex; align-items:center; gap:10px; }
+  .legal .lhead p { margin: 0; font-size: 14.5px; color: var(--ink-soft); }
+  .legal .lbody { padding: 6px 22px 20px; }
+  .legal ul { margin: 14px 0 0; padding: 0; list-style: none; display: grid; gap: 11px; }
+  .legal li { display: grid; grid-template-columns: auto 1fr; gap: 11px; font-size: 14.5px; color: var(--ink-soft); }
+  .legal li .m { font-weight: 700; color: var(--blue); }
+  .lstatus { display:inline-flex; align-items:center; gap:7px; margin-inline-start:auto; font-size:13px; font-weight:600; padding:3px 11px; border-radius:999px; }
+  .lstatus.a { background: var(--amber-soft); color: var(--amber); }
+
+  .disclaimer {
+    margin-top: 18px; background: var(--amber-soft); border: 1px solid color-mix(in srgb, var(--amber) 30%, transparent);
+    border-radius: var(--radius); padding: 15px 18px; font-size: 14px; color: var(--ink-soft);
+  }
+  .disclaimer strong { color: var(--amber); }
+
+  /* ---- Fix list ---- */
+  ol.fixes { list-style: none; counter-reset: fix; margin: 0; padding: 0; display: grid; gap: 14px; }
+  ol.fixes li {
+    counter-increment: fix; position: relative;
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 18px 20px 18px 20px; box-shadow: var(--shadow);
+    display: grid; grid-template-columns: auto 1fr auto; gap: 16px; align-items: center;
+  }
+  ol.fixes li::before {
+    content: counter(fix); font-family:"Frank Ruhl Libre",serif; font-weight: 700; font-size: 20px;
+    width: 40px; height: 40px; display: grid; place-items: center; border-radius: 11px;
+    background: var(--coral-soft); color: var(--coral); flex: none;
+  }
+  ol.fixes .ftext h3 { font-family:"Rubik",sans-serif; font-size: 16px; font-weight: 600; margin: 0 0 3px; color: var(--ink); }
+  ol.fixes .ftext p { margin: 0; font-size: 14px; color: var(--ink-soft); }
+  .prio { font-size: 12px; font-weight: 700; letter-spacing:.04em; padding: 5px 11px; border-radius: 999px; white-space: nowrap; }
+  .prio.hi { background: var(--coral-soft); color: var(--coral); }
+  .prio.mid { background: var(--amber-soft); color: var(--amber); }
+  .prio.done { background: var(--teal-soft); color: var(--teal); }
+  ol.fixes.done li::before { background: var(--teal-soft); color: var(--teal); }
+
+  footer { margin-top: 54px; padding-top: 22px; border-top: 1px solid var(--line); color: var(--ink-faint); font-size: 13px; text-align: center; }
+
+  @media (max-width: 560px) {
+    ol.fixes li { grid-template-columns: auto 1fr; }
+    ol.fixes .prio { grid-column: 2; justify-self: start; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="hero">
+    <p class="eyebrow">Portal Studio · סקירת מידע ואבטחה</p>
+    <h1>איפה יושב המידע שלך — ומי שומר עליו</h1>
+    <p class="lede">סקירה בשפה פשוטה של כל המידע במערכת: איפה הוא מאוחסן, כמה הוא מוגן, ומה המצב מבחינת חוק ופרטיות. בלי ז'רגון טכני.</p>
+    <div class="verdict">
+      <span class="chip"><span class="dot g"></span> יסודות אבטחה חזקים</span>
+      <span class="chip"><span class="dot g"></span> 3 הפערים המרכזיים — טופלו</span>
+      <span class="chip"><span class="dot a"></span> חוקיות: טיוטות מוכנות, ממתין לאישור עו״ד</span>
+    </div>
+    <div class="updated">✓ עודכן 27 ביולי 2026 — לאחר סבב תיקונים: הצפנת חיבור ל‑DB, סגירת כלי הניהול, טיוטות מסמכים משפטיים, ומנגנון מחיקת מידע לפי בקשה (הזכות להישכח).</div>
+  </header>
+
+  <!-- 1. WHERE -->
+  <section>
+    <h2><span class="num">1</span>איפה הכל מאוחסן — 3 מקומות</h2>
+    <p class="sub">כל המידע במערכת יושב באחד משלושה מקומות. כולם מתארחים על Railway בענן, בשרתים באמסטרדם (אירופה).</p>
+    <div class="cards">
+      <div class="card">
+        <span class="tag">מסד הנתונים הראשי</span>
+        <h3>PostgreSQL</h3>
+        <p>הלב של המערכת. כאן יושב כמעט כל המידע: משתמשים, עסקים, שיחות, לקוחות, לידים, חשבוניות, מנויים.</p>
+        <div class="loc">☁︎ Railway · אמסטרדם (EU)</div>
+      </div>
+      <div class="card">
+        <span class="tag">קבצים לכל עסק</span>
+        <h3>אחסון קבצים</h3>
+        <p>מסמכי הידע והקונטקסט של כל עסק (מה שהסוכן קורא). כל עסק בתיקייה נפרדת ומבודדת משלו.</p>
+        <div class="loc">☁︎ דיסק מוצמד ב-Railway</div>
+      </div>
+      <div class="card">
+        <span class="tag">תור זמני</span>
+        <h3>Redis</h3>
+        <p>לא מאחסן מידע קבוע — רק תור משימות זמני (למשל "הרץ את הסוכן על ההודעה הזאת"). מתרוקן מעצמו.</p>
+        <div class="loc">☁︎ Railway · מוגן בסיסמה</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. TABLE -->
+  <section>
+    <h2><span class="num">2</span>איזה מידע נשמר — וכמה הוא מוגן</h2>
+    <p class="sub">חילקתי את כל המידע לשלוש קבוצות, בדיוק כמו שביקשת. העמודה מימין מראה את רמת ההגנה של כל פריט.</p>
+
+    <div style="display:flex; flex-wrap:wrap; gap:14px; margin-bottom:20px;">
+      <span class="pill enc">מוצפן — AES‑256</span>
+      <span class="pill hash">מגובב (חד‑כיווני) — סיסמאות</span>
+      <span class="pill plain">גלוי בבסיס הנתונים — מוגן בגישה בלבד</span>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr>
+            <th>סוג המידע</th>
+            <th>מה זה כולל</th>
+            <th>איפה</th>
+            <th>רמת הגנה</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="grouprow"><td colspan="4">א · מידע של המערכת עצמה</td></tr>
+          <tr>
+            <td>חשבונות משתמשים</td>
+            <td>אימייל, שם, תפקיד, סטטוס</td>
+            <td>PostgreSQL</td>
+            <td><span class="pill plain">גלוי</span></td>
+          </tr>
+          <tr>
+            <td>סיסמאות</td>
+            <td>הסיסמה עצמה לא נשמרת — רק טביעה מתמטית שלה</td>
+            <td>PostgreSQL</td>
+            <td><span class="pill hash">מגובב bcrypt</span></td>
+          </tr>
+          <tr>
+            <td>הגדרות פלטפורמה</td>
+            <td>קטלוג סוכנים, תבניות מסמכים, כללי אוטומציה, הרשאות</td>
+            <td>PostgreSQL</td>
+            <td><span class="pill plain">גלוי</span></td>
+          </tr>
+
+          <tr class="grouprow"><td colspan="4">ב · מידע שמצטבר לפי השימוש</td></tr>
+          <tr>
+            <td>שיחות והודעות</td>
+            <td>כל תוכן השיחות בין הלקוחות לסוכן (וואטסאפ + צ'אט)</td>
+            <td>PostgreSQL</td>
+            <td><span class="pill plain">גלוי</span></td>
+          </tr>
+          <tr>
+            <td>לידים ופניות</td>
+            <td>טלפון, אימייל, תחום עניין, תשובות משאלון</td>
+            <td>PostgreSQL</td>
+            <td><span class="pill plain">גלוי</span></td>
+          </tr>
+          <tr>
+            <td>פגישות ותורים</td>
+            <td>מועדים, אנשי קשר, רשימת המתנה</td>
+            <td>PostgreSQL</td>
+            <td><span class="pill plain">גלוי</span></td>
+          </tr>
+          <tr>
+            <td>חיוב וכספים</td>
+            <td>חשבוניות, מנויים, מסלול תמחור, הוצאות</td>
+            <td>PostgreSQL</td>
+            <td><span class="pill plain">גלוי</span></td>
+          </tr>
+          <tr>
+            <td>יומן פעולות (Audit)</td>
+            <td>מי עשה מה ומתי — למעקב ואבטחה</td>
+            <td>PostgreSQL</td>
+            <td><span class="pill plain">גלוי</span></td>
+          </tr>
+
+          <tr class="grouprow"><td colspan="4">ג · מידע של בעלי העסקים והלקוחות שלהם</td></tr>
+          <tr>
+            <td>פרופיל העסק</td>
+            <td>שם, מיתוג, טלפון בעל העסק, הגדרות סוכן</td>
+            <td>PostgreSQL</td>
+            <td><span class="pill plain">גלוי</span></td>
+          </tr>
+          <tr>
+            <td>אנשי קשר (לקוחות הקצה)</td>
+            <td>טלפון ואימייל של הלקוחות של כל עסק</td>
+            <td>PostgreSQL</td>
+            <td><span class="pill plain">גלוי</span></td>
+          </tr>
+          <tr>
+            <td>חיבור וואטסאפ</td>
+            <td>מפתח הגישה (Token) של ה‑WhatsApp של העסק</td>
+            <td>PostgreSQL</td>
+            <td><span class="pill enc">מוצפן</span></td>
+          </tr>
+          <tr>
+            <td>חיבורי גוגל (Gmail/יומן)</td>
+            <td>אסימוני גישה לחשבון הגוגל של העסק</td>
+            <td>PostgreSQL</td>
+            <td><span class="pill enc">מוצפן</span></td>
+          </tr>
+          <tr>
+            <td>חשבונית ירוקה</td>
+            <td>פרטי הגישה למערכת הסליקה/חשבוניות</td>
+            <td>PostgreSQL</td>
+            <td><span class="pill enc">מוצפן</span></td>
+          </tr>
+          <tr>
+            <td>מסמכי ידע של העסק</td>
+            <td>קבצים שהעסק מעלה + הוראות מפעיל נסתרות</td>
+            <td>אחסון קבצים</td>
+            <td><span class="pill plain">גלוי · מבודד לעסק</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="sub" style="margin-top:16px;">בקצרה: <strong style="color:var(--teal)">כל המפתחות והסיסמאות של צד־שלישי מוצפנים</strong> — גם אם מישהו ישיג את בסיס הנתונים, הוא לא יכול להשתמש בהם. <strong style="color:var(--amber)">תוכן ההודעות ופרטי הלקוחות (טלפון/אימייל) שמורים גלויים</strong> בתוך בסיס הנתונים, ומסתמכים על ההגנה סביבו.</p>
+  </section>
+
+  <!-- 3. SECURITY -->
+  <section>
+    <h2><span class="num">3</span>רמת האבטחה — מה חזק, מה חסר</h2>
+    <p class="sub">היסודות בנויים נכון. יש כמה נקודות ששוות חיזוק לפני שנכנס נפח גדול של לקוחות אמיתיים.</p>
+    <div class="status">
+      <div class="srow"><div class="badge g">🔒</div><div><h3>סיסמאות מוגנות כמו שצריך</h3><p><span class="lead-in">חזק.</span> סיסמאות נשמרות מגובבות (bcrypt, 12 סבבים) — בלתי הפיכות. אף אחד, כולל אתה, לא יכול לראות את הסיסמה של משתמש.</p></div></div>
+      <div class="srow"><div class="badge g">🗝️</div><div><h3>מפתחות של לקוחות מוצפנים</h3><p><span class="lead-in">חזק.</span> טוקנים של וואטסאפ, גוגל וחשבונית ירוקה מוצפנים בתקן AES‑256 (רמה צבאית) לפני שהם נכנסים לבסיס הנתונים.</p></div></div>
+      <div class="srow"><div class="badge g">🚪</div><div><h3>הפרדה מלאה בין עסקים</h3><p><span class="lead-in">חזק.</span> כל בקשה נבדקת — עסק אחד לא יכול לגשת למידע של עסק אחר. יש גם שכבת הגנה שמונעת "בריחה" מתיקיית הקבצים של העסק.</p></div></div>
+      <div class="srow"><div class="badge g">🛡️</div><div><h3>התחברות מאובטחת + הגנה מהצפות</h3><p><span class="lead-in">חזק.</span> כניסה דרך טוקן JWT שפג אחרי 7 ימים, והגבלת קצב בקשות (120 לדקה) שחוסמת ניסיונות פריצה אוטומטיים.</p></div></div>
+      <div class="srow"><div class="badge g">🔌</div><div><h3>החיבור לבסיס הנתונים — מוגן ברשת פרטית</h3><p><span class="lead-in">מכוסה.</span> החיבור ל‑Postgres עובר ברשת הפנימית הפרטית של Railway, מבודד מהאינטרנט הציבורי. בנוסף הוספנו תמיכת SSL/TLS בקוד כרשת ביטחון למקרה של מעבר ל‑DB חיצוני בעתיד.</p></div></div>
+      <div class="srow"><div class="badge g">🧰</div><div><h3>כלי ניהול ה‑DB (Adminer) — נסגר</h3><p><span class="lead-in">טופל.</span> Adminer הועבר ל‑profile נפרד ולא עולה יותר אוטומטית, וגם הוגבל לגישה מקומית בלבד. אין יותר ממשק ניהול חשוף.</p></div></div>
+      <div class="srow"><div class="badge a">📄</div><div><h3>תוכן שיחות ופרטי לקוחות — עדיין גלויים בבסיס הנתונים</h3><p><span class="lead-in a">לשיקול.</span> טלפונים, אימיילים ותוכן ההודעות אינם מוצפנים בתוך ה‑DB. זה נפוץ ותקין, אבל למידע רגיש בהיקף גדול אפשר לשקול הצפנה גם ברמה הזו כשכבה נוספת.</p></div></div>
+    </div>
+  </section>
+
+  <!-- 4. LEGAL -->
+  <section>
+    <h2><span class="num">4</span>חוקיות ופרטיות — איפה אתה עומד</h2>
+    <p class="sub">אתה מחזיק מידע אישי של אנשים (לקוחות של הלקוחות שלך). זה מכניס אותך לתחולת שני חוקים עיקריים.</p>
+
+    <div class="legal">
+      <div class="lhead">
+        <h3>🇮🇱 חוק הגנת הפרטיות (ישראל) <span class="lstatus a">טיוטות מוכנות</span></h3>
+        <p>המערכת מאחסנת טלפונים, אימיילים ותוכן שיחות של הרבה אנשים — מה שנחשב "מאגר מידע". תיקון 13 לחוק (נכנס לתוקף ב‑2025) החמיר משמעותית את הדרישות והקנסות. <strong style="color:var(--teal)">הוכנו טיוטות מדיניות פרטיות והסכם עיבוד מידע</strong> — ממתינות לאישור עו״ד.</p>
+      </div>
+      <div class="lbody">
+        <ul>
+          <li><span class="m">·</span><span><strong>רישום מאגר</strong> — ייתכן שצריך לרשום את המאגר ולמנות אחראי אבטחת מידע, תלוי בהיקף וברגישות.</span></li>
+          <li><span class="m">·</span><span><strong>תקנות אבטחת מידע</strong> — המאגר כנראה ברמת אבטחה "בינונית", שדורשת נהלים, בקרת גישה ותיעוד — חלקם כבר קיימים אצלך (יומן פעולות, הרשאות, הצפנה).</span></li>
+          <li><span class="m">·</span><span><strong>זכויות הנושאים</strong> — לאנשים יש זכות לדעת מה שמור עליהם, לתקן ולמחוק. <strong style="color:var(--teal)">מנגנון המחיקה לפי בקשה כבר קיים במערכת</strong> (לקוח בודד ועסק שלם).</span></li>
+          <li><span class="m">·</span><span><strong>הסכם עם הלקוחות</strong> — אתה "מחזיק" שמעבד מידע עבור בעלי העסקים; צריך הסכם שמסדיר את זה מולם.</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="legal" style="margin-top:16px;">
+      <div class="lhead">
+        <h3>🇪🇺 GDPR (אירופה) <span class="lstatus a">כדאי לבדוק</span></h3>
+        <p>השרתים באמסטרדם — יתרון לשמירת מידע באיחוד האירופי. אם יגיע מידע של תושבי אירופה, ה‑GDPR חל, ודורש מדיניות פרטיות, בסיס חוקי לעיבוד, ותיעוד.</p>
+      </div>
+      <div class="lbody">
+        <ul>
+          <li><span class="m">·</span><span><strong>מדיניות פרטיות</strong> — מסמך שמסביר איזה מידע נאסף, למה, וכמה זמן נשמר.</span></li>
+          <li><span class="m">·</span><span><strong>Data Processing Agreement</strong> — הסכם עיבוד מידע מול כל עסק שמשתמש במערכת.</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="disclaimer">
+      <strong>⚠︎ הערה חשובה:</strong> אני לא עורך דין וזו אינה חוות דעת משפטית. הבסיס הטכני שלך סביר, אבל לפני עלייה עם לקוחות אמיתיים בהיקף — כדאי מאוד להתייעץ עם עו״ד המתמחה בפרטיות/הגנת מידע כדי לוודא עמידה מלאה בתיקון 13.
+    </div>
+  </section>
+
+  <!-- 5. DONE -->
+  <section>
+    <h2><span class="num">5</span>מה טופל היום ✓</h2>
+    <p class="sub">שלושת הפערים המרכזיים בעדיפות גבוהה — נסגרו בסבב העבודה הזה.</p>
+    <ol class="fixes done">
+      <li>
+        <div class="ftext"><h3>הצפנת תעבורה (SSL) לבסיס הנתונים</h3><p>נוספה תמיכת TLS מלאה בחיבור ל‑Postgres (בקוד השרת וב‑CLI). להפעלה בפרוד: הגדרת <code>DB_SSL=true</code> ב‑Railway.</p></div>
+        <span class="prio done">✓ בוצע</span>
+      </li>
+      <li>
+        <div class="ftext"><h3>סגירת כלי הניהול (Adminer)</h3><p>הועבר ל‑profile נפרד — לא עולה יותר אוטומטית, וגם מוגבל לגישה מקומית בלבד. אין ממשק ניהול DB חשוף בפרוד.</p></div>
+        <span class="prio done">✓ בוצע</span>
+      </li>
+      <li>
+        <div class="ftext"><h3>מסמכים משפטיים — מדיניות פרטיות + DPA</h3><p>הוכנו שתי טיוטות מלאות ומותאמות למערכת (כולל ספקי המשנה האמיתיים). ממתינות לאישור עו״ד פרטיות.</p></div>
+        <span class="prio done">✓ טיוטה</span>
+      </li>
+      <li>
+        <div class="ftext"><h3>מנגנון מחיקת מידע לפי בקשה ("הזכות להישכח")</h3><p>נבנה בשתי רמות: מחיקת לקוח-קצה בודד (מיידית, עם רישום ב‑audit), ומחיקת עסק שלם (חלון שחזור 30 יום ואז מחיקה סופית אוטומטית). דרישת ליבה של תיקון 13 ו‑GDPR.</p></div>
+        <span class="prio done">✓ בוצע</span>
+      </li>
+    </ol>
+  </section>
+
+  <!-- 6. REMAINING -->
+  <section>
+    <h2><span class="num">6</span>מה נשאר — הצעדים הבאים</h2>
+    <p class="sub">אף אחד מהם לא חוסם, אבל כדאי לסגור בהמשך לקראת נפח לקוחות אמיתי.</p>
+    <ol class="fixes">
+      <li>
+        <div class="ftext"><h3>אישור עו״ד לטיוטות המשפטיות</h3><p>העברת מדיניות הפרטיות וה‑DPA לבדיקת עו״ד המתמחה בפרטיות, ואז פרסום בפועל.</p></div>
+        <span class="prio hi">שלב הבא</span>
+      </li>
+      <li>
+        <div class="ftext"><h3>לשקול הצפנה גם לפרטי לקוחות רגישים</h3><p>שכבת הגנה נוספת על טלפונים/אימיילים ותוכן שיחות — לא חובה, אבל מחזק.</p></div>
+        <span class="prio mid">עדיפות בינונית</span>
+      </li>
+    </ol>
+  </section>
+
+  <footer>
+    סקירה טכנית · Portal Studio · 27 ביולי 2026 · המידע מבוסס על קוד המערכת בפועל
+  </footer>
+
+</div>

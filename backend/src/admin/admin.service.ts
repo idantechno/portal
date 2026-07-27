@@ -11,7 +11,15 @@ import { AGENT_CATALOG } from '../agents/agent-catalog';
 import { UsersService } from '../users/users.service';
 import { UserRole } from '../common/enums/user-role.enum';
 import { AccountStatus } from '../common/enums/account-status.enum';
+import { PURGE_AFTER_DAYS } from '../data-privacy/business-purge.constants';
 import { CreateClientDto } from './dto/create-client.dto';
+
+/** When a scheduled-for-deletion tenant will be irreversibly purged. */
+function purgeAt(deletedAt: Date | null): Date | null {
+  return deletedAt
+    ? new Date(deletedAt.getTime() + PURGE_AFTER_DAYS * 24 * 60 * 60 * 1000)
+    : null;
+}
 
 // Readable temp password (no ambiguous chars) the admin hands to the client.
 const generatePassword = customAlphabet(
@@ -136,7 +144,12 @@ export class AdminService {
   }
 
   async listBusinesses(q?: string) {
-    const all = await this.businesses.find({ order: { createdAt: 'DESC' } });
+    // withDeleted so scheduled-for-deletion tenants stay visible to the operator
+    // (to restore them within the grace window); flagged via deletedAt below.
+    const all = await this.businesses.find({
+      order: { createdAt: 'DESC' },
+      withDeleted: true,
+    });
     const needle = q?.trim().toLowerCase();
     const filtered = needle
       ? all.filter(
@@ -157,6 +170,8 @@ export class AdminService {
       slug: b.slug,
       status: b.status,
       createdAt: b.createdAt,
+      deletedAt: b.deletedAt,
+      purgeAt: purgeAt(b.deletedAt),
       memberCount: counts.get(b.id) ?? 0,
       owner: ownerMap.has(b.ownerUserId)
         ? publicUser(ownerMap.get(b.ownerUserId)!)
@@ -167,6 +182,7 @@ export class AdminService {
   async businessDetail(businessId: string) {
     const business = await this.businesses.findOne({
       where: { id: businessId },
+      withDeleted: true,
     });
     if (!business) throw new NotFoundException('Business not found');
     const members = await this.members.find({
@@ -194,6 +210,27 @@ export class AdminService {
     if (!business) throw new NotFoundException('Business not found');
     business.status = status;
     return this.businesses.save(business);
+  }
+
+  /**
+   * Level-B step 1: schedule a tenant for deletion (soft delete). It vanishes
+   * from the app at once; the daily job hard-purges it after the grace window.
+   * Returns when it will be irreversibly purged.
+   */
+  async scheduleBusinessDeletion(
+    businessId: string,
+  ): Promise<{ purgeAt: Date | null }> {
+    await this.businessesService.softDelete(businessId);
+    const business = await this.businesses.findOne({
+      where: { id: businessId },
+      withDeleted: true,
+    });
+    return { purgeAt: purgeAt(business?.deletedAt ?? null) };
+  }
+
+  /** Undo a scheduled deletion within the grace window. */
+  async restoreBusiness(businessId: string): Promise<void> {
+    await this.businessesService.restore(businessId);
   }
 
   async listUsers(q?: string) {

@@ -9,6 +9,7 @@ import {
   type MessageRole,
 } from "../../api/conversations";
 import { leadsApi } from "../../api/leads";
+import { privacyApi } from "../../api/privacy";
 import { apiErrorMessage } from "../../api/client";
 import { Button, Card, Spinner } from "../../components/ui";
 import { Icon } from "../../components/icons";
@@ -80,6 +81,7 @@ export default function ContactDetail() {
   const [st, setSt] = useState<ContactStatus>("lead");
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [confirmErase, setConfirmErase] = useState(false);
 
   // Seed the editable fields once the card loads.
   useEffect(() => {
@@ -105,6 +107,17 @@ export default function ContactDetail() {
       qc.invalidateQueries({ queryKey: ["conversations", businessId] });
     },
     onError: (e) => setError(apiErrorMessage(e, "השמירה נכשלה")),
+  });
+
+  const erase = useMutation({
+    mutationFn: () => privacyApi.eraseContact(businessId, contactId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["contacts", businessId] });
+      qc.invalidateQueries({ queryKey: ["conversations", businessId] });
+      qc.invalidateQueries({ queryKey: ["leads", businessId] });
+      navigate(`/app/businesses/${businessId}/contacts/${status}`);
+    },
+    onError: (e) => setError(apiErrorMessage(e, "המחיקה נכשלה")),
   });
 
   if (card.isLoading || !card.data) {
@@ -306,6 +319,59 @@ export default function ContactDetail() {
             </div>
           </Card>
         )}
+      </div>
+
+      {/* Right-to-be-forgotten: permanent erase of this customer's data */}
+      <div className="mt-10 rounded-2xl border border-red-200 bg-red-50/50 p-4">
+        <div className="flex items-start gap-2.5">
+          <div className="rounded-lg bg-red-100 text-red-700 p-1.5">
+            <Icon name="trash" size={17} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold text-red-900">
+              מחיקת הלקוח וכל המידע שלו
+            </div>
+            <p className="mt-1 text-xs leading-relaxed text-red-700/90">
+              מוחק לצמיתות את איש הקשר, כל השיחות, ההודעות, הפגישות והפניות שלו.
+              פעולה בלתי הפיכה — לשימוש בבקשת "מחקו אותי" (הזכות להישכח).
+            </p>
+
+            {!confirmErase ? (
+              <button
+                type="button"
+                onClick={() => setConfirmErase(true)}
+                className="mt-3 rounded-lg border border-red-300 bg-white px-3 py-1.5 text-sm font-medium text-red-700 transition hover:bg-red-100"
+              >
+                מחיקת לקוח
+              </button>
+            ) : (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={() => erase.mutate()}
+                  disabled={erase.isPending}
+                >
+                  {erase.isPending ? (
+                    <>
+                      <Spinner /> מוחק…
+                    </>
+                  ) : (
+                    "כן, מחק לצמיתות"
+                  )}
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmErase(false)}
+                  disabled={erase.isPending}
+                  className="rounded-lg px-3 py-1.5 text-sm text-neutral-600 hover:bg-neutral-100"
+                >
+                  ביטול
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

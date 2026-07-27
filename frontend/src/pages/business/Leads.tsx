@@ -1,15 +1,18 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { leadsApi, type Lead } from "../../api/leads";
-import { Card } from "../../components/ui";
+import { privacyApi } from "../../api/privacy";
+import { apiErrorMessage } from "../../api/client";
+import { Button, Card, Spinner } from "../../components/ui";
 import { Icon } from "../../components/icons";
 
 export default function Leads() {
   const { t, i18n } = useTranslation();
   const { businessId = "" } = useParams<{ businessId: string }>();
   const [active, setActive] = useState<Lead | null>(null);
+  const qc = useQueryClient();
   const leads = useQuery({
     queryKey: ["leads", businessId],
     queryFn: () => leadsApi.list(businessId),
@@ -98,7 +101,15 @@ export default function Leads() {
       )}
 
       {active && (
-        <QuestionnaireModal lead={active} onClose={() => setActive(null)} />
+        <QuestionnaireModal
+          lead={active}
+          businessId={businessId}
+          onClose={() => setActive(null)}
+          onErased={() => {
+            qc.invalidateQueries({ queryKey: ["leads", businessId] });
+            setActive(null);
+          }}
+        />
       )}
     </div>
   );
@@ -106,13 +117,24 @@ export default function Leads() {
 
 function QuestionnaireModal({
   lead,
+  businessId,
   onClose,
+  onErased,
 }: {
   lead: Lead;
+  businessId: string;
   onClose: () => void;
+  onErased: () => void;
 }) {
   const a = lead.answers ?? {};
   const sections = a.sections ?? [];
+  const [confirmErase, setConfirmErase] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const erase = useMutation({
+    mutationFn: () => privacyApi.eraseLead(businessId, lead.id),
+    onSuccess: onErased,
+    onError: (e) => setError(apiErrorMessage(e, "המחיקה נכשלה")),
+  });
 
   return (
     <div
@@ -166,6 +188,51 @@ function QuestionnaireModal({
                 </dl>
               </div>
             ))}
+          </div>
+
+          {/* Right-to-be-forgotten: permanently erase this lead */}
+          <div className="mt-6 border-t border-navy-100 pt-4">
+            {error && (
+              <div className="mb-2 text-xs text-red-700">{error}</div>
+            )}
+            {!confirmErase ? (
+              <button
+                type="button"
+                onClick={() => setConfirmErase(true)}
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-red-700 hover:text-red-800"
+              >
+                <Icon name="trash" size={16} />
+                מחיקת הפנייה לצמיתות
+              </button>
+            ) : (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm text-navy-700">
+                  למחוק את הפנייה וכל פרטיה?
+                </span>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={() => erase.mutate()}
+                  disabled={erase.isPending}
+                >
+                  {erase.isPending ? (
+                    <>
+                      <Spinner /> מוחק…
+                    </>
+                  ) : (
+                    "כן, מחק"
+                  )}
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmErase(false)}
+                  disabled={erase.isPending}
+                  className="rounded-lg px-3 py-1.5 text-sm text-navy-500 hover:bg-navy-50"
+                >
+                  ביטול
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

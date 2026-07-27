@@ -136,6 +136,16 @@ export class FilesystemService {
     await fs.mkdir(dir, { recursive: true });
   }
 
+  /**
+   * Recursively removes a business's entire workspace directory — every context
+   * file, knowledge doc and the reserved `_hidden/` folder. Used by the tenant
+   * hard-purge. Idempotent: `force` swallows a missing directory.
+   */
+  async deleteBusinessDir(businessId: string): Promise<void> {
+    const dir = this.businessRoot(businessId);
+    await fs.rm(dir, { recursive: true, force: true });
+  }
+
   async writeFile(
     businessId: string,
     relativePath: string,

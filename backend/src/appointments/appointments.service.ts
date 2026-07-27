@@ -42,6 +42,14 @@ function israelTime(at: Date): string {
   });
 }
 
+/**
+ * WhatsApp rejects template parameters containing newlines, tabs, or 4+
+ * consecutive spaces. Collapse any whitespace run to a single space and trim.
+ */
+function sanitizeTemplateParam(value: string): string {
+  return value.replace(/\s+/g, ' ').trim();
+}
+
 @Injectable()
 export class AppointmentsService {
   private readonly log = new Logger(AppointmentsService.name);
@@ -171,22 +179,41 @@ export class AppointmentsService {
       );
     }
 
-    // Also try the owner's private WhatsApp, if they've set a number. Best-
-    // effort: outside the 24h window WhatsApp needs an approved template, so
-    // this may be rejected until one is wired — never let it fail the booking.
+    // Also ring the owner's private WhatsApp, if they've set a number. Prefer the
+    // approved `appointment_booked` UTILITY template — it delivers even outside
+    // the 24h service window (a cold owner alert). If the template send is
+    // rejected (e.g. Meta hasn't approved it yet), fall back to free-form text,
+    // which still lands if the owner messaged the business in the last 24h.
+    // Best-effort throughout — never let an alert failure break the booking.
     try {
       const ownerPhone = business?.ownerPhone?.trim();
       if (ownerPhone) {
-        await this.whatsapp.sendText(
-          appointment.businessId,
-          ownerPhone,
-          `נקבעה פגישה חדשה 📅\n${appointment.title}\nלקוח: ${who}\nמועד: ${when}`,
+        const eventLine = sanitizeTemplateParam(
+          `${appointment.title} — ${when}`,
         );
+        const customerParam = sanitizeTemplateParam(who);
+        try {
+          await this.whatsapp.sendTemplate(appointment.businessId, ownerPhone, {
+            name: 'appointment_booked',
+            languageCode: 'he',
+            bodyParams: [eventLine, customerParam],
+          });
+        } catch (tplErr) {
+          this.log.warn(
+            `[appointments] owner WhatsApp template not delivered, trying ` +
+              `free-form: ${(tplErr as Error).message}`,
+          );
+          await this.whatsapp.sendText(
+            appointment.businessId,
+            ownerPhone,
+            `נקבעה פגישה חדשה 📅\n${appointment.title}\nלקוח: ${who}\nמועד: ${when}`,
+          );
+        }
       }
     } catch (err) {
       this.log.warn(
-        `[appointments] owner WhatsApp alert not delivered (likely needs a ` +
-          `template or no connection): ${(err as Error).message}`,
+        `[appointments] owner WhatsApp alert not delivered (likely no ` +
+          `connection or outside 24h window): ${(err as Error).message}`,
       );
     }
   }
@@ -352,7 +379,8 @@ export class AppointmentsService {
       if (!c.customerContactId) continue;
       // Skip the customer who freed this slot — don't offer someone the very
       // opening they just created by moving/cancelling their appointment.
-      if (excludeContactId && c.customerContactId === excludeContactId) continue;
+      if (excludeContactId && c.customerContactId === excludeContactId)
+        continue;
       const duration = c.endAt.getTime() - c.startAt.getTime();
       const end = new Date(freedStart.getTime() + duration);
       // The freed slot must actually fit their appointment length.

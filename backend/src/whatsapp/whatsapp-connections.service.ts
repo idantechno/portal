@@ -358,4 +358,71 @@ export class WhatsappConnectionsService {
     const json = (await res.json()) as { messages?: Array<{ id?: string }> };
     return { externalMessageId: json.messages?.[0]?.id };
   }
+
+  /**
+   * Sends a pre-approved WhatsApp *template* message. Unlike {@link sendText},
+   * a template is accepted by WhatsApp even outside the 24-hour customer service
+   * window — this is what lets us reliably ring a business owner's private
+   * number for an appointment alert regardless of when they last messaged.
+   *
+   * `bodyParams` fill the template's positional {{1}}, {{2}}, … in order. Meta
+   * rejects parameters that contain newlines, tabs, or 4+ consecutive spaces, so
+   * callers should pass already-sanitised single-line values. Best-effort:
+   * throws on failure (including a not-yet-approved template) for the caller to
+   * swallow and fall back.
+   */
+  async sendTemplate(
+    businessId: string,
+    to: string,
+    template: { name: string; languageCode: string; bodyParams?: string[] },
+  ): Promise<{ externalMessageId?: string }> {
+    const conn = await this.findByBusinessId(businessId);
+    if (!conn || conn.status !== 'active') {
+      throw new NotFoundException(
+        'WhatsApp is not connected for this business',
+      );
+    }
+    const apiKey = this.decryptAccessToken(conn);
+    const base =
+      this.cfg.get<string>('DIALOG360_API_BASE') ??
+      'https://waba-v2.360dialog.io';
+    const url = `${base.replace(/\/$/, '')}/messages`;
+    const components = template.bodyParams?.length
+      ? [
+          {
+            type: 'body',
+            parameters: template.bodyParams.map((text) => ({
+              type: 'text',
+              text,
+            })),
+          },
+        ]
+      : [];
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'D360-API-KEY': apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to,
+        type: 'template',
+        template: {
+          name: template.name,
+          language: { code: template.languageCode },
+          ...(components.length ? { components } : {}),
+        },
+      }),
+    });
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '');
+      throw new Error(
+        `WhatsApp template send failed (HTTP ${res.status}): ${errBody.slice(0, 300)}`,
+      );
+    }
+    const json = (await res.json()) as { messages?: Array<{ id?: string }> };
+    return { externalMessageId: json.messages?.[0]?.id };
+  }
 }

@@ -44,6 +44,7 @@ import { WebsiteFactsModule } from './website-facts/website-facts.module';
 import { BriefsModule } from './briefs/briefs.module';
 import { StrategiesModule } from './strategies/strategies.module';
 import { AppointmentsModule } from './appointments/appointments.module';
+import { DataPrivacyModule } from './data-privacy/data-privacy.module';
 import { WorkspaceAgentModule } from './agents/workspace/workspace-agent.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
@@ -65,6 +66,19 @@ import { RolesGuard } from './auth/guards/roles.guard';
       useFactory: (cfg: ConfigService) => {
         const synchronize =
           cfg.get<string>('DB_SYNCHRONIZE', 'false') === 'true';
+        // Encrypt the DB connection in transit. Off by default so local dev
+        // (in-network Postgres, no certs) keeps working; set DB_SSL=true in
+        // prod. Managed providers (Railway/Neon/RDS) present certs the app
+        // can't chain to a local CA, so DB_SSL_REJECT_UNAUTHORIZED stays
+        // false unless you ship the provider's CA bundle.
+        const sslEnabled = cfg.get<string>('DB_SSL', 'false') === 'true';
+        const ssl = sslEnabled
+          ? {
+              rejectUnauthorized:
+                cfg.get<string>('DB_SSL_REJECT_UNAUTHORIZED', 'false') ===
+                'true',
+            }
+          : false;
         return {
           type: 'postgres',
           host: cfg.get<string>('DB_HOST', 'localhost'),
@@ -72,6 +86,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
           username: cfg.get<string>('DB_USERNAME', 'postgres'),
           password: cfg.get<string>('DB_PASSWORD', 'postgres'),
           database: cfg.get<string>('DB_NAME', 'portal'),
+          ssl,
           autoLoadEntities: true,
           // Dev uses synchronize for fast iteration; prod keeps it off and runs
           // migrations automatically on boot instead.
@@ -130,6 +145,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
     StrategiesModule,
     AppointmentsModule,
     WebsiteFactsModule,
+    DataPrivacyModule,
   ],
   controllers: [AppController, HealthController],
   providers: [

@@ -78,6 +78,8 @@ export interface Business {
   ownerPhone?: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Set when the tenant is scheduled for deletion (soft-deleted). */
+  deletedAt?: string | null;
   /** The current caller's role in this business (null for platform staff). */
   myRole?: BusinessRole | null;
   /** True when the caller is here via platform-staff privilege, not membership. */
@@ -131,6 +133,10 @@ export interface AdminBusiness {
   slug: string;
   status: AccountStatus;
   createdAt: string;
+  /** Set when the tenant is scheduled for deletion (soft-deleted). */
+  deletedAt: string | null;
+  /** When it will be irreversibly purged (deletedAt + 30d), null otherwise. */
+  purgeAt: string | null;
   memberCount: number;
   owner: MemberUser | null;
 }

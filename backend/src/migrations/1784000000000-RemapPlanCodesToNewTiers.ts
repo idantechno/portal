@@ -12,9 +12,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * Also update the column default. Data-only + default change; no schema shape
  * change.
  */
-export class RemapPlanCodesToNewTiers1784000000000
-  implements MigrationInterface
-{
+export class RemapPlanCodesToNewTiers1784000000000 implements MigrationInterface {
   name = 'RemapPlanCodesToNewTiers1784000000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

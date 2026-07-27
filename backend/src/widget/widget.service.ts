@@ -1,4 +1,5 @@
 import {
+  ForbiddenException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -25,6 +26,27 @@ export interface ResolvedSession {
 }
 
 /**
+ * Where a widget request claims to originate. `origin` is the browser's
+ * `Origin` header (always present on the widget's cross-origin fetches);
+ * `referer` is a fallback for the rare same-origin self-host where the
+ * browser omits `Origin` but still sends `Referer`.
+ */
+export interface WidgetRequestOrigin {
+  origin?: string | null;
+  referer?: string | null;
+}
+
+/** Reduce a URL/origin string to a canonical `scheme://host[:port]`, or null. */
+function normalizeOrigin(value: string | null | undefined): string | null {
+  if (!value) return null;
+  try {
+    return new URL(value.trim()).origin.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+/**
  * The web widget is unauthenticated — security model:
  * - `publicKey` identifies the business and gates session creation
  * - `sessionToken` (random 32-char) identifies one anonymous customer for
@@ -42,7 +64,42 @@ export class WidgetService {
     private readonly conversations: ConversationsService,
   ) {}
 
-  async createSession(publicKey: string): Promise<{
+  /**
+   * Reject a widget request coming from a site the business hasn't authorized.
+   *
+   * The `publicKey` is NOT a secret — it's visible in the embed snippet in any
+   * customer's page source. Without this check, anyone could copy the key,
+   * embed the widget on their own site, and drive billable agent runs on our
+   * Anthropic key against this tenant. The `widgetAllowedOrigins` list is the
+   * per-business whitelist of sites permitted to run the widget.
+   *
+   * Enforcement is opt-in per business: an empty list means "not yet locked
+   * down — allow any origin" so existing embeds don't break. Once the operator
+   * fills the list, only those exact origins (scheme + host + port) pass, and a
+   * missing Origin (i.e. not a real browser cross-origin call) is rejected too.
+   *
+   * Note: `Origin` is trivially forgeable outside a browser (curl et al.), so
+   * this stops *browser-based* embedding on unauthorized sites — the real abuse
+   * vector — but is not a substitute for the per-IP rate limits on this route.
+   */
+  private assertOriginAllowed(
+    business: Business,
+    req: WidgetRequestOrigin | undefined,
+  ): void {
+    const allowed = (business.widgetAllowedOrigins ?? [])
+      .map((o) => normalizeOrigin(o))
+      .filter((o): o is string => o !== null);
+    if (allowed.length === 0) return; // not configured → permissive
+    const requestOrigin =
+      normalizeOrigin(req?.origin) ?? normalizeOrigin(req?.referer);
+    if (requestOrigin && allowed.includes(requestOrigin)) return;
+    throw new ForbiddenException('This widget is not authorized for this site');
+  }
+
+  async createSession(
+    publicKey: string,
+    req?: WidgetRequestOrigin,
+  ): Promise<{
     sessionToken: string;
     conversationId: string;
   }> {
@@ -54,6 +111,7 @@ export class WidgetService {
     if (business.status === AccountStatus.Suspended) {
       throw new NotFoundException('Unknown widget public key');
     }
+    this.assertOriginAllowed(business, req);
     const sessionToken = generateSessionToken();
     const contact = await this.contacts.upsert({
       businessId: business.id,
@@ -70,7 +128,10 @@ export class WidgetService {
     return { sessionToken, conversationId: conversation.id };
   }
 
-  async resolve(sessionToken: string): Promise<ResolvedSession> {
+  async resolve(
+    sessionToken: string,
+    req?: WidgetRequestOrigin,
+  ): Promise<ResolvedSession> {
     const contact = await this.contacts.findByExternalId(
       Channel.Web,
       sessionToken,
@@ -84,14 +145,18 @@ export class WidgetService {
     });
     const business = await this.businesses.findById(contact.businessId);
     if (!business) throw new NotFoundException('Business not found');
+    // A session token is per-customer, but the origin can still change if the
+    // token is lifted and replayed from another site — re-check every call.
+    this.assertOriginAllowed(business, req);
     return { business, conversation };
   }
 
   async sendCustomerMessage(
     sessionToken: string,
     content: string,
+    req?: WidgetRequestOrigin,
   ): Promise<Message> {
-    const { business, conversation } = await this.resolve(sessionToken);
+    const { business, conversation } = await this.resolve(sessionToken, req);
     if (business.status === AccountStatus.Suspended) {
       throw new UnauthorizedException('This chat is not available');
     }
@@ -108,9 +173,12 @@ export class WidgetService {
 
   async listMessages(
     sessionToken: string,
-    options: { since?: Date } = {},
+    options: { since?: Date } & WidgetRequestOrigin = {},
   ): Promise<{ messages: Message[]; conversationStatus: ConversationStatus }> {
-    const { conversation } = await this.resolve(sessionToken);
+    const { conversation } = await this.resolve(sessionToken, {
+      origin: options.origin,
+      referer: options.referer,
+    });
     const all = await this.conversations.listMessages(
       conversation.businessId,
       conversation.id,

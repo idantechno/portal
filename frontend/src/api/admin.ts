@@ -49,6 +49,18 @@ export const adminApi = {
       .patch(`/admin/businesses/${id}/status`, { status })
       .then((r) => r.data),
 
+  /** Schedule a tenant for deletion (soft-delete, 30-day reversible window). */
+  deleteBusiness: (id: string) =>
+    api
+      .delete<{ ok: true; purgeAt: string | null }>(`/admin/businesses/${id}`)
+      .then((r) => r.data),
+
+  /** Undo a scheduled deletion within the grace window. */
+  restoreBusiness: (id: string) =>
+    api
+      .post<{ ok: true }>(`/admin/businesses/${id}/restore`)
+      .then((r) => r.data),
+
   listUsers: (q?: string) =>
     api
       .get<AdminUser[]>("/admin/users", { params: q ? { q } : {} })

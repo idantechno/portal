@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -69,7 +70,26 @@ export default function AdminBusinessDetail() {
     onSuccess: () => navigate(`/app/businesses/${businessId}`),
   });
 
+  const invalidateBusiness = () => {
+    qc.invalidateQueries({ queryKey: ["admin", "business", businessId] });
+    qc.invalidateQueries({ queryKey: ["admin", "businesses"] });
+  };
+  const scheduleDelete = useMutation({
+    mutationFn: () => adminApi.deleteBusiness(businessId),
+    onSuccess: invalidateBusiness,
+  });
+  const restore = useMutation({
+    mutationFn: () => adminApi.restoreBusiness(businessId),
+    onSuccess: invalidateBusiness,
+  });
+
+  const [confirmName, setConfirmName] = useState("");
   const business = detail.data?.business;
+  const deletedAt = business?.deletedAt ?? null;
+  const purgeAt = deletedAt
+    ? new Date(new Date(deletedAt).getTime() + 30 * 24 * 60 * 60 * 1000)
+    : null;
+  const fmt = (d: Date) => d.toLocaleDateString("he-IL", { dateStyle: "long" });
 
   return (
     <div className="p-8 max-w-4xl mx-auto">
@@ -153,6 +173,61 @@ export default function AdminBusinessDetail() {
           </tbody>
         </table>
       </Card>
+
+      {canModerate && business && (
+        <Card className="mt-6 border-red-200 p-6">
+          <div className="flex items-center gap-2 mb-1">
+            <Icon name="warning" size={18} className="text-red-600" />
+            <h2 className="font-semibold text-red-900">אזור מסוכן</h2>
+          </div>
+
+          {deletedAt ? (
+            <>
+              <p className="text-sm text-red-800">
+                העסק מתוזמן למחיקה ונעלם מהמערכת. המחיקה הסופית והבלתי הפיכה תתבצע
+                אוטומטית בתאריך{" "}
+                <span className="font-semibold">{purgeAt ? fmt(purgeAt) : "—"}</span>
+                . עד אז ניתן לשחזר.
+              </p>
+              <Button
+                variant="secondary"
+                className="mt-4"
+                disabled={restore.isPending}
+                onClick={() => restore.mutate()}
+              >
+                {restore.isPending ? <Spinner /> : "שחזור העסק"}
+              </Button>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-neutral-600">
+                מחיקת העסק תסתיר אותו מיד ותתזמן מחיקה סופית של כל הנתונים
+                (לקוחות, שיחות, קבצים, חיבורים) בעוד 30 יום. ניתן לשחזר בתוך
+                החלון. להמשך, הקלד את שם העסק:{" "}
+                <span className="font-semibold">{business.name}</span>
+              </p>
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <input
+                  value={confirmName}
+                  onChange={(e) => setConfirmName(e.target.value)}
+                  placeholder="שם העסק לאישור"
+                  className="rounded-xl border border-neutral-300 px-3 py-2 text-sm"
+                />
+                <Button
+                  variant="danger"
+                  disabled={
+                    confirmName.trim() !== business.name ||
+                    scheduleDelete.isPending
+                  }
+                  onClick={() => scheduleDelete.mutate()}
+                >
+                  {scheduleDelete.isPending ? <Spinner /> : "מחיקת העסק"}
+                </Button>
+              </div>
+            </>
+          )}
+        </Card>
+      )}
     </div>
   );
 }

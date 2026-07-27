@@ -26,7 +26,8 @@ async function bootstrap() {
   // proxy so req.ip is the real caller — the rate limiter keys on it.
   app.set('trust proxy', 1);
 
-  app.setGlobalPrefix(config.get<string>('API_PREFIX', 'api'));
+  const apiPrefix = config.get<string>('API_PREFIX', 'api');
+  app.setGlobalPrefix(apiPrefix);
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -34,6 +35,30 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
     }),
   );
+  // The embeddable web widget is loaded on customers' OWN sites, so its routes
+  // must be reachable cross-origin from ANY domain — the global CORS allowlist
+  // below (which locks the dashboard API to our own origins) would otherwise
+  // block every customer site. Reflect the origin for `/<prefix>/widget/*` and
+  // answer its preflight here, BEFORE the global CORS middleware. This is not
+  // the security boundary: which sites may actually use a given widget is
+  // enforced per-business in WidgetService via `widgetAllowedOrigins` (a 403),
+  // not by CORS. Registered first so it wins for widget paths.
+  app.use(`/${apiPrefix}/widget`, (req, res, next) => {
+    const origin = req.headers.origin;
+    if (origin) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Vary', 'Origin');
+    }
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Max-Age', '600');
+    if (req.method === 'OPTIONS') {
+      res.status(204).end();
+      return;
+    }
+    next();
+  });
+
   // Auth is via bearer tokens (Authorization header), not cookies, so we do
   // NOT enable credentials — a '*'+credentials combo is contradictory and
   // browsers reject it. Set an explicit CORS_ORIGIN allowlist in prod.

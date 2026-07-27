@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Ip,
   Param,
@@ -126,6 +127,55 @@ export class AdminController {
       ip,
     });
     return result;
+  }
+
+  /**
+   * Schedule a tenant for deletion — soft-delete now (it disappears from the
+   * app immediately), hard-purge after the 30-day grace window. Reversible via
+   * the restore route until then. Super-admin only.
+   */
+  @Roles(UserRole.SuperAdmin)
+  @Delete('businesses/:businessId')
+  async deleteBusiness(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('businessId', ParseUUIDPipe) businessId: string,
+    @Ip() ip: string,
+  ) {
+    const result = await this.admin.scheduleBusinessDeletion(businessId);
+    await this.audit.record({
+      actorUserId: user.id,
+      actorEmail: user.email,
+      actorRole: user.role,
+      action: 'business.deleted',
+      businessId,
+      targetType: 'business',
+      targetId: businessId,
+      metadata: { purgeAt: result.purgeAt },
+      ip,
+    });
+    return { ok: true, ...result };
+  }
+
+  /** Undo a scheduled deletion within the grace window. Super-admin only. */
+  @Roles(UserRole.SuperAdmin)
+  @Post('businesses/:businessId/restore')
+  async restoreBusiness(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('businessId', ParseUUIDPipe) businessId: string,
+    @Ip() ip: string,
+  ) {
+    await this.admin.restoreBusiness(businessId);
+    await this.audit.record({
+      actorUserId: user.id,
+      actorEmail: user.email,
+      actorRole: user.role,
+      action: 'business.restored',
+      businessId,
+      targetType: 'business',
+      targetId: businessId,
+      ip,
+    });
+    return { ok: true };
   }
 
   @Get('users')

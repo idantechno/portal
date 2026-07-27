@@ -114,8 +114,7 @@ export class AgentsService {
     const capsById = new Map<string, Set<PlanCapability>>(
       await Promise.all(
         ids.map(
-          async (id) =>
-            [id, await this.billing.getCapabilities(id)] as const,
+          async (id) => [id, await this.billing.getCapabilities(id)] as const,
         ),
       ),
     );

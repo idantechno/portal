@@ -80,12 +80,19 @@ export default function AdminBusinesses() {
             {businesses.data?.map((b) => (
               <tr key={b.id} className="hover:bg-neutral-50">
                 <td className="px-4 py-3">
-                  <Link
-                    to={`/app/admin/businesses/${b.id}`}
-                    className="font-medium text-brand-700 hover:underline"
-                  >
-                    {b.name}
-                  </Link>
+                  <div className="flex items-center gap-2">
+                    <Link
+                      to={`/app/admin/businesses/${b.id}`}
+                      className="font-medium text-brand-700 hover:underline"
+                    >
+                      {b.name}
+                    </Link>
+                    {b.deletedAt && (
+                      <span className="inline-block rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-medium text-red-800">
+                        מתוזמן למחיקה
+                      </span>
+                    )}
+                  </div>
                   <div className="text-xs text-neutral-500" dir="ltr">
                     /{b.slug}
                   </div>

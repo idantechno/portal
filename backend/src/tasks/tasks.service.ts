@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, LessThanOrEqual, Not, Repository } from 'typeorm';
 import { Task, TaskSource, TaskStatus } from './task.entity';
 
 export interface CreateTaskInput {
@@ -59,8 +59,11 @@ export class TasksService {
     if (patch.description !== undefined)
       task.description = patch.description ?? null;
     if (patch.priority !== undefined) task.priority = patch.priority;
-    if (patch.dueAt !== undefined)
+    if (patch.dueAt !== undefined) {
       task.dueAt = patch.dueAt ? new Date(patch.dueAt) : null;
+      // Rescheduling revives the reminder — let it fire again at the new time.
+      task.notifiedAt = null;
+    }
     if (patch.status !== undefined) {
       task.status = patch.status;
       task.completedAt = patch.status === 'done' ? new Date() : null;
@@ -95,5 +98,26 @@ export class TasksService {
       .where('t.business_id = :businessId', { businessId })
       .andWhere('t.status != :done', { done: 'done' })
       .getCount();
+  }
+
+  /**
+   * Tasks whose due date has arrived and haven't been reminded yet (and aren't
+   * done). Drives the reminders scheduler — cross-tenant, so no businessId scope.
+   */
+  findDueUnnotified(now: Date = new Date()): Promise<Task[]> {
+    return this.tasks.find({
+      where: {
+        dueAt: LessThanOrEqual(now),
+        notifiedAt: IsNull(),
+        status: Not('done'),
+      },
+      order: { dueAt: 'ASC' },
+      take: 200,
+    });
+  }
+
+  /** Stamp a task as reminded so it never double-fires. */
+  async markNotified(id: string): Promise<void> {
+    await this.tasks.update({ id }, { notifiedAt: new Date() });
   }
 }

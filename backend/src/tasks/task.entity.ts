@@ -48,6 +48,14 @@ export class Task {
   @Column({ type: 'timestamptz', name: 'completed_at', nullable: true })
   completedAt!: Date | null;
 
+  /**
+   * When the due-date reminder for this task was delivered (bell + email/…).
+   * Null = not yet notified. Set by the reminders scheduler so a due task
+   * fires exactly once. Reset to null when the due date is moved forward.
+   */
+  @Column({ type: 'timestamptz', name: 'notified_at', nullable: true })
+  notifiedAt!: Date | null;
+
   /** Optional link back to a domain object (lead, conversation, document...). */
   @Column({ type: 'varchar', length: 32, name: 'related_type', nullable: true })
   relatedType!: string | null;

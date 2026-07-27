@@ -13,6 +13,7 @@ import { Message } from './message.entity';
 import { Business } from '../businesses/business.entity';
 import { Channel } from '../common/enums/channel.enum';
 import { ConversationStatus } from '../common/enums/conversation-status.enum';
+import { ContactStatus } from '../common/enums/contact-status.enum';
 import { MessageRole } from '../common/enums/message-role.enum';
 import {
   DEFAULT_WHATSAPP_AGENT,
@@ -30,7 +31,29 @@ export interface FindOrCreateConversationInput {
   channel: Channel;
   externalThreadId: string;
   customerContactId: string;
+  /**
+   * The contact's status, which decides threading. Customers keep ONE
+   * continuous thread (personal, like a normal WhatsApp contact); leads get a
+   * fresh conversation per inquiry episode. Defaults to lead-style if omitted.
+   */
+  contactStatus?: ContactStatus;
+  /**
+   * 'write' = a new inbound customer message is arriving, so a lead whose last
+   * episode is closed or has gone quiet rolls into a NEW conversation. 'read'
+   * (default) = merely resolving the current thread (listing history, owner
+   * echoes) — never starts a new episode, so the inbox isn't cluttered with
+   * empty conversations on every poll.
+   */
+  purpose?: 'read' | 'write';
 }
+
+/**
+ * How long a lead's conversation may stay quiet before the next inbound message
+ * is treated as a new inquiry episode (a separate conversation). Tunable — a
+ * day-scale gap keeps an active back-and-forth together while splitting a
+ * genuine "came back a week later" return into its own thread.
+ */
+const LEAD_EPISODE_GAP_HOURS = 24;
 
 export interface AppendMessageInput {
   businessId: string;
@@ -58,22 +81,79 @@ export class ConversationsService {
     private readonly inbox: InboxEventsService,
   ) {}
 
+  /**
+   * Resolve the conversation an incoming/outgoing message belongs to.
+   *
+   * Threading policy (see FindOrCreateConversationInput):
+   * - Customer → one continuous thread: always reuse the contact's latest
+   *   conversation (more personal, like a normal WhatsApp contact).
+   * - Lead → episodic: reuse the latest conversation while it's still active
+   *   (open and not gone quiet); once it's closed or past LEAD_EPISODE_GAP_HOURS,
+   *   a NEW inbound message starts a fresh conversation, so each inquiry is its
+   *   own inbox item instead of one endless thread.
+   *
+   * The lookup is keyed on the contact (not the raw thread id) so a second
+   * episode can exist alongside the first without colliding on the unique
+   * (business, channel, externalThreadId) index — the new episode gets a
+   * suffixed thread id.
+   */
   async findOrCreate(
     input: FindOrCreateConversationInput,
   ): Promise<Conversation> {
-    const existing = await this.conversations.findOne({
+    const latest = await this.conversations.findOne({
       where: {
         businessId: input.businessId,
         channel: input.channel,
-        externalThreadId: input.externalThreadId,
+        customerContactId: input.customerContactId,
+      },
+      order: { createdAt: 'DESC' },
+    });
+
+    // Customers: single continuous thread on their most recent conversation.
+    if (input.contactStatus === ContactStatus.Customer) {
+      return latest ?? this.createConversation(input, input.externalThreadId);
+    }
+
+    // Leads: first ever contact, or an episode still active → reuse/create base.
+    if (!latest) {
+      return this.createConversation(input, input.externalThreadId);
+    }
+    if (input.purpose !== 'write' || this.isEpisodeActive(latest)) {
+      return latest;
+    }
+
+    // A new inbound after the episode closed or went quiet → new episode. The
+    // base thread id is taken by a prior episode, so derive a unique one.
+    const priorCount = await this.conversations.count({
+      where: {
+        businessId: input.businessId,
+        channel: input.channel,
+        customerContactId: input.customerContactId,
       },
     });
-    if (existing) return existing;
+    return this.createConversation(
+      input,
+      `${input.externalThreadId}#e${priorCount + 1}`,
+    );
+  }
+
+  /** True while a conversation is open and hasn't gone quiet past the gap. */
+  private isEpisodeActive(conv: Conversation): boolean {
+    if (conv.status === ConversationStatus.Closed) return false;
+    const last = conv.lastMessageAt ?? conv.createdAt;
+    const idleMs = Date.now() - new Date(last).getTime();
+    return idleMs < LEAD_EPISODE_GAP_HOURS * 3_600_000;
+  }
+
+  private async createConversation(
+    input: FindOrCreateConversationInput,
+    externalThreadId: string,
+  ): Promise<Conversation> {
     const created = await this.conversations.save(
       this.conversations.create({
         businessId: input.businessId,
         channel: input.channel,
-        externalThreadId: input.externalThreadId,
+        externalThreadId,
         customerContactId: input.customerContactId,
         status: ConversationStatus.Bot,
       }),

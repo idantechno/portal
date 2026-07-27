@@ -206,6 +206,7 @@ export class WidgetService {
       channel: Channel.Web,
       externalThreadId: sessionToken,
       customerContactId: contact.id,
+      contactStatus: contact.status,
     });
     return { sessionToken, conversationId: conversation.id };
   }
@@ -213,6 +214,7 @@ export class WidgetService {
   async resolve(
     sessionToken: string,
     req?: WidgetRequestOrigin,
+    purpose: 'read' | 'write' = 'read',
   ): Promise<ResolvedSession> {
     const contact = await this.contacts.findByExternalId(
       Channel.Web,
@@ -224,6 +226,8 @@ export class WidgetService {
       channel: Channel.Web,
       externalThreadId: sessionToken,
       customerContactId: contact.id,
+      contactStatus: contact.status,
+      purpose,
     });
     const business = await this.businesses.findById(contact.businessId);
     if (!business) throw new NotFoundException('Business not found');
@@ -238,7 +242,13 @@ export class WidgetService {
     content: string,
     req?: WidgetRequestOrigin,
   ): Promise<Message> {
-    const { business, conversation } = await this.resolve(sessionToken, req);
+    // 'write' so a returning lead whose last episode is closed/stale rolls
+    // onto a fresh conversation instead of hitting the closed dead-end below.
+    const { business, conversation } = await this.resolve(
+      sessionToken,
+      req,
+      'write',
+    );
     if (business.status === AccountStatus.Suspended) {
       throw new UnauthorizedException('This chat is not available');
     }

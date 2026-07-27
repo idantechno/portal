@@ -312,6 +312,9 @@ export class WhatsappWebhookController {
       channel: Channel.WhatsApp,
       externalThreadId: input.fromPhone,
       customerContactId: contact.id,
+      contactStatus: contact.status,
+      // A new inbound from a lead after a gap starts a fresh inquiry episode.
+      purpose: 'write',
     });
 
     // De-dupe by wamid.
@@ -352,6 +355,10 @@ export class WhatsappWebhookController {
       channel: Channel.WhatsApp,
       externalThreadId: input.toPhone,
       customerContactId: contact.id,
+      contactStatus: contact.status,
+      // Owner's own outbound echo: attach to the current thread, never open a
+      // new episode (only a customer's inbound starts one).
+      purpose: 'read',
     });
 
     // De-dupe by echo id (also guards against our own API sends echoing back).

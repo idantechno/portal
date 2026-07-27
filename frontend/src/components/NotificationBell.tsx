@@ -6,6 +6,12 @@ import { EmptyState } from "./ui";
 import type { AppNotification, NotificationType } from "../api/notifications";
 import { Icon } from "./icons";
 import type { IconName } from "./icons";
+import {
+  enablePush,
+  hasPushSubscription,
+  isPushSupported,
+  pushPermission,
+} from "../pwa/push";
 
 /** Each notification type gets the same glyph the matching screen uses in the
  *  sidebar, so a notification visually points at where it lands. */
@@ -60,6 +66,46 @@ export function NotificationBell({ businessId }: { businessId: string }) {
 
   const count = unread.data ?? 0;
   const items = list.data ?? [];
+
+  // Push opt-in state: "on" already subscribed, "off" can enable, "denied"
+  // blocked in browser settings, "unsupported"/null hide the row entirely.
+  const [pushState, setPushState] = useState<
+    "on" | "off" | "denied" | "unsupported" | null
+  >(null);
+  const [pushBusy, setPushBusy] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    void (async () => {
+      // Awaited up front so state updates never land synchronously in-effect.
+      await Promise.resolve();
+      if (cancelled) return;
+      if (!isPushSupported()) return setPushState("unsupported");
+      if (pushPermission() === "denied") return setPushState("denied");
+      const has = await hasPushSubscription();
+      if (!cancelled) setPushState(has ? "on" : "off");
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
+  const onEnablePush = async () => {
+    setPushBusy(true);
+    try {
+      const result = await enablePush(businessId);
+      setPushState(
+        result === "subscribed"
+          ? "on"
+          : result === "denied"
+            ? "denied"
+            : "unsupported",
+      );
+    } finally {
+      setPushBusy(false);
+    }
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -146,6 +192,30 @@ export function NotificationBell({ businessId }: { businessId: string }) {
                   </li>
                 ))}
               </ul>
+            )}
+            {pushState && pushState !== "unsupported" && (
+              <div className="sticky bottom-0 border-t border-navy-100 bg-white px-4 py-2.5">
+                {pushState === "on" ? (
+                  <div className="flex items-center gap-2 text-xs text-navy-400">
+                    <Icon name="bell" size={14} />
+                    התראות בטלפון פעילות
+                  </div>
+                ) : pushState === "denied" ? (
+                  <div className="text-xs text-navy-400">
+                    התראות חסומות בהגדרות הדפדפן. אפשר לפתוח אותן שם.
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={onEnablePush}
+                    disabled={pushBusy}
+                    className="flex items-center gap-2 text-xs font-medium text-brand-600 hover:text-brand-700 disabled:opacity-50"
+                  >
+                    <Icon name="bell" size={14} />
+                    {pushBusy ? "מפעיל…" : "הפעל התראות בטלפון"}
+                  </button>
+                )}
+              </div>
             )}
           </div>
         </>

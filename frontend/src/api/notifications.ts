@@ -42,4 +42,23 @@ export const notificationsApi = {
     api
       .post(`/businesses/${businessId}/notifications/read-all`)
       .then((r) => r.data),
+  vapidPublicKey: (businessId: string) =>
+    api
+      .get<{ publicKey: string }>(
+        `/businesses/${businessId}/notifications/push/vapid-key`,
+      )
+      .then((r) => r.data.publicKey),
+  subscribePush: (
+    businessId: string,
+    sub: { endpoint: string; keys: { p256dh: string; auth: string }; userAgent?: string },
+  ) =>
+    api
+      .post(`/businesses/${businessId}/notifications/push/subscribe`, sub)
+      .then((r) => r.data),
+  unsubscribePush: (businessId: string, endpoint: string) =>
+    api
+      .post(`/businesses/${businessId}/notifications/push/unsubscribe`, {
+        endpoint,
+      })
+      .then((r) => r.data),
 };

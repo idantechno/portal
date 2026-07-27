@@ -13,7 +13,7 @@
  *
  * Bump CACHE_VERSION to force every client to drop old caches on activate.
  */
-const CACHE_VERSION = "v2";
+const CACHE_VERSION = "v3";
 const CACHE = `portal-${CACHE_VERSION}`;
 const APP_SHELL = "/index.html";
 
@@ -46,6 +46,47 @@ self.addEventListener("activate", (event) => {
 // Allow the page to trigger an immediate activation of a waiting SW.
 self.addEventListener("message", (event) => {
   if (event.data === "SKIP_WAITING") self.skipWaiting();
+});
+
+// --- Web Push -------------------------------------------------------------
+// A push arrives even when the app is closed. Payload is JSON {title,body,link}.
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch (e) {
+    data = { title: "Portal Studio", body: event.data ? event.data.text() : "" };
+  }
+  const title = data.title || "Portal Studio";
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: data.body || "",
+      icon: "/pwa-192.png",
+      badge: "/pwa-192.png",
+      dir: "rtl",
+      lang: "he",
+      data: { url: data.link || "/" },
+    }),
+  );
+});
+
+// Tapping a notification focuses an open tab (or opens one) at its link.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = (event.notification.data && event.notification.data.url) || "/";
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((clients) => {
+        for (const client of clients) {
+          if ("focus" in client) {
+            client.navigate(target);
+            return client.focus();
+          }
+        }
+        return self.clients.openWindow(target);
+      }),
+  );
 });
 
 self.addEventListener("fetch", (event) => {

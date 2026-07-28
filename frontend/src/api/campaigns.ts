@@ -3,6 +3,26 @@ import { api } from "./client";
 export type CampaignStatus = "building" | "active" | "done";
 export type ScheduleHorizon = "monthly" | "half_year" | "yearly";
 
+export interface ProductionAnswers {
+  style: string;
+  firstScene: string;
+  clientPresence: string;
+}
+
+export interface ProductionItem {
+  kind: string;
+  title: string;
+  description: string;
+  format: string;
+  versions: string;
+}
+
+export interface ProductionPlanDraft {
+  concept: string;
+  items: ProductionItem[];
+  notes: string[];
+}
+
 export interface Campaign {
   id: string;
   businessId: string;
@@ -10,7 +30,8 @@ export interface Campaign {
   name: string;
   status: CampaignStatus;
   marketingPlanId: string | null;
-  productionPlan: Record<string, unknown> | null;
+  productionAnswers: ProductionAnswers | null;
+  productionPlan: { draft: ProductionPlanDraft; generatedAt?: string } | null;
   scheduleHorizon: ScheduleHorizon | null;
   schedule: Record<string, unknown> | null;
   launchedAt: string | null;
@@ -73,6 +94,26 @@ export const campaignsApi = {
   ) =>
     api
       .patch<Campaign>(`/businesses/${businessId}/campaigns/${id}`, patch)
+      .then((r) => r.data),
+
+  saveAnswers: (
+    businessId: string,
+    id: string,
+    answers: Partial<ProductionAnswers>,
+  ) =>
+    api
+      .patch<Campaign>(
+        `/businesses/${businessId}/campaigns/${id}/production-answers`,
+        answers,
+      )
+      .then((r) => r.data),
+
+  generateProduction: (businessId: string, id: string) =>
+    api
+      .post<Campaign>(
+        `/businesses/${businessId}/campaigns/${id}/production-plan`,
+        {},
+      )
       .then((r) => r.data),
 
   remove: (businessId: string, id: string) =>

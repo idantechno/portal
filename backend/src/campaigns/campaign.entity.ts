@@ -57,6 +57,19 @@ export class Campaign {
   marketingPlanId!: string | null;
 
   /* -- Stage B: production plan (list of assets to produce) ----------------- */
+
+  /**
+   * The owner's answers to the 3 creative questions — the human voice that must
+   * be present before the production plan is generated. Guides but never
+   * replaces the owner's own words.
+   */
+  @Column({ type: 'jsonb', name: 'production_answers', nullable: true })
+  productionAnswers!: {
+    style: string;
+    firstScene: string;
+    clientPresence: string;
+  } | null;
+
   @Column({ type: 'jsonb', name: 'production_plan', nullable: true })
   productionPlan!: Record<string, unknown> | null;
 

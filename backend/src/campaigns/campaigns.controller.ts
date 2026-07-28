@@ -10,13 +10,16 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { BusinessScopeGuard } from '../businesses/guards/business-scope.guard';
 import { RequireAgentGuard } from '../agents/guards/require-agent.guard';
 import { RequireAgent } from '../agents/decorators/require-agent.decorator';
 import { CampaignsService } from './campaigns.service';
 import { CampaignPrerequisitesService } from './campaign-prerequisites.service';
+import { ProductionPlanService } from './production-plan.service';
 import { CreateCampaignDto } from './dto/create-campaign.dto';
 import { UpdateCampaignDto } from './dto/update-campaign.dto';
+import { ProductionAnswersDto } from './dto/production-answers.dto';
 
 // Campaigns are the marketing agent's tool — only businesses granted the
 // "marketing" agent reach any of these routes.
@@ -27,6 +30,7 @@ export class CampaignsController {
   constructor(
     private readonly campaigns: CampaignsService,
     private readonly prerequisites: CampaignPrerequisitesService,
+    private readonly production: ProductionPlanService,
   ) {}
 
   /** The prerequisite checklist for a customer — drives the create gate in the UI. */
@@ -70,6 +74,27 @@ export class CampaignsController {
     @Body() dto: UpdateCampaignDto,
   ) {
     return this.campaigns.update(businessId, id, dto);
+  }
+
+  /** Stage B: save the owner's answers to the 3 creative questions. */
+  @Patch('campaigns/:id/production-answers')
+  saveAnswers(
+    @Param('businessId', ParseUUIDPipe) businessId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ProductionAnswersDto,
+  ) {
+    return this.campaigns.saveProductionAnswers(businessId, id, dto);
+  }
+
+  /** Stage B: generate the production plan from the plan + the 3 answers. */
+  @Throttle({ default: { ttl: 60_000, limit: 6 } })
+  @Post('campaigns/:id/production-plan')
+  async generateProduction(
+    @Param('businessId', ParseUUIDPipe) businessId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const campaign = await this.campaigns.findByIdScoped(businessId, id);
+    return this.production.generate(businessId, campaign);
   }
 
   @Delete('campaigns/:id')

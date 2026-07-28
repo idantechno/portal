@@ -1,9 +1,14 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { campaignsApi, type CampaignStatus } from "../../api/campaigns";
+import {
+  campaignsApi,
+  type Campaign,
+  type CampaignStatus,
+} from "../../api/campaigns";
+import { customersApi } from "../../api/customers";
 import { apiErrorMessage } from "../../api/client";
-import { Button, Card, FormError, Spinner } from "../../components/ui";
+import { Button, Card, FormError, Spinner, Textarea } from "../../components/ui";
 import { Icon, type IconName } from "../../components/icons";
 
 const STATUS_LABEL: Record<CampaignStatus, { text: string; cls: string }> = {
@@ -52,6 +57,15 @@ export default function CampaignDetail() {
     queryFn: () => campaignsApi.prerequisites(businessId, customerId!),
     enabled: Boolean(businessId && customerId),
   });
+  const customer = useQuery({
+    queryKey: ["customer", businessId, customerId],
+    queryFn: () => customersApi.get(businessId, customerId!),
+    enabled: Boolean(businessId && customerId),
+  });
+  const customerName =
+    customer.data?.businessName?.trim() ||
+    customer.data?.name?.trim() ||
+    "הלקוח";
 
   if (campaign.isLoading || !campaign.data) {
     return (
@@ -161,12 +175,12 @@ export default function CampaignDetail() {
           icon="doc"
           title="תוכנית הפקה"
           done={stageB}
-          building
           body={
-            <span className="text-sm text-navy-400">
-              רשימת הסרטונים, התמונות, המודעות, הטקסטים, הפורמטים והגרסאות לייצור.
-              (בבנייה)
-            </span>
+            <StageBProduction
+              businessId={businessId}
+              campaign={c}
+              customerName={customerName}
+            />
           }
         />
         <StageCard
@@ -217,6 +231,172 @@ export default function CampaignDetail() {
           <p className="mt-1 text-xs text-navy-300">(בבנייה)</p>
         </Card>
       </section>
+    </div>
+  );
+}
+
+function StageBProduction({
+  businessId,
+  campaign,
+  customerName,
+}: {
+  businessId: string;
+  campaign: Campaign;
+  customerName: string;
+}) {
+  const qc = useQueryClient();
+  const a = campaign.productionAnswers;
+  const [style, setStyle] = useState(a?.style ?? "");
+  const [firstScene, setFirstScene] = useState(a?.firstScene ?? "");
+  const [clientPresence, setClientPresence] = useState(a?.clientPresence ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  const answers = () => ({ style, firstScene, clientPresence });
+  const setCampaign = (updated: Campaign) =>
+    qc.setQueryData(["campaign", businessId, campaign.id], updated);
+
+  const save = useMutation({
+    mutationFn: () => campaignsApi.saveAnswers(businessId, campaign.id, answers()),
+    onSuccess: (u) => {
+      setCampaign(u);
+      setSaved(true);
+      setError(null);
+      setTimeout(() => setSaved(false), 1500);
+    },
+    onError: (e) => setError(apiErrorMessage(e, "שמירת התשובות נכשלה")),
+  });
+
+  const generate = useMutation({
+    mutationFn: async () => {
+      await campaignsApi.saveAnswers(businessId, campaign.id, answers());
+      return campaignsApi.generateProduction(businessId, campaign.id);
+    },
+    onSuccess: (u) => {
+      setCampaign(u);
+      void qc.invalidateQueries({ queryKey: ["campaigns", businessId] });
+      setError(null);
+    },
+    onError: (e) => setError(apiErrorMessage(e, "הפקת תוכנית ההפקה נכשלה")),
+  });
+
+  const allAnswered =
+    style.trim() && firstScene.trim() && clientPresence.trim();
+  const plan = campaign.productionPlan?.draft ?? null;
+
+  const questions = [
+    {
+      label: "מה הסגנון הראשון שקפץ לך לראש לקמפיין? (אפשר גם שניים)",
+      value: style,
+      set: setStyle,
+      placeholder: "במילים שלך — הכיוון היצירתי מתחיל כאן.",
+    },
+    {
+      label: "התוכן הראשון שעולה לאוויר — איזו סצנה אתה מדמיין?",
+      value: firstScene,
+      set: setFirstScene,
+      placeholder: "תאר את הפריים הראשון כפי שאתה רואה אותו.",
+    },
+    {
+      label: `כמה לדעתך ${customerName} ירצה/יסכים לקחת חלק במדיה שעולה לרשתות?`,
+      value: clientPresence,
+      set: setClientPresence,
+      placeholder: "לא / מעט / הרבה — וכל הקשר שחשוב.",
+    },
+  ];
+
+  return (
+    <div>
+      <p className="mb-3 text-sm text-navy-500">
+        לפני שנפיק את רשימת הנכסים — ענה על שלוש שאלות. הקול שלך הוא הליבה
+        היצירתית; השאלה רק מכוונת.
+      </p>
+
+      <div className="space-y-3">
+        {questions.map((q, i) => (
+          <div key={i}>
+            <label className="mb-1 block text-sm font-medium text-navy-800">
+              {i + 1}. {q.label}
+            </label>
+            <Textarea
+              value={q.value}
+              onChange={(e) => q.set(e.target.value)}
+              placeholder={q.placeholder}
+              rows={2}
+            />
+          </div>
+        ))}
+      </div>
+
+      {error && (
+        <div className="mt-3">
+          <FormError message={error} />
+        </div>
+      )}
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Button
+          size="sm"
+          variant="secondary"
+          disabled={save.isPending}
+          onClick={() => {
+            setError(null);
+            save.mutate();
+          }}
+        >
+          {save.isPending ? "שומר…" : saved ? "נשמר" : "שמירת תשובות"}
+        </Button>
+        <Button
+          size="sm"
+          icon="doc"
+          disabled={!allAnswered || generate.isPending}
+          title={allAnswered ? undefined : "צריך לענות על שלוש השאלות"}
+          onClick={() => {
+            setError(null);
+            generate.mutate();
+          }}
+        >
+          {generate.isPending
+            ? "מפיק תוכנית הפקה…"
+            : plan
+              ? "הפק מחדש"
+              : "הפק תוכנית הפקה"}
+        </Button>
+      </div>
+
+      {plan && (
+        <div className="mt-4 border-t border-navy-100 pt-4">
+          <div className="mb-2 text-sm font-semibold text-navy-800">
+            הרעיון: <span className="font-normal text-navy-600">{plan.concept}</span>
+          </div>
+          <div className="space-y-2">
+            {plan.items.map((it, i) => (
+              <div
+                key={i}
+                className="rounded-xl border border-navy-100 p-2.5 text-sm"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-medium text-brand-700">
+                    {it.kind}
+                  </span>
+                  <span className="font-medium text-navy-900">{it.title}</span>
+                </div>
+                <div className="mt-1 text-navy-600">{it.description}</div>
+                <div className="mt-1 text-xs text-navy-400">
+                  {it.format} · {it.versions}
+                </div>
+              </div>
+            ))}
+          </div>
+          {plan.notes.length > 0 && (
+            <ul className="mt-3 space-y-1 text-xs text-navy-500">
+              {plan.notes.map((n, i) => (
+                <li key={i}>• {n}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   );
 }

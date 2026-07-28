@@ -6,10 +6,12 @@ import { CustomersModule } from '../customers/customers.module';
 import { PlansModule } from '../plans/plans.module';
 import { QuotesModule } from '../quotes/quotes.module';
 import { ObjectivesModule } from '../objectives/objectives.module';
+import { ClaudeJsonService } from '../briefs/claude-json.service';
 import { Campaign } from './campaign.entity';
 import { CampaignsController } from './campaigns.controller';
 import { CampaignsService } from './campaigns.service';
 import { CampaignPrerequisitesService } from './campaign-prerequisites.service';
+import { ProductionPlanService } from './production-plan.service';
 
 @Module({
   imports: [
@@ -23,7 +25,13 @@ import { CampaignPrerequisitesService } from './campaign-prerequisites.service';
     ObjectivesModule,
   ],
   controllers: [CampaignsController],
-  providers: [CampaignsService, CampaignPrerequisitesService],
+  providers: [
+    CampaignsService,
+    CampaignPrerequisitesService,
+    ProductionPlanService,
+    // Stateless — re-provided here for the production-plan model call.
+    ClaudeJsonService,
+  ],
   exports: [CampaignsService],
 })
 export class CampaignsModule {}

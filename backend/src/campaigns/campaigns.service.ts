@@ -109,6 +109,30 @@ export class CampaignsService {
     return this.campaigns.save(campaign);
   }
 
+  /** Stage B: save the owner's answers to the 3 creative questions. */
+  async saveProductionAnswers(
+    businessId: string,
+    id: string,
+    answers: { style?: string; firstScene?: string; clientPresence?: string },
+  ): Promise<Campaign> {
+    const campaign = await this.findByIdScoped(businessId, id);
+    const prev = campaign.productionAnswers ?? {
+      style: '',
+      firstScene: '',
+      clientPresence: '',
+    };
+    campaign.productionAnswers = {
+      style: (answers.style ?? prev.style ?? '').trim(),
+      firstScene: (answers.firstScene ?? prev.firstScene ?? '').trim(),
+      clientPresence: (
+        answers.clientPresence ??
+        prev.clientPresence ??
+        ''
+      ).trim(),
+    };
+    return this.campaigns.save(campaign);
+  }
+
   async remove(businessId: string, id: string): Promise<void> {
     const campaign = await this.findByIdScoped(businessId, id);
     await this.campaigns.remove(campaign);

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PlansService } from '../plans/plans.service';
 import { QuotesService } from '../quotes/quotes.service';
+import { ObjectivesService } from '../objectives/objectives.service';
 
 /** The stable keys of the campaign prerequisites — order = display order. */
 export type PrerequisiteKey =
@@ -43,15 +44,17 @@ export class CampaignPrerequisitesService {
   constructor(
     private readonly plans: PlansService,
     private readonly quotes: QuotesService,
+    private readonly objectives: ObjectivesService,
   ) {}
 
   async report(
     businessId: string,
     customerId: string,
   ): Promise<PrerequisiteReport> {
-    const [plans, hasApprovedQuote] = await Promise.all([
+    const [plans, hasApprovedQuote, hasApprovedObjectives] = await Promise.all([
       this.plans.list(businessId, customerId),
       this.quotes.hasApproved(businessId, customerId),
+      this.objectives.hasApproved(businessId, customerId),
     ]);
     const hasApprovedPlan = plans.some((p) => p.status === 'approved');
 
@@ -91,9 +94,11 @@ export class CampaignPrerequisitesService {
       {
         key: 'goals',
         label: 'יעדים ומטרות',
-        met: false,
-        available: false,
-        hint: 'מטרות הקמפיין, מדדי הצלחה וקהל יעד. (בבנייה)',
+        met: hasApprovedObjectives,
+        available: true,
+        hint: hasApprovedObjectives
+          ? 'קיים מסמך יעדים ומטרות מאושר.'
+          : 'צריך מסמך יעדים ומטרות מאושר (מטרות, מדדי הצלחה, קהל יעד).',
       },
     ];
 

@@ -7,6 +7,7 @@ import { briefsApi } from "../../api/briefs";
 import { strategiesApi } from "../../api/strategies";
 import { plansApi } from "../../api/plans";
 import { quotesApi } from "../../api/quotes";
+import { objectivesApi } from "../../api/objectives";
 import { campaignsApi, type Campaign } from "../../api/campaigns";
 import { apiErrorMessage } from "../../api/client";
 import {
@@ -499,15 +500,20 @@ function MarketingSection({
     queryFn: () => quotesApi.list(businessId, customerId),
     enabled: Boolean(businessId && customerId),
   });
+  const objectives = useQuery({
+    queryKey: ["objectives", businessId, "customer", customerId],
+    queryFn: () => objectivesApi.list(businessId, customerId),
+    enabled: Boolean(businessId && customerId),
+  });
 
   const briefList = briefs.data ?? [];
   const quoteList = quotes.data ?? [];
+  const objectiveList = objectives.data ?? [];
   const strategyList = strategies.data ?? [];
   const planList = plans.data ?? [];
   const approvedBrief = briefList.find((b) => b.status === "approved") ?? null;
   const approvedStrategy =
     strategyList.find((s) => s.status === "approved") ?? null;
-  const hasApprovedQuote = quoteList.some((q) => q.status === "approved");
 
   const stage = (() => {
     if (planList.some((p) => p.status === "approved"))
@@ -567,6 +573,17 @@ function MarketingSection({
     onError: (e) => setError(apiErrorMessage(e, "הפקת התוכנית נכשלה")),
   });
 
+  const generateObjectives = useMutation({
+    mutationFn: () => objectivesApi.generate(businessId, customerId),
+    onSuccess: (objective) => {
+      qc.invalidateQueries({
+        queryKey: ["objectives", businessId, "customer", customerId],
+      });
+      navigate(`/app/businesses/${businessId}/objectives/${objective.id}`);
+    },
+    onError: (e) => setError(apiErrorMessage(e, "הפקת היעדים והמטרות נכשלה")),
+  });
+
   const toneClass = {
     teal: "bg-teal-50 text-teal-700 ring-teal-200",
     amber: "bg-amber-50 text-amber-700 ring-amber-200",
@@ -612,6 +629,16 @@ function MarketingSection({
             to: `/app/businesses/${businessId}/strategies/${s.id}`,
           }))}
           empty="עוד לא הופקה אסטרטגיה"
+        />
+        <ReportGroup
+          title="יעדים ומטרות"
+          items={objectiveList.map((o) => ({
+            id: o.id,
+            title: o.title,
+            approved: o.status === "approved",
+            to: `/app/businesses/${businessId}/objectives/${o.id}`,
+          }))}
+          empty="עוד לא הופק מסמך יעדים ומטרות"
         />
         <ReportGroup
           title="הצעות מחיר"
@@ -696,7 +723,7 @@ function MarketingSection({
               size="sm"
               variant="secondary"
               icon="tasks"
-              disabled={generatePlan.isPending || !hasApprovedQuote}
+              disabled={generatePlan.isPending}
               onClick={() => {
                 setError(null);
                 generatePlan.mutate(approvedStrategy.id);
@@ -706,12 +733,25 @@ function MarketingSection({
                 ? "מפיק תוכנית…"
                 : "הפק תוכנית מהאסטרטגיה"}
             </Button>
-            {!hasApprovedQuote && (
-              <p className="mt-2 text-xs text-navy-400">
-                התוכנית דורשת הצעת מחיר מאושרת (מסלול לקוח, ערוצים ותקציב) —
-                נבנית אצל סוכן הצעות המחיר.
-              </p>
-            )}
+          </div>
+        )}
+
+        {approvedBrief && (
+          <div className="border-t border-navy-100 pt-3">
+            <Button
+              size="sm"
+              variant="secondary"
+              icon="compass"
+              disabled={generateObjectives.isPending}
+              onClick={() => {
+                setError(null);
+                generateObjectives.mutate();
+              }}
+            >
+              {generateObjectives.isPending
+                ? "מפיק יעדים ומטרות…"
+                : "הפק יעדים ומטרות מהבריף"}
+            </Button>
           </div>
         )}
       </Card>

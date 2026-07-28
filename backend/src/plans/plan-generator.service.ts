@@ -6,8 +6,6 @@ import {
 } from '@nestjs/common';
 import { ClaudeJsonService } from '../briefs/claude-json.service';
 import { StrategiesService } from '../strategies/strategies.service';
-import { QuotesService } from '../quotes/quotes.service';
-import { renderQuote } from '../quotes/quote-renderer';
 import { Plan } from './plan.entity';
 import { PlansService } from './plans.service';
 import { EMPTY_PLAN, PlanDrafterService } from './plan-drafter.service';
@@ -35,7 +33,6 @@ export class PlanGeneratorService {
   constructor(
     private readonly strategies: StrategiesService,
     private readonly plans: PlansService,
-    private readonly quotes: QuotesService,
     private readonly drafter: PlanDrafterService,
     private readonly claude: ClaudeJsonService,
   ) {}
@@ -52,29 +49,10 @@ export class PlanGeneratorService {
       throw new BadRequestException('יש לאשר את האסטרטגיה לפני הפקת תוכנית');
     }
 
-    // The plan requires an approved quote (its channels + budget feed the plan)
-    // whenever the strategy is tied to a customer. Strategies with no customer
-    // (a plain lead-brief path) keep the legacy behaviour and skip this gate.
-    let quoteMarkdown: string | null = null;
-    if (strategy.customerId) {
-      const approvedQuote = (
-        await this.quotes.list(input.businessId, strategy.customerId)
-      ).find((q) => q.status === 'approved');
-      if (!approvedQuote) {
-        throw new BadRequestException(
-          'צריך הצעת מחיר מאושרת ללקוח לפני הפקת תוכנית (מסלול לקוח, ערוצי שיווק ותקציב).',
-        );
-      }
-      quoteMarkdown = renderQuote(approvedQuote);
-    }
-
     const draft =
       input.skipDrafting || !this.claude.configured
         ? { ...EMPTY_PLAN }
-        : await this.drafter.draft({
-            strategyMarkdown: strategy.markdown,
-            quoteMarkdown,
-          });
+        : await this.drafter.draft({ strategyMarkdown: strategy.markdown });
 
     const generatedAt = new Date();
     const markdown = renderPlan({

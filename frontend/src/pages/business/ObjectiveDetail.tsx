@@ -1,0 +1,265 @@
+import { useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { objectivesApi } from "../../api/objectives";
+import { apiErrorMessage } from "../../api/client";
+import { BriefMarkdown } from "../../components/BriefMarkdown";
+import { Button, Card, FormError, Textarea } from "../../components/ui";
+import { Icon } from "../../components/icons";
+
+export default function ObjectiveDetail() {
+  const { businessId = "", objectiveId = "" } = useParams<{
+    businessId: string;
+    objectiveId: string;
+  }>();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+
+  const [edit, setEdit] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [regenOpen, setRegenOpen] = useState(false);
+
+  const objective = useQuery({
+    queryKey: ["objective", businessId, objectiveId],
+    queryFn: () => objectivesApi.get(businessId, objectiveId),
+    enabled: Boolean(businessId && objectiveId),
+  });
+
+  const text = edit ?? objective.data?.markdown ?? "";
+  const editing = edit !== null;
+
+  const save = useMutation({
+    mutationFn: (patch: Parameters<typeof objectivesApi.update>[2]) =>
+      objectivesApi.update(businessId, objectiveId, patch),
+    onSuccess: (updated) => {
+      qc.setQueryData(["objective", businessId, objectiveId], updated);
+      void qc.invalidateQueries({ queryKey: ["objectives", businessId] });
+      setEdit(null);
+      setError(null);
+    },
+    onError: (err) => setError(apiErrorMessage(err, "השמירה נכשלה")),
+  });
+
+  const regenerate = useMutation({
+    mutationFn: () => {
+      const customerId = objective.data?.customerId;
+      if (!customerId) throw new Error("no-customer");
+      return objectivesApi.generate(businessId, customerId);
+    },
+    onSuccess: (created) => {
+      void qc.invalidateQueries({ queryKey: ["objectives", businessId] });
+      navigate(`/app/businesses/${businessId}/objectives/${created.id}`);
+    },
+    onError: (err) =>
+      setError(apiErrorMessage(err, "ההפקה מחדש נכשלה — נסה שוב")),
+  });
+
+  const backToAgent = `/app/businesses/${businessId}/agents/marketing`;
+
+  const remove = useMutation({
+    mutationFn: () => objectivesApi.remove(businessId, objectiveId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["objectives", businessId] });
+      navigate(backToAgent);
+    },
+    onError: (err) => setError(apiErrorMessage(err, "המחיקה נכשלה")),
+  });
+
+  const data = objective.data;
+  const approved = data?.status === "approved";
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setError("ההעתקה נכשלה — אפשר לסמן ולהעתיק ידנית");
+    }
+  }
+
+  function download() {
+    const name = (data?.title ?? "objectives").replace(/[\\/:*?"<>|]/g, "-");
+    const blob = new Blob([text], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${name} — יעדים ומטרות.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  if (objective.isLoading) {
+    return (
+      <div className="px-4 py-8 text-sm text-neutral-500 sm:px-6">טוען…</div>
+    );
+  }
+  if (!data) {
+    return (
+      <div className="px-4 py-8 sm:px-6">
+        <FormError message="המסמך לא נמצא" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
+      <Link
+        to={backToAgent}
+        className="mb-4 inline-flex items-center gap-1.5 text-sm text-navy-500 hover:text-navy-800"
+      >
+        <Icon name="arrow-start" size={16} />
+        סוכן שיווק
+      </Link>
+
+      <header className="mb-5 flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="mb-1 truncate text-2xl font-bold">{data.title}</h1>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-navy-400">
+            <span
+              className={`inline-flex items-center rounded-full px-2.5 py-0.5 font-medium ring-1 ${
+                approved
+                  ? "bg-teal-50 text-teal-700 ring-teal-200"
+                  : "bg-coral-50 text-coral-600 ring-coral-200"
+              }`}
+            >
+              {approved ? "מאושר (הלקוח אישר)" : "טיוטה — טעון אישור הלקוח"}
+            </span>
+            <span dir="ltr">
+              {new Date(data.updatedAt).toLocaleString("he-IL")}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="secondary" icon="paperclip" onClick={copy}>
+            {copied ? "הועתק" : "העתקה"}
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            icon="download"
+            onClick={download}
+          >
+            הורדה
+          </Button>
+          {editing ? (
+            <>
+              <Button
+                size="sm"
+                icon="check-circle"
+                disabled={save.isPending}
+                onClick={() => save.mutate({ markdown: text })}
+              >
+                שמירה
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setEdit(null)}>
+                ביטול
+              </Button>
+            </>
+          ) : (
+            <Button
+              size="sm"
+              variant="secondary"
+              icon="pencil"
+              onClick={() => setEdit(data.markdown ?? "")}
+            >
+              עריכה
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant={approved ? "ghost" : "teal"}
+            icon="check-circle"
+            disabled={save.isPending}
+            onClick={() =>
+              save.mutate({ status: approved ? "draft" : "approved" })
+            }
+          >
+            {approved ? "החזרה לטיוטה" : "הלקוח אישר"}
+          </Button>
+        </div>
+      </header>
+
+      {!approved && (
+        <div className="mb-4 rounded-xl border border-coral-200 bg-coral-50/60 px-4 py-2.5 text-xs text-coral-700">
+          טיוטה — שלח ללקוח לאישור, וסמן "הלקוח אישר" אחרי שאישר.
+        </div>
+      )}
+
+      {error && (
+        <div className="mb-4">
+          <FormError message={error} />
+        </div>
+      )}
+
+      <Card className="p-5 sm:p-7">
+        {editing ? (
+          <Textarea
+            value={text}
+            onChange={(e) => setEdit(e.target.value)}
+            className="min-h-[60vh] font-mono text-xs leading-6"
+            dir="rtl"
+          />
+        ) : (
+          <BriefMarkdown source={text} />
+        )}
+      </Card>
+
+      <div className="mt-6">
+        {regenOpen ? (
+          <Card className="p-4">
+            <p className="mb-2.5 text-sm font-medium text-navy-800">
+              הפקה מחדש מהבריף
+            </p>
+            <p className="mb-3 text-xs text-navy-400">
+              ההפקה מייצרת מסמך חדש מהבריף המאושר של הלקוח — המסמך הנוכחי לא נמחק.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                icon="refresh"
+                disabled={!data.customerId || regenerate.isPending}
+                onClick={() => regenerate.mutate()}
+              >
+                {regenerate.isPending ? "מפיק מחדש…" : "הפק מחדש"}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={regenerate.isPending}
+                onClick={() => setRegenOpen(false)}
+              >
+                חזרה
+              </Button>
+            </div>
+          </Card>
+        ) : (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Button
+              variant="secondary"
+              size="sm"
+              icon="refresh"
+              disabled={!data.customerId}
+              onClick={() => setRegenOpen(true)}
+            >
+              הפקה מחדש מהבריף
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              icon="trash"
+              disabled={remove.isPending}
+              onClick={() => {
+                if (confirm("למחוק את המסמך?")) remove.mutate();
+              }}
+            >
+              מחיקה
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

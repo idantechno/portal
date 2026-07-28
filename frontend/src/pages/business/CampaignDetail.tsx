@@ -223,21 +223,92 @@ export default function CampaignDetail() {
         </Card>
       </section>
 
-      {/* Status dashboard — built once the campaign runs */}
+      {/* Status dashboard */}
       <section className="mt-8">
         <h2 className="mb-3 text-sm font-semibold text-navy-500">מצב הקמפיין</h2>
-        <Card className="p-6 text-center">
-          <div className="mx-auto mb-2 flex h-11 w-11 items-center justify-center rounded-2xl bg-navy-50 text-navy-400">
-            <Icon name="chart" size={22} />
-          </div>
-          <p className="text-sm text-navy-500">
-            מעקב התקדמות מול הלו״ז, לידים שנקלטו, כמה הפכו ללקוחות ומסקנות —
-            יוצג כאן ברגע שהקמפיין פעיל.
-          </p>
-          <p className="mt-1 text-xs text-navy-300">(בבנייה)</p>
-        </Card>
+        <CampaignStatusDashboard businessId={businessId} campaignId={c.id} />
       </section>
     </div>
+  );
+}
+
+function CampaignStatusDashboard({
+  businessId,
+  campaignId,
+}: {
+  businessId: string;
+  campaignId: string;
+}) {
+  const status = useQuery({
+    queryKey: ["campaign-status", businessId, campaignId],
+    queryFn: () => campaignsApi.status(businessId, campaignId),
+    enabled: Boolean(businessId && campaignId),
+  });
+
+  if (status.isLoading || !status.data) {
+    return (
+      <Card className="grid place-items-center p-8">
+        <Spinner />
+      </Card>
+    );
+  }
+  const s = status.data;
+
+  return (
+    <div className="space-y-4">
+      {/* Schedule progress */}
+      <Card className="p-4">
+        <div className="mb-2 flex items-center justify-between text-sm">
+          <span className="font-medium text-navy-800">התקדמות מול הלו״ז</span>
+          <span className="text-navy-500">
+            {s.schedule.published}/{s.schedule.total} · {s.schedule.percent}%
+          </span>
+        </div>
+        <div className="h-2 overflow-hidden rounded-full bg-navy-100">
+          <div
+            className="h-full rounded-full bg-brand-500 transition-all"
+            style={{ width: `${s.schedule.percent}%` }}
+          />
+        </div>
+      </Card>
+
+      {/* Stat tiles */}
+      <div className="grid grid-cols-3 gap-3">
+        <StatTile label="פריטים שפורסמו" value={s.schedule.published} />
+        <StatTile label="לידים מאז ההשקה" value={s.leads.sinceLaunch} />
+        <StatTile
+          label="לידים → לקוחות"
+          value={s.customers.convertedSinceLaunch}
+        />
+      </div>
+
+      {/* Conclusions */}
+      <Card className="p-4">
+        <div className="mb-2 flex items-center gap-1.5 text-sm font-medium text-navy-800">
+          <Icon name="chart" size={16} className="text-brand-600" />
+          מסקנות
+        </div>
+        <ul className="space-y-1.5 text-sm text-navy-600">
+          {s.conclusions.map((c, i) => (
+            <li key={i}>• {c}</li>
+          ))}
+        </ul>
+        {!s.active && (
+          <p className="mt-2 text-xs text-navy-400">
+            נתוני הלידים נאספים מרגע הפעלת הקמפיין (שלב ג׳).
+          </p>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+function StatTile({ label, value }: { label: string; value: number }) {
+  return (
+    <Card className="p-3 text-center">
+      <div className="text-2xl font-semibold text-navy-900">{value}</div>
+      <div className="text-[11px] text-navy-400">{label}</div>
+    </Card>
   );
 }
 

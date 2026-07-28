@@ -69,6 +69,21 @@ export interface PrerequisiteReport {
   allMet: boolean;
 }
 
+export interface CampaignStatusReport {
+  active: boolean;
+  launchedAt: string | null;
+  schedule: {
+    total: number;
+    published: number;
+    upcoming: number;
+    percent: number;
+    nextAt: string | null;
+  };
+  leads: { sinceLaunch: number };
+  customers: { sinceLaunch: number; convertedSinceLaunch: number };
+  conclusions: string[];
+}
+
 export const campaignsApi = {
   prerequisites: (businessId: string, customerId: string) =>
     api
@@ -87,6 +102,13 @@ export const campaignsApi = {
   get: (businessId: string, id: string) =>
     api
       .get<Campaign>(`/businesses/${businessId}/campaigns/${id}`)
+      .then((r) => r.data),
+
+  status: (businessId: string, id: string) =>
+    api
+      .get<CampaignStatusReport>(
+        `/businesses/${businessId}/campaigns/${id}/status`,
+      )
       .then((r) => r.data),
 
   create: (businessId: string, customerId: string, name: string) =>

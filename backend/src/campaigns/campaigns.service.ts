@@ -7,6 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { randomUUID } from 'crypto';
 import { CustomersService } from '../customers/customers.service';
+import { LeadsService } from '../leads/leads.service';
 import { PlansService } from '../plans/plans.service';
 import {
   Campaign,
@@ -39,6 +40,7 @@ export class CampaignsService {
     @InjectRepository(Campaign)
     private readonly campaigns: Repository<Campaign>,
     private readonly customers: CustomersService,
+    private readonly leads: LeadsService,
     private readonly plans: PlansService,
     private readonly prerequisites: CampaignPrerequisitesService,
   ) {}
@@ -206,6 +208,78 @@ export class CampaignsService {
       funding: it.funding,
     }));
     return this.campaigns.save(campaign);
+  }
+
+  /**
+   * Campaign status dashboard: schedule progress, and — since the campaign was
+   * launched — new leads and lead→customer conversions (business-wide, honestly
+   * labelled) plus plain conclusions from the numbers.
+   */
+  async status(businessId: string, id: string) {
+    const campaign = await this.findByIdScoped(businessId, id);
+    const now = new Date();
+
+    const sched = campaign.schedule ?? [];
+    const total = sched.length;
+    const published = sched.filter((s) => new Date(s.at) <= now).length;
+    const percent = total ? Math.round((published / total) * 100) : 0;
+    const nextAt =
+      sched
+        .filter((s) => new Date(s.at) > now)
+        .sort((a, b) => a.at.localeCompare(b.at))[0]?.at ?? null;
+
+    const launched = campaign.launchedAt;
+    let leadsSince = 0;
+    let customersSince = 0;
+    let convertedSince = 0;
+    if (launched) {
+      [leadsSince, customersSince, convertedSince] = await Promise.all([
+        this.leads.countSince(businessId, launched),
+        this.customers.countSince(businessId, launched),
+        this.customers.countConvertedSince(businessId, launched),
+      ]);
+    }
+
+    const fmt = (iso: string) => {
+      const d = new Date(iso);
+      const p = (n: number) => String(n).padStart(2, '0');
+      return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()}`;
+    };
+
+    const conclusions: string[] = [];
+    conclusions.push(
+      total
+        ? `פורסמו ${published} מתוך ${total} פריטים בלו״ז (${percent}%).`
+        : 'עדיין לא נבנה לו״ז לקמפיין.',
+    );
+    if (nextAt) conclusions.push(`הפריט הבא מתוזמן ל-${fmt(nextAt)}.`);
+    if (launched) {
+      conclusions.push(
+        `מאז ההשקה נקלטו ${leadsSince} לידים חדשים בעסק; ${convertedSince} לידים הפכו ללקוחות.`,
+      );
+    } else {
+      conclusions.push(
+        'הקמפיין עדיין לא הופעל — מדדי הלידים יתחילו להיאסף עם ההפעלה.',
+      );
+    }
+
+    return {
+      active: campaign.status === 'active',
+      launchedAt: launched ? launched.toISOString() : null,
+      schedule: {
+        total,
+        published,
+        upcoming: total - published,
+        percent,
+        nextAt,
+      },
+      leads: { sinceLaunch: leadsSince },
+      customers: {
+        sinceLaunch: customersSince,
+        convertedSinceLaunch: convertedSince,
+      },
+      conclusions,
+    };
   }
 
   async remove(businessId: string, id: string): Promise<void> {

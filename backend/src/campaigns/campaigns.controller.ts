@@ -68,6 +68,15 @@ export class CampaignsController {
     return this.campaigns.findByIdScoped(businessId, id);
   }
 
+  /** The status dashboard — schedule progress + lead/customer metrics. */
+  @Get('campaigns/:id/status')
+  status(
+    @Param('businessId', ParseUUIDPipe) businessId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.campaigns.status(businessId, id);
+  }
+
   @Patch('campaigns/:id')
   update(
     @Param('businessId', ParseUUIDPipe) businessId: string,

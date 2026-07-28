@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { MoreThanOrEqual, Repository } from 'typeorm';
 import { LeadsService } from '../leads/leads.service';
 import { CustomerContact } from '../conversations/customer-contact.entity';
 import { ContactStatus } from '../common/enums/contact-status.enum';
@@ -142,6 +142,24 @@ export class CustomersService {
     }
 
     return qb.limit(500).getMany();
+  }
+
+  /** Count customers created at/after `since` — for campaign status tracking. */
+  countSince(businessId: string, since: Date): Promise<number> {
+    return this.customers.count({
+      where: { businessId, becameCustomerAt: MoreThanOrEqual(since) },
+    });
+  }
+
+  /** Count customers promoted from a lead at/after `since` (leads→customers). */
+  countConvertedSince(businessId: string, since: Date): Promise<number> {
+    return this.customers.count({
+      where: {
+        businessId,
+        source: 'lead',
+        becameCustomerAt: MoreThanOrEqual(since),
+      },
+    });
   }
 
   async findByIdScoped(businessId: string, id: string): Promise<Customer> {

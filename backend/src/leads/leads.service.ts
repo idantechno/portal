@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { MoreThanOrEqual, Repository } from 'typeorm';
 import { AutomationsService } from '../automations/automations.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { Lead, LeadSource } from './lead.entity';
@@ -75,6 +75,13 @@ export class LeadsService {
     return this.leads.find({
       where: { businessId },
       order: { createdAt: 'DESC' },
+    });
+  }
+
+  /** Count leads captured at/after `since` — for campaign status tracking. */
+  countSince(businessId: string, since: Date): Promise<number> {
+    return this.leads.count({
+      where: { businessId, createdAt: MoreThanOrEqual(since) },
     });
   }
 

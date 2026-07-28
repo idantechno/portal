@@ -5,7 +5,9 @@ import { agentsApi } from "../../api/agents";
 import { briefsApi, type Brief } from "../../api/briefs";
 import { strategiesApi, type Strategy } from "../../api/strategies";
 import { leadsApi, type Lead } from "../../api/leads";
+import { customersApi } from "../../api/customers";
 import { apiErrorMessage } from "../../api/client";
+import CustomersPanel from "../../components/CustomersPanel";
 import {
   Button,
   Card,
@@ -14,18 +16,25 @@ import {
   Input,
   Spinner,
 } from "../../components/ui";
-import { Icon } from "../../components/icons";
+import { Icon, type IconName } from "../../components/icons";
+
+type Tab = "leads" | "customers" | "schedule" | "reports";
+
+const TABS: { key: Tab; label: string; icon: IconName }[] = [
+  { key: "leads", label: "לידים", icon: "leads" },
+  { key: "customers", label: "לקוחות", icon: "users" },
+  { key: "schedule", label: 'לו"ז', icon: "calendar" },
+  { key: "reports", label: "דוחות", icon: "doc" },
+];
 
 /**
- * The marketing agent's home. Entitlement-gated (only businesses an admin has
- * granted the "marketing" agent reach this — the backend enforces the same on
- * every /briefs and /strategies route). From here the operator turns any
- * questionnaire lead into a business brief, and any *approved* brief into a
- * marketing strategy.
+ * The marketing agent's home — organised into four categories. Leads become
+ * briefs; a lead promoted to a customer unlocks strategies and future reports.
+ * Every generated document lands under the "דוחות" tab, and customers reuse the
+ * shared customer surface so the sidebar and this agent stay in sync.
  */
 export default function MarketingAgent({ businessId }: { businessId: string }) {
-  const navigate = useNavigate();
-  const qc = useQueryClient();
+  const [tab, setTab] = useState<Tab>("leads");
   const [error, setError] = useState<string | null>(null);
 
   const agents = useQuery({
@@ -33,6 +42,353 @@ export default function MarketingAgent({ businessId }: { businessId: string }) {
     queryFn: () => agentsApi.forBusiness(businessId),
     enabled: Boolean(businessId),
   });
+
+  if (agents.isLoading) {
+    return (
+      <div className="grid h-full place-items-center">
+        <Spinner />
+      </div>
+    );
+  }
+  const entitled = (agents.data ?? []).some((a) => a.key === "marketing");
+  if (!entitled) {
+    return <Navigate to={`/app/businesses/${businessId}/agents`} replace />;
+  }
+
+  return (
+    <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
+      <header className="mb-5 flex items-start gap-3">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
+          <Icon name="megaphone" size={22} />
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold">סוכן שיווק</h1>
+          <p className="text-sm text-neutral-600">
+            לידים הופכים לבריף; לקוח הופך את הבריף לאסטרטגיה ותוכנית. כל דוח שמופק
+            נשמר תחת "דוחות".
+          </p>
+        </div>
+      </header>
+
+      {/* Tabs */}
+      <div className="mb-6 flex gap-1 overflow-x-auto border-b border-navy-100">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => {
+              setError(null);
+              setTab(t.key);
+            }}
+            className={`-mb-px flex items-center gap-1.5 whitespace-nowrap border-b-2 px-3.5 py-2.5 text-sm font-medium transition ${
+              tab === t.key
+                ? "border-brand-600 text-brand-700"
+                : "border-transparent text-neutral-500 hover:text-neutral-800"
+            }`}
+          >
+            <Icon name={t.icon} size={16} />
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {error && (
+        <div className="mb-4">
+          <FormError message={error} />
+        </div>
+      )}
+
+      {tab === "leads" && (
+        <LeadsTab businessId={businessId} onError={setError} />
+      )}
+      {tab === "customers" && <CustomersPanel businessId={businessId} />}
+      {tab === "schedule" && <ScheduleTab businessId={businessId} />}
+      {tab === "reports" && (
+        <ReportsTab businessId={businessId} onError={setError} />
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------- Leads tab -------------------------------- */
+
+function LeadsTab({
+  businessId,
+  onError,
+}: {
+  businessId: string;
+  onError: (msg: string | null) => void;
+}) {
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+
+  const leads = useQuery({
+    queryKey: ["leads", businessId],
+    queryFn: () => leadsApi.list(businessId),
+    enabled: Boolean(businessId),
+  });
+  const briefs = useQuery({
+    queryKey: ["briefs", businessId],
+    queryFn: () => briefsApi.list(businessId),
+    enabled: Boolean(businessId),
+  });
+
+  const briefByLead = new Map(
+    (briefs.data ?? [])
+      .filter((b) => b.leadId)
+      .map((b) => [b.leadId as string, b]),
+  );
+  const questionnaireLeads = (leads.data ?? []).filter(
+    (l) => l.source === "questionnaire",
+  );
+
+  return (
+    <section>
+      <p className="mb-3 text-sm text-navy-500">
+        מליד אפשר להפיק בריף, או להמיר אותו ללקוח כדי להמשיך לאסטרטגיה ותוכנית.
+      </p>
+      {leads.isLoading ? (
+        <div className="text-sm text-neutral-500">טוען לידים…</div>
+      ) : questionnaireLeads.length === 0 ? (
+        <Card>
+          <EmptyState
+            icon="leads"
+            title="אין עדיין לידים משאלון"
+            text="בריף מופק מליד שמילא את שאלון האסטרטגיה (/strategy). ברגע שיגיע כזה — הוא יופיע כאן."
+          />
+        </Card>
+      ) : (
+        <div className="space-y-2.5">
+          {questionnaireLeads.map((lead) => (
+            <LeadRow
+              key={lead.id}
+              lead={lead}
+              businessId={businessId}
+              existing={briefByLead.get(lead.id) ?? null}
+              onGenerated={(brief) => {
+                void qc.invalidateQueries({ queryKey: ["briefs", businessId] });
+                navigate(`/app/businesses/${businessId}/briefs/${brief.id}`);
+              }}
+              onConverted={(customerId) => {
+                void qc.invalidateQueries({
+                  queryKey: ["customers", businessId],
+                });
+                navigate(
+                  `/app/businesses/${businessId}/customers/${customerId}`,
+                );
+              }}
+              onError={onError}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function LeadRow({
+  lead,
+  businessId,
+  existing,
+  onGenerated,
+  onConverted,
+  onError,
+}: {
+  lead: Lead;
+  businessId: string;
+  existing: Brief | null;
+  onGenerated: (brief: Brief) => void;
+  onConverted: (customerId: string) => void;
+  onError: (msg: string | null) => void;
+}) {
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const [website, setWebsite] = useState("");
+
+  const generate = useMutation({
+    mutationFn: () =>
+      briefsApi.generate(businessId, lead.id, {
+        websiteUrl: website.trim() || undefined,
+      }),
+    onSuccess: onGenerated,
+    onError: (err) => onError(apiErrorMessage(err, "הפקת הבריף נכשלה — נסה שוב")),
+  });
+
+  const convert = useMutation({
+    mutationFn: () => customersApi.createFromLead(businessId, lead.id),
+    onSuccess: (customer) => onConverted(customer.id),
+    onError: (err) => onError(apiErrorMessage(err, "ההמרה ללקוח נכשלה")),
+  });
+
+  return (
+    <Card className="p-3.5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate text-sm font-medium text-navy-900">
+            {lead.name}
+          </div>
+          <div className="truncate text-xs text-navy-400">{lead.interest}</div>
+        </div>
+        <div className="flex shrink-0 flex-wrap justify-end gap-2">
+          {existing && (
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() =>
+                navigate(`/app/businesses/${businessId}/briefs/${existing.id}`)
+              }
+            >
+              פתיחת הבריף
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant="ghost"
+            icon="user"
+            disabled={convert.isPending}
+            onClick={() => {
+              onError(null);
+              convert.mutate();
+            }}
+          >
+            {convert.isPending ? "ממיר…" : "המר ללקוח"}
+          </Button>
+          {!open ? (
+            <Button
+              size="sm"
+              variant={existing ? "ghost" : "primary"}
+              icon={existing ? "refresh" : "megaphone"}
+              onClick={() => {
+                onError(null);
+                setOpen(true);
+              }}
+            >
+              {existing ? "הפקה מחדש" : "הפק בריף"}
+            </Button>
+          ) : (
+            <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
+              ביטול
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {open && (
+        <div className="mt-3 border-t border-navy-100 pt-3">
+          <p className="mb-2 text-xs text-navy-400">
+            אפשר להוסיף כתובת אתר — ממנה נחלץ שירותים, מחירים, טון והמלצות. בלי
+            אתר, השדות האלה יסומנו ⟨לא ידוע⟩.
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+              placeholder="example.co.il (רשות)"
+              dir="ltr"
+              className="w-56"
+              disabled={generate.isPending}
+            />
+            <Button
+              size="sm"
+              icon="agents"
+              disabled={generate.isPending}
+              onClick={() => generate.mutate()}
+            >
+              {generate.isPending ? "מפיק בריף…" : "הפק"}
+            </Button>
+          </div>
+          {generate.isPending && (
+            <p className="mt-2 text-xs text-navy-400">
+              ההפקה כוללת סריקת אתר וניסוח — עד כדקה.
+            </p>
+          )}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+/* ----------------------------- Schedule tab ------------------------------- */
+
+function ScheduleTab({ businessId }: { businessId: string }) {
+  const navigate = useNavigate();
+  const customers = useQuery({
+    queryKey: ["customers", businessId, "next_activity"],
+    queryFn: () => customersApi.list(businessId, "next_activity"),
+    enabled: Boolean(businessId),
+  });
+
+  const upcoming = (customers.data ?? []).filter((c) => c.nextActivityAt);
+
+  if (customers.isLoading) {
+    return <div className="text-sm text-neutral-500">טוען…</div>;
+  }
+
+  if (upcoming.length === 0) {
+    return (
+      <Card className="p-10">
+        <EmptyState
+          icon="calendar"
+          title="אין פעילויות מתוכננות"
+          text="קבע 'פעילות קרובה' בכרטיס של לקוח והיא תופיע כאן, לפי סדר התאריכים."
+        />
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {upcoming.map((c) => (
+        <button
+          key={c.id}
+          onClick={() =>
+            navigate(`/app/businesses/${businessId}/customers/${c.id}`)
+          }
+          className="w-full text-start"
+        >
+          <Card className="flex items-center gap-3 p-3 transition-shadow hover:shadow-[var(--shadow-e2)]">
+            <div className="shrink-0 rounded-xl bg-amber-50 p-2 text-amber-700">
+              <Icon name="clock" size={18} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-medium">
+                {c.businessName?.trim() || c.name}
+              </div>
+              <div className="truncate text-xs text-neutral-500">
+                {c.nextActivityNote || "פעילות מתוכננת"}
+              </div>
+            </div>
+            <span className="shrink-0 text-xs font-medium text-amber-700">
+              {new Date(c.nextActivityAt as string).toLocaleDateString("he-IL", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "2-digit",
+              })}
+            </span>
+            <Icon
+              name="chevron-end"
+              size={16}
+              className="shrink-0 text-neutral-300"
+            />
+          </Card>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/* ------------------------------ Reports tab ------------------------------- */
+
+function ReportsTab({
+  businessId,
+  onError,
+}: {
+  businessId: string;
+  onError: (msg: string | null) => void;
+}) {
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+
   const briefs = useQuery({
     queryKey: ["briefs", businessId],
     queryFn: () => briefsApi.list(businessId),
@@ -43,74 +399,32 @@ export default function MarketingAgent({ businessId }: { businessId: string }) {
     queryFn: () => strategiesApi.list(businessId),
     enabled: Boolean(businessId),
   });
-  const leads = useQuery({
-    queryKey: ["leads", businessId],
-    queryFn: () => leadsApi.list(businessId),
-    enabled: Boolean(businessId),
-  });
 
-  const remove = useMutation({
+  const removeBrief = useMutation({
     mutationFn: (id: string) => briefsApi.remove(businessId, id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["briefs", businessId] }),
-    onError: (err) => setError(apiErrorMessage(err, "מחיקת הבריף נכשלה")),
+    onError: (err) => onError(apiErrorMessage(err, "מחיקת הבריף נכשלה")),
   });
-
   const removeStrategy = useMutation({
     mutationFn: (id: string) => strategiesApi.remove(businessId, id),
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: ["strategies", businessId] }),
-    onError: (err) => setError(apiErrorMessage(err, "מחיקת האסטרטגיה נכשלה")),
+    onError: (err) => onError(apiErrorMessage(err, "מחיקת האסטרטגיה נכשלה")),
   });
-
-  if (agents.isLoading) {
-    return (
-      <div className="grid h-full place-items-center">
-        <Spinner />
-      </div>
-    );
-  }
-  // Not entitled (or the grant was revoked) — the agent hub is the safe landing.
-  const entitled = (agents.data ?? []).some((a) => a.key === "marketing");
-  if (!entitled) {
-    return <Navigate to={`/app/businesses/${businessId}/agents`} replace />;
-  }
 
   const briefList = briefs.data ?? [];
   const strategyList = strategies.data ?? [];
-  const briefByLead = new Map(
-    briefList.filter((b) => b.leadId).map((b) => [b.leadId as string, b]),
-  );
-  const questionnaireLeads = (leads.data ?? []).filter(
-    (l) => l.source === "questionnaire",
-  );
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
-      <header className="mb-6 flex items-start gap-3">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
-          <Icon name="megaphone" size={22} />
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold">סוכן שיווק</h1>
-          <p className="text-sm text-neutral-600">
-            הופך שאלון אסטרטגיה של לקוח לבריף עסקי, ובריף מאושר לאסטרטגיית שיווק
-            מלאה. שדות 🟠 והאסטרטגיה כולה הם טיוטה שדורשת אישור שלך.
-          </p>
-        </div>
-      </header>
-
-      {error && (
-        <div className="mb-4">
-          <FormError message={error} />
-        </div>
-      )}
-
-      {/* Existing briefs */}
-      {briefList.length > 0 && (
-        <section className="mb-8">
-          <h2 className="mb-3 text-sm font-semibold text-navy-500">
-            בריפים שהופקו
-          </h2>
+    <div className="grid gap-6 sm:grid-cols-2">
+      {/* Briefs column */}
+      <section>
+        <h2 className="mb-3 text-sm font-semibold text-navy-500">בריפים</h2>
+        {briefList.length === 0 ? (
+          <Card className="p-6 text-center text-sm text-neutral-400">
+            עוד לא הופק בריף
+          </Card>
+        ) : (
           <div className="space-y-2.5">
             {briefList.map((brief) => (
               <BriefRow
@@ -118,9 +432,11 @@ export default function MarketingAgent({ businessId }: { businessId: string }) {
                 brief={brief}
                 businessId={businessId}
                 onDelete={() => {
-                  if (confirm("למחוק את הבריף?")) remove.mutate(brief.id);
+                  if (confirm("למחוק את הבריף?")) removeBrief.mutate(brief.id);
                 }}
-                deleting={remove.isPending && remove.variables === brief.id}
+                deleting={
+                  removeBrief.isPending && removeBrief.variables === brief.id
+                }
                 onStrategyGenerated={(strategy) => {
                   void qc.invalidateQueries({
                     queryKey: ["strategies", businessId],
@@ -129,19 +445,21 @@ export default function MarketingAgent({ businessId }: { businessId: string }) {
                     `/app/businesses/${businessId}/strategies/${strategy.id}`,
                   );
                 }}
-                onError={setError}
+                onError={onError}
               />
             ))}
           </div>
-        </section>
-      )}
+        )}
+      </section>
 
-      {/* Existing strategies */}
-      {strategyList.length > 0 && (
-        <section className="mb-8">
-          <h2 className="mb-3 text-sm font-semibold text-navy-500">
-            אסטרטגיות שהופקו
-          </h2>
+      {/* Strategies column */}
+      <section>
+        <h2 className="mb-3 text-sm font-semibold text-navy-500">אסטרטגיות</h2>
+        {strategyList.length === 0 ? (
+          <Card className="p-6 text-center text-sm text-neutral-400">
+            עוד לא הופקה אסטרטגיה
+          </Card>
+        ) : (
           <div className="space-y-2.5">
             {strategyList.map((strategy) => (
               <StrategyRow
@@ -156,42 +474,6 @@ export default function MarketingAgent({ businessId }: { businessId: string }) {
                   removeStrategy.isPending &&
                   removeStrategy.variables === strategy.id
                 }
-              />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Generate from a questionnaire lead */}
-      <section>
-        <h2 className="mb-3 text-sm font-semibold text-navy-500">
-          הפקת בריף מליד
-        </h2>
-        {leads.isLoading ? (
-          <div className="text-sm text-neutral-500">טוען לידים…</div>
-        ) : questionnaireLeads.length === 0 ? (
-          <Card>
-            <EmptyState
-              icon="leads"
-              title="אין עדיין לידים משאלון"
-              text="בריף מופק רק מליד שמילא את שאלון האסטרטגיה (/strategy). ברגע שיגיע כזה — הוא יופיע כאן."
-            />
-          </Card>
-        ) : (
-          <div className="space-y-2.5">
-            {questionnaireLeads.map((lead) => (
-              <LeadRow
-                key={lead.id}
-                lead={lead}
-                businessId={businessId}
-                existing={briefByLead.get(lead.id) ?? null}
-                onGenerated={(brief) => {
-                  void qc.invalidateQueries({
-                    queryKey: ["briefs", businessId],
-                  });
-                  navigate(`/app/businesses/${businessId}/briefs/${brief.id}`);
-                }}
-                onError={setError}
               />
             ))}
           </div>
@@ -218,8 +500,6 @@ function BriefRow({
 }) {
   const approved = brief.status === "approved";
 
-  // A strategy can only be built from an approved brief — the backend blocks it
-  // with 400 otherwise, so the button just mirrors that gate.
   const generateStrategy = useMutation({
     mutationFn: () => strategiesApi.generate(businessId, brief.id),
     onSuccess: onStrategyGenerated,
@@ -251,7 +531,6 @@ function BriefRow({
           )}
         </Link>
         <div className="flex shrink-0 items-center gap-1">
-          {/* Wrapped in a title span so the disabled button still shows the hint. */}
           <span
             title={approved ? undefined : "יש לאשר את הבריף קודם"}
             className="inline-flex"
@@ -338,110 +617,6 @@ function StrategyRow({
         </Button>
         <Icon name="chevron-start" size={18} className="text-navy-300" />
       </div>
-    </Card>
-  );
-}
-
-function LeadRow({
-  lead,
-  businessId,
-  existing,
-  onGenerated,
-  onError,
-}: {
-  lead: Lead;
-  businessId: string;
-  existing: Brief | null;
-  onGenerated: (brief: Brief) => void;
-  onError: (msg: string | null) => void;
-}) {
-  const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
-  const [website, setWebsite] = useState("");
-
-  const generate = useMutation({
-    mutationFn: () =>
-      briefsApi.generate(businessId, lead.id, {
-        websiteUrl: website.trim() || undefined,
-      }),
-    onSuccess: onGenerated,
-    onError: (err) => onError(apiErrorMessage(err, "הפקת הבריף נכשלה — נסה שוב")),
-  });
-
-  return (
-    <Card className="p-3.5">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <div className="truncate text-sm font-medium text-navy-900">
-            {lead.name}
-          </div>
-          <div className="truncate text-xs text-navy-400">{lead.interest}</div>
-        </div>
-        <div className="flex shrink-0 gap-2">
-          {existing && (
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() =>
-                navigate(
-                  `/app/businesses/${businessId}/briefs/${existing.id}`,
-                )
-              }
-            >
-              פתיחת הבריף
-            </Button>
-          )}
-          {!open ? (
-            <Button
-              size="sm"
-              variant={existing ? "ghost" : "primary"}
-              icon={existing ? "refresh" : "megaphone"}
-              onClick={() => {
-                onError(null);
-                setOpen(true);
-              }}
-            >
-              {existing ? "הפקה מחדש" : "הפק בריף"}
-            </Button>
-          ) : (
-            <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
-              ביטול
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {open && (
-        <div className="mt-3 border-t border-navy-100 pt-3">
-          <p className="mb-2 text-xs text-navy-400">
-            אפשר להוסיף כתובת אתר — ממנה נחלץ שירותים, מחירים, טון והמלצות. בלי
-            אתר, השדות האלה יסומנו ⟨לא ידוע⟩.
-          </p>
-          <div className="flex flex-wrap items-center gap-2">
-            <Input
-              value={website}
-              onChange={(e) => setWebsite(e.target.value)}
-              placeholder="example.co.il (רשות)"
-              dir="ltr"
-              className="w-56"
-              disabled={generate.isPending}
-            />
-            <Button
-              size="sm"
-              icon="agents"
-              disabled={generate.isPending}
-              onClick={() => generate.mutate()}
-            >
-              {generate.isPending ? "מפיק בריף…" : "הפק"}
-            </Button>
-          </div>
-          {generate.isPending && (
-            <p className="mt-2 text-xs text-navy-400">
-              ההפקה כוללת סריקת אתר וניסוח — עד כדקה.
-            </p>
-          )}
-        </div>
-      )}
     </Card>
   );
 }

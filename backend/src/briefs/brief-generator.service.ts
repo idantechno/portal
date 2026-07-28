@@ -20,6 +20,8 @@ import {
 export interface GenerateBriefInput {
   businessId: string;
   leadId: string;
+  /** The customer this brief is for, when generated from the customers tab. */
+  customerId?: string | null;
   /** Optional site to run the 🟢 extraction against. */
   websiteUrl?: string | null;
   /** Skip the model entirely — 🔵 only. Useful when no API key is configured. */
@@ -94,6 +96,7 @@ export class BriefGeneratorService {
     return this.briefs.create({
       businessId: input.businessId,
       leadId: lead.id,
+      customerId: input.customerId ?? null,
       title: facts.businessName,
       markdown,
       websiteUrl,

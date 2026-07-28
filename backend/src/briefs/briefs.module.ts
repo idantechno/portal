@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AgentsModule } from '../agents/agents.module';
 import { BusinessesModule } from '../businesses/businesses.module';
 import { ContextFilesModule } from '../context-files/context-files.module';
+import { CustomersModule } from '../customers/customers.module';
 import { LeadsModule } from '../leads/leads.module';
 import { Brief } from './brief.entity';
 import { BriefDrafterService } from './brief-drafter.service';
@@ -18,6 +19,7 @@ import { WebsiteExtractorService } from './website-extractor.service';
     AgentsModule,
     BusinessesModule,
     ContextFilesModule,
+    CustomersModule,
     LeadsModule,
   ],
   controllers: [BriefsController],

@@ -26,6 +26,8 @@ const Appointments = lazy(() => import("./pages/business/Appointments"));
 const Contacts = lazy(() => import("./pages/business/Contacts"));
 const ContactDetail = lazy(() => import("./pages/business/ContactDetail"));
 const Leads = lazy(() => import("./pages/business/Leads"));
+const Customers = lazy(() => import("./pages/business/Customers"));
+const CustomerDetail = lazy(() => import("./pages/business/CustomerDetail"));
 const BriefDetail = lazy(() => import("./pages/business/BriefDetail"));
 const StrategyDetail = lazy(() => import("./pages/business/StrategyDetail"));
 const Tasks = lazy(() => import("./pages/business/Tasks"));
@@ -193,6 +195,8 @@ export default function App() {
           <Route path="calendar" element={<Calendar />} />
           <Route path="appointments" element={<Appointments />} />
           <Route path="leads" element={<Leads />} />
+          <Route path="customers" element={<Customers />} />
+          <Route path="customers/:customerId" element={<CustomerDetail />} />
           <Route path="contacts/:status" element={<Contacts />} />
           <Route
             path="contacts/:status/:contactId"

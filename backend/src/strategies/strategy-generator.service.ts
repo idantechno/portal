@@ -73,6 +73,9 @@ export class StrategyGeneratorService {
     return this.strategies.create({
       businessId: input.businessId,
       briefId: brief.id,
+      // Inherit the customer from the source brief so the strategy lands under
+      // the same customer automatically.
+      customerId: brief.customerId,
       title: brief.title,
       markdown,
       model: this.claude.model,

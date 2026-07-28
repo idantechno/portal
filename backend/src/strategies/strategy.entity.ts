@@ -38,6 +38,12 @@ export class Strategy {
   @Column({ type: 'uuid', name: 'brief_id', nullable: true })
   briefId!: string | null;
 
+  /** The customer this strategy belongs to — inherited from the source brief so
+   *  the marketing agent can group every document under its customer. */
+  @Index()
+  @Column({ type: 'uuid', name: 'customer_id', nullable: true })
+  customerId!: string | null;
+
   @Column({ type: 'varchar', length: 255 })
   title!: string;
 

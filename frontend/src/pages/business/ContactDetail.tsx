@@ -9,6 +9,7 @@ import {
   type MessageRole,
 } from "../../api/conversations";
 import { leadsApi } from "../../api/leads";
+import { customersApi } from "../../api/customers";
 import { privacyApi } from "../../api/privacy";
 import { apiErrorMessage } from "../../api/client";
 import { Button, Card, Spinner } from "../../components/ui";
@@ -83,9 +84,12 @@ export default function ContactDetail() {
   const [saved, setSaved] = useState(false);
   const [confirmErase, setConfirmErase] = useState(false);
 
-  // Seed the editable fields once the card loads.
+  // Seed the editable fields once the card loads. Syncing local form state from
+  // freshly-loaded async data is a legitimate one-time seed, not the cascading
+  // render the lint rule guards against.
   useEffect(() => {
     if (card.data) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setName(card.data.contact.displayName ?? "");
       setNotes(card.data.contact.notes ?? "");
       setSt(card.data.contact.status);
@@ -118,6 +122,16 @@ export default function ContactDetail() {
       navigate(`/app/businesses/${businessId}/contacts/${status}`);
     },
     onError: (e) => setError(apiErrorMessage(e, "המחיקה נכשלה")),
+  });
+
+  const convert = useMutation({
+    mutationFn: () => customersApi.createFromContact(businessId, contactId),
+    onSuccess: (customer) => {
+      qc.invalidateQueries({ queryKey: ["customers", businessId] });
+      qc.invalidateQueries({ queryKey: ["contacts", businessId] });
+      navigate(`/app/businesses/${businessId}/customers/${customer.id}`);
+    },
+    onError: (e) => setError(apiErrorMessage(e, "ההמרה ללקוח נכשלה")),
   });
 
   if (card.isLoading || !card.data) {
@@ -217,7 +231,18 @@ export default function ContactDetail() {
             <div className="text-xs text-neutral-400">
               {card.data.stats.messageCount} הודעות
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button
+                variant="ghost"
+                icon="user"
+                onClick={() => {
+                  setError(null);
+                  convert.mutate();
+                }}
+                disabled={convert.isPending}
+              >
+                {convert.isPending ? "ממיר…" : "המר ללקוח"}
+              </Button>
               {primaryConversation && (
                 <Button
                   variant="secondary"

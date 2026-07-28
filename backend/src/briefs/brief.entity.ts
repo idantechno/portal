@@ -35,6 +35,12 @@ export class Brief {
   @Column({ type: 'uuid', name: 'lead_id', nullable: true })
   leadId!: string | null;
 
+  /** The customer this brief belongs to, when generated for one. Lets the
+   *  marketing agent group every document under its customer. */
+  @Index()
+  @Column({ type: 'uuid', name: 'customer_id', nullable: true })
+  customerId!: string | null;
+
   @Column({ type: 'varchar', length: 255 })
   title!: string;
 

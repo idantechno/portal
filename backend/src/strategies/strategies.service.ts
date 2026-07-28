@@ -11,6 +11,7 @@ import { renderClientStrategyHtml } from './client-strategy-pdf';
 export interface CreateStrategyInput {
   businessId: string;
   briefId: string | null;
+  customerId?: string | null;
   title: string;
   markdown: string;
   model?: string | null;
@@ -40,14 +41,15 @@ export class StrategiesService {
     private readonly pdf: PdfRendererService,
   ) {}
 
-  list(businessId: string): Promise<Strategy[]> {
+  list(businessId: string, customerId?: string): Promise<Strategy[]> {
     return this.strategies.find({
-      where: { businessId },
+      where: { businessId, ...(customerId ? { customerId } : {}) },
       order: { updatedAt: 'DESC' },
       select: {
         id: true,
         businessId: true,
         briefId: true,
+        customerId: true,
         title: true,
         status: true,
         model: true,
@@ -117,6 +119,7 @@ export class StrategiesService {
     const strategy = this.strategies.create({
       businessId: input.businessId,
       briefId: input.briefId,
+      customerId: input.customerId ?? null,
       title: input.title.trim().slice(0, 255),
       markdown: input.markdown,
       status: 'draft',

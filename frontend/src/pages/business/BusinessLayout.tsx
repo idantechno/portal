@@ -86,7 +86,7 @@ export default function BusinessLayout() {
         { to: "home", label: "בית", icon: "home", show: true },
         { to: "inbox", label: "שיחות", icon: "chat", show: true },
         { to: "contacts/lead", label: "לידים", icon: "leads", show: true },
-        { to: "contacts/customer", label: "לקוחות", icon: "user", show: true },
+        { to: "customers", label: "לקוחות", icon: "user", show: true },
       ],
     },
     {

@@ -6,6 +6,7 @@ export interface Strategy {
   id: string;
   businessId: string;
   briefId: string | null;
+  customerId: string | null;
   title: string;
   /** Absent in list responses — fetched with the single strategy. */
   markdown?: string;
@@ -23,9 +24,11 @@ export interface GenerateStrategyInput {
 }
 
 export const strategiesApi = {
-  list: (businessId: string) =>
+  list: (businessId: string, customerId?: string) =>
     api
-      .get<Strategy[]>(`/businesses/${businessId}/strategies`)
+      .get<Strategy[]>(`/businesses/${businessId}/strategies`, {
+        params: customerId ? { customerId } : undefined,
+      })
       .then((r) => r.data),
 
   get: (businessId: string, id: string) =>

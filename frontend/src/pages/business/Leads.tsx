@@ -1,22 +1,35 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { leadsApi, type Lead } from "../../api/leads";
+import { customersApi } from "../../api/customers";
 import { privacyApi } from "../../api/privacy";
 import { apiErrorMessage } from "../../api/client";
-import { Button, Card, Spinner } from "../../components/ui";
+import { Button, Card, FormError, Spinner } from "../../components/ui";
 import { Icon } from "../../components/icons";
 
 export default function Leads() {
   const { t, i18n } = useTranslation();
   const { businessId = "" } = useParams<{ businessId: string }>();
+  const navigate = useNavigate();
   const [active, setActive] = useState<Lead | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const qc = useQueryClient();
   const leads = useQuery({
     queryKey: ["leads", businessId],
     queryFn: () => leadsApi.list(businessId),
     enabled: Boolean(businessId),
+  });
+
+  const convert = useMutation({
+    mutationFn: (leadId: string) =>
+      customersApi.createFromLead(businessId, leadId),
+    onSuccess: (customer) => {
+      qc.invalidateQueries({ queryKey: ["customers", businessId] });
+      navigate(`/app/businesses/${businessId}/customers/${customer.id}`);
+    },
+    onError: (e) => setError(apiErrorMessage(e, "ההמרה ללקוח נכשלה")),
   });
 
   const items = leads.data ?? [];
@@ -27,6 +40,12 @@ export default function Leads() {
         <h1 className="text-2xl font-bold mb-1">{t("leads.title")}</h1>
         <p className="text-neutral-600 text-sm">{t("leads.subtitle")}</p>
       </header>
+
+      {error && (
+        <div className="mb-4">
+          <FormError message={error} />
+        </div>
+      )}
 
       {leads.isLoading && (
         <div className="text-neutral-500 text-sm">{t("common.loading")}</div>
@@ -48,6 +67,7 @@ export default function Leads() {
                 <th className="text-start px-4 py-3">{t("leads.email")}</th>
                 <th className="text-start px-4 py-3">{t("leads.interest")}</th>
                 <th className="text-start px-4 py-3">{t("leads.createdAt")}</th>
+                <th className="text-start px-4 py-3"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
@@ -90,6 +110,25 @@ export default function Leads() {
                       {new Date(l.createdAt).toLocaleString(
                         i18n.language === "he" ? "he-IL" : "en-US",
                       )}
+                    </td>
+                    <td className="px-4 py-3 text-end">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        icon="user"
+                        disabled={
+                          convert.isPending && convert.variables === l.id
+                        }
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setError(null);
+                          convert.mutate(l.id);
+                        }}
+                      >
+                        {convert.isPending && convert.variables === l.id
+                          ? "ממיר…"
+                          : "המר ללקוח"}
+                      </Button>
                     </td>
                   </tr>
                 );

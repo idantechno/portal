@@ -7,6 +7,7 @@ import { Brief, BriefStatus } from './brief.entity';
 export interface CreateBriefInput {
   businessId: string;
   leadId: string | null;
+  customerId?: string | null;
   title: string;
   markdown: string;
   websiteUrl?: string | null;
@@ -36,14 +37,15 @@ export class BriefsService {
     private readonly filesystem: FilesystemService,
   ) {}
 
-  list(businessId: string): Promise<Brief[]> {
+  list(businessId: string, customerId?: string): Promise<Brief[]> {
     return this.briefs.find({
-      where: { businessId },
+      where: { businessId, ...(customerId ? { customerId } : {}) },
       order: { updatedAt: 'DESC' },
       select: {
         id: true,
         businessId: true,
         leadId: true,
+        customerId: true,
         title: true,
         status: true,
         websiteUrl: true,
@@ -72,6 +74,7 @@ export class BriefsService {
     const brief = this.briefs.create({
       businessId: input.businessId,
       leadId: input.leadId,
+      customerId: input.customerId ?? null,
       title: input.title.trim().slice(0, 255),
       markdown: input.markdown,
       status: 'draft',

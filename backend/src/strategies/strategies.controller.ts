@@ -7,6 +7,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   Res,
   UseGuards,
 } from '@nestjs/common';
@@ -49,8 +50,11 @@ export class StrategiesController {
   }
 
   @Get('strategies')
-  list(@Param('businessId', ParseUUIDPipe) businessId: string) {
-    return this.strategies.list(businessId);
+  list(
+    @Param('businessId', ParseUUIDPipe) businessId: string,
+    @Query('customerId') customerId?: string,
+  ) {
+    return this.strategies.list(businessId, customerId);
   }
 
   @Get('strategies/:id')

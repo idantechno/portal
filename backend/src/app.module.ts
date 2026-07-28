@@ -45,6 +45,7 @@ import { BriefsModule } from './briefs/briefs.module';
 import { StrategiesModule } from './strategies/strategies.module';
 import { CustomersModule } from './customers/customers.module';
 import { PlansModule } from './plans/plans.module';
+import { CampaignsModule } from './campaigns/campaigns.module';
 import { AppointmentsModule } from './appointments/appointments.module';
 import { DataPrivacyModule } from './data-privacy/data-privacy.module';
 import { WorkspaceAgentModule } from './agents/workspace/workspace-agent.module';
@@ -147,6 +148,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
     StrategiesModule,
     CustomersModule,
     PlansModule,
+    CampaignsModule,
     AppointmentsModule,
     WebsiteFactsModule,
     DataPrivacyModule,

@@ -5,6 +5,7 @@ import { agentsApi } from "../../api/agents";
 import { briefsApi, type Brief } from "../../api/briefs";
 import { strategiesApi, type Strategy } from "../../api/strategies";
 import { plansApi, type Plan } from "../../api/plans";
+import { campaignsApi, type Campaign } from "../../api/campaigns";
 import { leadsApi, type Lead } from "../../api/leads";
 import { customersApi } from "../../api/customers";
 import { apiErrorMessage } from "../../api/client";
@@ -19,11 +20,12 @@ import {
 } from "../../components/ui";
 import { Icon, type IconName } from "../../components/icons";
 
-type Tab = "leads" | "customers" | "schedule" | "reports";
+type Tab = "leads" | "customers" | "campaigns" | "schedule" | "reports";
 
 const TABS: { key: Tab; label: string; icon: IconName }[] = [
   { key: "leads", label: "לידים", icon: "leads" },
   { key: "customers", label: "לקוחות", icon: "users" },
+  { key: "campaigns", label: "קמפיינים", icon: "megaphone" },
   { key: "schedule", label: 'לו"ז', icon: "calendar" },
   { key: "reports", label: "דוחות", icon: "doc" },
 ];
@@ -103,6 +105,7 @@ export default function MarketingAgent({ businessId }: { businessId: string }) {
         <LeadsTab businessId={businessId} onError={setError} />
       )}
       {tab === "customers" && <CustomersPanel businessId={businessId} />}
+      {tab === "campaigns" && <CampaignsTab businessId={businessId} />}
       {tab === "schedule" && <ScheduleTab businessId={businessId} />}
       {tab === "reports" && (
         <ReportsTab businessId={businessId} onError={setError} />
@@ -306,6 +309,79 @@ function LeadRow({
         </div>
       )}
     </Card>
+  );
+}
+
+/* ----------------------------- Campaigns tab ------------------------------ */
+
+function CampaignsTab({ businessId }: { businessId: string }) {
+  const navigate = useNavigate();
+  const campaigns = useQuery({
+    queryKey: ["campaigns", businessId],
+    queryFn: () => campaignsApi.list(businessId),
+    enabled: Boolean(businessId),
+  });
+
+  const items = campaigns.data ?? [];
+
+  if (campaigns.isLoading) {
+    return <div className="text-sm text-neutral-500">טוען…</div>;
+  }
+
+  if (items.length === 0) {
+    return (
+      <Card className="p-10">
+        <EmptyState
+          icon="megaphone"
+          title="אין עדיין קמפיינים"
+          text="קמפיין נוצר מתוך כרטיס לקוח (טאב לקוחות → לקוח), אחרי שכל דרישות הקדם מתקיימות."
+        />
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {items.map((c) => (
+        <button
+          key={c.id}
+          onClick={() =>
+            navigate(`/app/businesses/${businessId}/campaigns/${c.id}`)
+          }
+          className="w-full text-start"
+        >
+          <Card className="flex items-center gap-3 p-3 transition-shadow hover:shadow-[var(--shadow-e2)]">
+            <div className="shrink-0 rounded-xl bg-brand-50 p-2 text-brand-600">
+              <Icon name="megaphone" size={18} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-medium">{c.name}</div>
+            </div>
+            <CampaignStatusBadge status={c.status} />
+            <Icon
+              name="chevron-end"
+              size={16}
+              className="shrink-0 text-neutral-300"
+            />
+          </Card>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function CampaignStatusBadge({ status }: { status: Campaign["status"] }) {
+  const map = {
+    building: { text: "בהקמה", cls: "bg-amber-50 text-amber-700 ring-amber-200" },
+    active: { text: "פעיל", cls: "bg-teal-50 text-teal-700 ring-teal-200" },
+    done: { text: "הסתיים", cls: "bg-navy-50 text-navy-500 ring-navy-200" },
+  }[status];
+  return (
+    <span
+      className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ${map.cls}`}
+    >
+      {map.text}
+    </span>
   );
 }
 

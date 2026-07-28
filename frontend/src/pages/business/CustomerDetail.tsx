@@ -6,6 +6,7 @@ import { agentsApi } from "../../api/agents";
 import { briefsApi } from "../../api/briefs";
 import { strategiesApi } from "../../api/strategies";
 import { plansApi } from "../../api/plans";
+import { campaignsApi, type Campaign } from "../../api/campaigns";
 import { apiErrorMessage } from "../../api/client";
 import {
   Button,
@@ -262,13 +263,204 @@ function CustomerEditor({
 
       {/* Marketing work — only if this business has the marketing agent */}
       {marketingEntitled && (
-        <MarketingSection
-          businessId={businessId}
-          customerId={customerId}
-          hasLead={Boolean(customer.leadId)}
-        />
+        <>
+          <MarketingSection
+            businessId={businessId}
+            customerId={customerId}
+            hasLead={Boolean(customer.leadId)}
+          />
+          <div className="mt-8">
+            <CampaignsSection
+              businessId={businessId}
+              customerId={customerId}
+              customerName={businessName.trim() || name.trim() || "לקוח"}
+            />
+          </div>
+        </>
       )}
     </div>
+  );
+}
+
+function CampaignsSection({
+  businessId,
+  customerId,
+  customerName,
+}: {
+  businessId: string;
+  customerId: string;
+  customerName: string;
+}) {
+  const qc = useQueryClient();
+  const navigate = useNavigate();
+  const [error, setError] = useState<string | null>(null);
+  const [naming, setNaming] = useState(false);
+  const [campaignName, setCampaignName] = useState("");
+
+  const prereqs = useQuery({
+    queryKey: ["campaign-prereqs", businessId, customerId],
+    queryFn: () => campaignsApi.prerequisites(businessId, customerId),
+    enabled: Boolean(businessId && customerId),
+  });
+  const campaigns = useQuery({
+    queryKey: ["campaigns", businessId, "customer", customerId],
+    queryFn: () => campaignsApi.list(businessId, customerId),
+    enabled: Boolean(businessId && customerId),
+  });
+
+  const create = useMutation({
+    mutationFn: () =>
+      campaignsApi.create(
+        businessId,
+        customerId,
+        campaignName.trim() || `קמפיין — ${customerName}`,
+      ),
+    onSuccess: (campaign) => {
+      qc.invalidateQueries({
+        queryKey: ["campaigns", businessId, "customer", customerId],
+      });
+      navigate(`/app/businesses/${businessId}/campaigns/${campaign.id}`);
+    },
+    onError: (e) => setError(apiErrorMessage(e, "יצירת הקמפיין נכשלה")),
+  });
+
+  const report = prereqs.data;
+  const allMet = report?.allMet ?? false;
+  const campaignList = campaigns.data ?? [];
+
+  return (
+    <section>
+      <div className="mb-3 flex items-center gap-2">
+        <Icon name="megaphone" size={18} className="text-brand-600" />
+        <h2 className="text-sm font-semibold text-navy-500">קמפיינים</h2>
+      </div>
+
+      {error && (
+        <div className="mb-3">
+          <FormError message={error} />
+        </div>
+      )}
+
+      {/* Existing campaigns */}
+      {campaignList.length > 0 && (
+        <div className="mb-4 space-y-2">
+          {campaignList.map((c) => (
+            <CampaignRow key={c.id} campaign={c} businessId={businessId} />
+          ))}
+        </div>
+      )}
+
+      {/* Prerequisite gate */}
+      <Card className="p-4">
+        <div className="mb-2.5 text-sm font-medium text-navy-900">
+          דרישות קדם ליצירת קמפיין
+        </div>
+        {prereqs.isLoading ? (
+          <div className="text-xs text-navy-400">טוען…</div>
+        ) : (
+          <ul className="space-y-2">
+            {(report?.items ?? []).map((it) => (
+              <li key={it.key} className="flex items-start gap-2.5">
+                <span
+                  className={`mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] ${
+                    it.met
+                      ? "bg-teal-100 text-teal-700"
+                      : it.available
+                        ? "bg-coral-100 text-coral-600"
+                        : "bg-navy-100 text-navy-400"
+                  }`}
+                >
+                  {it.met ? "✓" : it.available ? "!" : "…"}
+                </span>
+                <div className="min-w-0">
+                  <div className="text-sm text-navy-800">
+                    {it.label}
+                    {!it.available && (
+                      <span className="ms-2 rounded-full bg-navy-50 px-2 py-0.5 text-[10px] text-navy-400">
+                        בבנייה
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-navy-400">{it.hint}</div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className="mt-4 border-t border-navy-100 pt-3">
+          {!allMet ? (
+            <p className="text-xs text-navy-400">
+              יצירת קמפיין תיפתח ברגע שכל דרישות הקדם יסומנו ✓. חלקן עדיין בבנייה.
+            </p>
+          ) : naming ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                value={campaignName}
+                onChange={(e) => setCampaignName(e.target.value)}
+                placeholder={`קמפיין — ${customerName}`}
+                className="w-64"
+                autoFocus
+              />
+              <Button
+                size="sm"
+                icon="megaphone"
+                disabled={create.isPending}
+                onClick={() => {
+                  setError(null);
+                  create.mutate();
+                }}
+              >
+                {create.isPending ? "יוצר…" : "צור"}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setNaming(false)}
+              >
+                ביטול
+              </Button>
+            </div>
+          ) : (
+            <Button size="sm" icon="plus" onClick={() => setNaming(true)}>
+              צור קמפיין
+            </Button>
+          )}
+        </div>
+      </Card>
+    </section>
+  );
+}
+
+function CampaignRow({
+  campaign,
+  businessId,
+}: {
+  campaign: Campaign;
+  businessId: string;
+}) {
+  const label =
+    campaign.status === "active"
+      ? { text: "פעיל", cls: "bg-teal-50 text-teal-700 ring-teal-200" }
+      : campaign.status === "done"
+        ? { text: "הסתיים", cls: "bg-navy-50 text-navy-500 ring-navy-200" }
+        : { text: "בהקמה", cls: "bg-amber-50 text-amber-700 ring-amber-200" };
+  return (
+    <Link to={`/app/businesses/${businessId}/campaigns/${campaign.id}`}>
+      <Card className="flex items-center justify-between gap-3 p-3 transition-shadow hover:shadow-[var(--shadow-e2)]">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span
+            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ${label.cls}`}
+          >
+            {label.text}
+          </span>
+          <span className="truncate text-sm font-medium text-navy-900">
+            {campaign.name}
+          </span>
+        </div>
+        <Icon name="chevron-start" size={16} className="shrink-0 text-navy-300" />
+      </Card>
+    </Link>
   );
 }
 

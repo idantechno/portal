@@ -23,6 +23,16 @@ export interface ProductionPlanDraft {
   notes: string[];
 }
 
+export interface ScheduleItem {
+  id: string;
+  title: string;
+  kind: string;
+  channel: string;
+  /** ISO datetime. */
+  at: string;
+  funding: string;
+}
+
 export interface Campaign {
   id: string;
   businessId: string;
@@ -33,7 +43,7 @@ export interface Campaign {
   productionAnswers: ProductionAnswers | null;
   productionPlan: { draft: ProductionPlanDraft; generatedAt?: string } | null;
   scheduleHorizon: ScheduleHorizon | null;
-  schedule: Record<string, unknown> | null;
+  schedule: ScheduleItem[] | null;
   launchedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -113,6 +123,26 @@ export const campaignsApi = {
       .post<Campaign>(
         `/businesses/${businessId}/campaigns/${id}/production-plan`,
         {},
+      )
+      .then((r) => r.data),
+
+  buildSchedule: (businessId: string, id: string, horizon: ScheduleHorizon) =>
+    api
+      .post<Campaign>(
+        `/businesses/${businessId}/campaigns/${id}/schedule/build`,
+        { horizon },
+      )
+      .then((r) => r.data),
+
+  saveSchedule: (
+    businessId: string,
+    id: string,
+    input: { horizon?: ScheduleHorizon; items: ScheduleItem[] },
+  ) =>
+    api
+      .patch<Campaign>(
+        `/businesses/${businessId}/campaigns/${id}/schedule`,
+        input,
       )
       .then((r) => r.data),
 

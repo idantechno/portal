@@ -5,10 +5,22 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { randomUUID } from 'crypto';
 import { CustomersService } from '../customers/customers.service';
 import { PlansService } from '../plans/plans.service';
-import { Campaign, CampaignStatus } from './campaign.entity';
+import {
+  Campaign,
+  CampaignStatus,
+  ScheduleHorizon,
+  ScheduleItem,
+} from './campaign.entity';
 import { CampaignPrerequisitesService } from './campaign-prerequisites.service';
+
+const HORIZON_DAYS: Record<ScheduleHorizon, number> = {
+  monthly: 30,
+  half_year: 182,
+  yearly: 365,
+};
 
 export interface CreateCampaignInput {
   businessId: string;
@@ -130,6 +142,69 @@ export class CampaignsService {
         ''
       ).trim(),
     };
+    return this.campaigns.save(campaign);
+  }
+
+  /**
+   * Stage C: seed a schedule from the production plan's items, spread evenly
+   * across the chosen horizon (starting tomorrow, 10:00). The owner then edits
+   * each item's date/time/channel/funding. Overwrites any existing schedule.
+   */
+  async buildSchedule(
+    businessId: string,
+    id: string,
+    horizon: ScheduleHorizon,
+  ): Promise<Campaign> {
+    const campaign = await this.findByIdScoped(businessId, id);
+    const items =
+      (
+        campaign.productionPlan as {
+          draft?: { items?: { title: string; kind: string }[] };
+        } | null
+      )?.draft?.items ?? [];
+    if (items.length === 0) {
+      throw new BadRequestException(
+        'צריך קודם תוכנית הפקה (שלב ב׳) לפני שבונים לו״ז.',
+      );
+    }
+
+    const start = new Date();
+    start.setDate(start.getDate() + 1);
+    start.setHours(10, 0, 0, 0);
+    const gap = Math.max(1, Math.floor(HORIZON_DAYS[horizon] / items.length));
+
+    campaign.scheduleHorizon = horizon;
+    campaign.schedule = items.map((it, i) => {
+      const at = new Date(start);
+      at.setDate(start.getDate() + i * gap);
+      return {
+        id: randomUUID(),
+        title: it.title,
+        kind: it.kind,
+        channel: '',
+        at: at.toISOString(),
+        funding: '',
+      } satisfies ScheduleItem;
+    });
+    return this.campaigns.save(campaign);
+  }
+
+  /** Stage C: save the edited schedule (dates/channels/funding) + horizon. */
+  async saveSchedule(
+    businessId: string,
+    id: string,
+    input: { horizon?: ScheduleHorizon; items: ScheduleItem[] },
+  ): Promise<Campaign> {
+    const campaign = await this.findByIdScoped(businessId, id);
+    if (input.horizon !== undefined) campaign.scheduleHorizon = input.horizon;
+    campaign.schedule = input.items.map((it) => ({
+      id: it.id || randomUUID(),
+      title: it.title,
+      kind: it.kind,
+      channel: it.channel,
+      at: it.at,
+      funding: it.funding,
+    }));
     return this.campaigns.save(campaign);
   }
 

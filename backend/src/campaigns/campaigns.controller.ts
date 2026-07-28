@@ -20,6 +20,7 @@ import { ProductionPlanService } from './production-plan.service';
 import { CreateCampaignDto } from './dto/create-campaign.dto';
 import { UpdateCampaignDto } from './dto/update-campaign.dto';
 import { ProductionAnswersDto } from './dto/production-answers.dto';
+import { BuildScheduleDto, SaveScheduleDto } from './dto/schedule.dto';
 
 // Campaigns are the marketing agent's tool — only businesses granted the
 // "marketing" agent reach any of these routes.
@@ -95,6 +96,26 @@ export class CampaignsController {
   ) {
     const campaign = await this.campaigns.findByIdScoped(businessId, id);
     return this.production.generate(businessId, campaign);
+  }
+
+  /** Stage C: seed the schedule from the production items over a horizon. */
+  @Post('campaigns/:id/schedule/build')
+  buildSchedule(
+    @Param('businessId', ParseUUIDPipe) businessId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: BuildScheduleDto,
+  ) {
+    return this.campaigns.buildSchedule(businessId, id, dto.horizon);
+  }
+
+  /** Stage C: save the edited schedule (dates/channels/funding). */
+  @Patch('campaigns/:id/schedule')
+  saveSchedule(
+    @Param('businessId', ParseUUIDPipe) businessId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SaveScheduleDto,
+  ) {
+    return this.campaigns.saveSchedule(businessId, id, dto);
   }
 
   @Delete('campaigns/:id')

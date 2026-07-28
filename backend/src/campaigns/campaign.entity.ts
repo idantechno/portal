@@ -19,6 +19,20 @@ export type CampaignStatus = 'building' | 'active' | 'done';
 /** Schedule horizon chosen in stage C. */
 export type ScheduleHorizon = 'monthly' | 'half_year' | 'yearly';
 
+/** One scheduled asset in stage C — a production item placed on a date/channel. */
+export interface ScheduleItem {
+  /** Stable id so the UI can edit a single item across list + calendar views. */
+  id: string;
+  title: string;
+  kind: string;
+  /** Where it publishes. */
+  channel: string;
+  /** When — ISO datetime (day + time). */
+  at: string;
+  /** Paid budget for this item, if any (free text). */
+  funding: string;
+}
+
 /**
  * A marketing campaign run for a customer. Creation is gated behind a hard
  * prerequisite check (brand page, logo, marketing plan, price quote, goals &
@@ -83,7 +97,7 @@ export class Campaign {
   scheduleHorizon!: ScheduleHorizon | null;
 
   @Column({ type: 'jsonb', name: 'schedule', nullable: true })
-  schedule!: Record<string, unknown> | null;
+  schedule!: ScheduleItem[] | null;
 
   /** When the campaign started running — the baseline for status tracking. */
   @Column({ type: 'timestamptz', name: 'launched_at', nullable: true })

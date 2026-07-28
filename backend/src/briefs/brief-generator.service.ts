@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { LeadsService } from '../leads/leads.service';
+import { CustomersService } from '../customers/customers.service';
 import { Brief } from './brief.entity';
 import { BriefsService } from './briefs.service';
 import { BriefDrafterService, EMPTY_DRAFT } from './brief-drafter.service';
@@ -46,6 +47,7 @@ export class BriefGeneratorService {
   constructor(
     private readonly leads: LeadsService,
     private readonly briefs: BriefsService,
+    private readonly customers: CustomersService,
     private readonly extractor: WebsiteExtractorService,
     private readonly drafter: BriefDrafterService,
     private readonly claude: ClaudeJsonService,
@@ -93,10 +95,18 @@ export class BriefGeneratorService {
         `unanswered=${facts.missing.length}`,
     );
 
+    // Link to a customer if the caller gave one, or if this lead was already
+    // promoted to a customer — so a brief made from the leads tab still surfaces
+    // under that customer.
+    const customerId =
+      input.customerId ??
+      (await this.customers.findByLeadId(input.businessId, lead.id))?.id ??
+      null;
+
     return this.briefs.create({
       businessId: input.businessId,
       leadId: lead.id,
-      customerId: input.customerId ?? null,
+      customerId,
       title: facts.businessName,
       markdown,
       websiteUrl,

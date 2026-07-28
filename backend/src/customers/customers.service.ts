@@ -62,7 +62,7 @@ export class CustomersService {
     const businessName =
       (lead.answers as { businessName?: string } | null)?.businessName ?? null;
 
-    return this.customers.save(
+    const customer = await this.customers.save(
       this.customers.create({
         businessId,
         name: lead.name,
@@ -74,6 +74,44 @@ export class CustomersService {
         leadId: lead.id,
         customerContactId: lead.customerContactId,
       }),
+    );
+
+    // Adopt any documents already generated from this lead (e.g. a brief made
+    // from the leads tab, with customer_id NULL) so they surface under the new
+    // customer. Cascades brief → strategy/objective, strategy → plan.
+    await this.linkLeadDocuments(businessId, lead.id, customer.id);
+    return customer;
+  }
+
+  /** Point a lead's existing documents (and their descendants) at a customer. */
+  async findByLeadId(
+    businessId: string,
+    leadId: string,
+  ): Promise<Customer | null> {
+    return this.customers.findOne({ where: { businessId, leadId } });
+  }
+
+  private async linkLeadDocuments(
+    businessId: string,
+    leadId: string,
+    customerId: string,
+  ): Promise<void> {
+    const m = this.customers.manager;
+    await m.query(
+      `UPDATE "briefs" SET "customer_id" = $1 WHERE "lead_id" = $2 AND "business_id" = $3 AND "customer_id" IS NULL`,
+      [customerId, leadId, businessId],
+    );
+    await m.query(
+      `UPDATE "strategies" s SET "customer_id" = $1 FROM "briefs" b WHERE s."brief_id" = b."id" AND b."lead_id" = $2 AND s."business_id" = $3 AND s."customer_id" IS NULL`,
+      [customerId, leadId, businessId],
+    );
+    await m.query(
+      `UPDATE "plans" p SET "customer_id" = $1 FROM "strategies" s JOIN "briefs" b ON s."brief_id" = b."id" WHERE p."strategy_id" = s."id" AND b."lead_id" = $2 AND p."business_id" = $3 AND p."customer_id" IS NULL`,
+      [customerId, leadId, businessId],
+    );
+    await m.query(
+      `UPDATE "objectives" o SET "customer_id" = $1 FROM "briefs" b WHERE o."brief_id" = b."id" AND b."lead_id" = $2 AND o."business_id" = $3 AND o."customer_id" IS NULL`,
+      [customerId, leadId, businessId],
     );
   }
 

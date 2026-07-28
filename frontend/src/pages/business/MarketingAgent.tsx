@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { agentsApi } from "../../api/agents";
 import { briefsApi, type Brief } from "../../api/briefs";
 import { strategiesApi, type Strategy } from "../../api/strategies";
+import { plansApi, type Plan } from "../../api/plans";
 import { leadsApi, type Lead } from "../../api/leads";
 import { customersApi } from "../../api/customers";
 import { apiErrorMessage } from "../../api/client";
@@ -399,6 +400,11 @@ function ReportsTab({
     queryFn: () => strategiesApi.list(businessId),
     enabled: Boolean(businessId),
   });
+  const plans = useQuery({
+    queryKey: ["plans", businessId],
+    queryFn: () => plansApi.list(businessId),
+    enabled: Boolean(businessId),
+  });
 
   const removeBrief = useMutation({
     mutationFn: (id: string) => briefsApi.remove(businessId, id),
@@ -411,12 +417,18 @@ function ReportsTab({
       qc.invalidateQueries({ queryKey: ["strategies", businessId] }),
     onError: (err) => onError(apiErrorMessage(err, "מחיקת האסטרטגיה נכשלה")),
   });
+  const removePlan = useMutation({
+    mutationFn: (id: string) => plansApi.remove(businessId, id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["plans", businessId] }),
+    onError: (err) => onError(apiErrorMessage(err, "מחיקת התוכנית נכשלה")),
+  });
 
   const briefList = briefs.data ?? [];
   const strategyList = strategies.data ?? [];
+  const planList = plans.data ?? [];
 
   return (
-    <div className="grid gap-6 sm:grid-cols-2">
+    <div className="grid gap-6 sm:grid-cols-3">
       {/* Briefs column */}
       <section>
         <h2 className="mb-3 text-sm font-semibold text-navy-500">בריפים</h2>
@@ -479,7 +491,85 @@ function ReportsTab({
           </div>
         )}
       </section>
+
+      {/* Plans column */}
+      <section>
+        <h2 className="mb-3 text-sm font-semibold text-navy-500">
+          תוכניות עבודה
+        </h2>
+        {planList.length === 0 ? (
+          <Card className="p-6 text-center text-sm text-neutral-400">
+            עוד לא הופקה תוכנית
+          </Card>
+        ) : (
+          <div className="space-y-2.5">
+            {planList.map((plan) => (
+              <PlanRow
+                key={plan.id}
+                plan={plan}
+                businessId={businessId}
+                onDelete={() => {
+                  if (confirm("למחוק את התוכנית?")) removePlan.mutate(plan.id);
+                }}
+                deleting={
+                  removePlan.isPending && removePlan.variables === plan.id
+                }
+              />
+            ))}
+          </div>
+        )}
+      </section>
     </div>
+  );
+}
+
+function PlanRow({
+  plan,
+  businessId,
+  onDelete,
+  deleting,
+}: {
+  plan: Plan;
+  businessId: string;
+  onDelete: () => void;
+  deleting: boolean;
+}) {
+  const approved = plan.status === "approved";
+  return (
+    <Card className="flex items-center justify-between gap-3 p-3.5">
+      <Link
+        to={`/app/businesses/${businessId}/plans/${plan.id}`}
+        className="flex min-w-0 flex-1 items-center gap-3"
+      >
+        <span
+          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${
+            approved
+              ? "bg-teal-50 text-teal-700 ring-teal-200"
+              : "bg-coral-50 text-coral-600 ring-coral-200"
+          }`}
+        >
+          {approved ? "מאושרת" : "טיוטה"}
+        </span>
+        <span className="truncate text-sm font-medium text-navy-900">
+          {plan.title}
+        </span>
+        {plan.edited && (
+          <span className="shrink-0 text-xs text-navy-400">נערך ידנית</span>
+        )}
+      </Link>
+      <div className="flex shrink-0 items-center gap-1">
+        <Button
+          size="sm"
+          variant="ghost"
+          icon="trash"
+          disabled={deleting}
+          onClick={onDelete}
+        >
+          מחיקה
+        </Button>
+        <Icon name="chevron-start" size={18} className="text-navy-300" />
+      </div>
+    </Card>
   );
 }
 

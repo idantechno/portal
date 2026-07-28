@@ -5,6 +5,7 @@ import { customersApi, type Customer } from "../../api/customers";
 import { agentsApi } from "../../api/agents";
 import { briefsApi } from "../../api/briefs";
 import { strategiesApi } from "../../api/strategies";
+import { plansApi } from "../../api/plans";
 import { apiErrorMessage } from "../../api/client";
 import {
   Button,
@@ -295,14 +296,29 @@ function MarketingSection({
     queryFn: () => strategiesApi.list(businessId, customerId),
     enabled: Boolean(businessId && customerId),
   });
+  const plans = useQuery({
+    queryKey: ["plans", businessId, "customer", customerId],
+    queryFn: () => plansApi.list(businessId, customerId),
+    enabled: Boolean(businessId && customerId),
+  });
 
   const briefList = briefs.data ?? [];
   const strategyList = strategies.data ?? [];
+  const planList = plans.data ?? [];
   const approvedBrief = briefList.find((b) => b.status === "approved") ?? null;
+  const approvedStrategy =
+    strategyList.find((s) => s.status === "approved") ?? null;
 
   const stage = (() => {
-    if (strategyList.some((s) => s.status === "approved"))
-      return { label: "אסטרטגיה מאושרת", tone: "teal" as const };
+    if (planList.some((p) => p.status === "approved"))
+      return { label: "תוכנית מאושרת — בעבודה", tone: "teal" as const };
+    if (planList.length > 0)
+      return { label: "תוכנית בטיוטה", tone: "amber" as const };
+    if (approvedStrategy)
+      return {
+        label: "אסטרטגיה מאושרת — אפשר להפיק תוכנית",
+        tone: "teal" as const,
+      };
     if (strategyList.length > 0)
       return { label: "אסטרטגיה בטיוטה", tone: "amber" as const };
     if (approvedBrief)
@@ -338,6 +354,17 @@ function MarketingSection({
       navigate(`/app/businesses/${businessId}/strategies/${strategy.id}`);
     },
     onError: (e) => setError(apiErrorMessage(e, "הפקת האסטרטגיה נכשלה")),
+  });
+
+  const generatePlan = useMutation({
+    mutationFn: (strategyId: string) => plansApi.generate(businessId, strategyId),
+    onSuccess: (plan) => {
+      qc.invalidateQueries({
+        queryKey: ["plans", businessId, "customer", customerId],
+      });
+      navigate(`/app/businesses/${businessId}/plans/${plan.id}`);
+    },
+    onError: (e) => setError(apiErrorMessage(e, "הפקת התוכנית נכשלה")),
   });
 
   const toneClass = {
@@ -385,6 +412,16 @@ function MarketingSection({
             to: `/app/businesses/${businessId}/strategies/${s.id}`,
           }))}
           empty="עוד לא הופקה אסטרטגיה"
+        />
+        <ReportGroup
+          title="תוכניות עבודה"
+          items={planList.map((p) => ({
+            id: p.id,
+            title: p.title,
+            approved: p.status === "approved",
+            to: `/app/businesses/${businessId}/plans/${p.id}`,
+          }))}
+          empty="עוד לא הופקה תוכנית"
         />
       </div>
 
@@ -439,6 +476,25 @@ function MarketingSection({
               {generateStrategy.isPending
                 ? "מפיק אסטרטגיה…"
                 : "הפק אסטרטגיה מהבריף"}
+            </Button>
+          </div>
+        )}
+
+        {approvedStrategy && (
+          <div className="border-t border-navy-100 pt-3">
+            <Button
+              size="sm"
+              variant="secondary"
+              icon="tasks"
+              disabled={generatePlan.isPending}
+              onClick={() => {
+                setError(null);
+                generatePlan.mutate(approvedStrategy.id);
+              }}
+            >
+              {generatePlan.isPending
+                ? "מפיק תוכנית…"
+                : "הפק תוכנית מהאסטרטגיה"}
             </Button>
           </div>
         )}

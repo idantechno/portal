@@ -30,6 +30,7 @@ const Customers = lazy(() => import("./pages/business/Customers"));
 const CustomerDetail = lazy(() => import("./pages/business/CustomerDetail"));
 const BriefDetail = lazy(() => import("./pages/business/BriefDetail"));
 const StrategyDetail = lazy(() => import("./pages/business/StrategyDetail"));
+const PlanDetail = lazy(() => import("./pages/business/PlanDetail"));
 const Tasks = lazy(() => import("./pages/business/Tasks"));
 const Automations = lazy(() => import("./pages/business/Automations"));
 const Growth = lazy(() => import("./pages/business/Growth"));
@@ -207,6 +208,7 @@ export default function App() {
             path="strategies/:strategyId"
             element={<StrategyDetail />}
           />
+          <Route path="plans/:planId" element={<PlanDetail />} />
           <Route path="tasks" element={<Tasks />} />
           <Route path="agents" element={<AgentStudio />} />
           <Route path="agents/:agentKey" element={<AgentWorkspace />} />

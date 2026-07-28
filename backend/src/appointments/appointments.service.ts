@@ -16,6 +16,17 @@ import { BusinessesService } from '../businesses/businesses.service';
 import { UsersService } from '../users/users.service';
 import { WhatsappConnectionsService } from '../whatsapp/whatsapp-connections.service';
 import { WaitlistService } from './waitlist.service';
+import { TasksService } from '../tasks/tasks.service';
+
+/**
+ * How far ahead of the appointment the owner reminder fires. A day before is the
+ * standard cadence; for bookings closer than this the reminder is clamped to
+ * "now" so it still lands on the next reminders sweep.
+ */
+const REMINDER_LEAD_MS = 24 * 60 * 60 * 1000;
+
+/** Marks tasks this service creates so cancel() can clean them up. */
+const APPOINTMENT_RELATED_TYPE = 'appointment';
 
 export interface BookAppointmentInput {
   businessId: string;
@@ -64,6 +75,7 @@ export class AppointmentsService {
     private readonly users: UsersService,
     private readonly whatsapp: WhatsappConnectionsService,
     private readonly waitlist: WaitlistService,
+    private readonly tasks: TasksService,
   ) {}
 
   /**
@@ -123,6 +135,9 @@ export class AppointmentsService {
 
     const saved = await this.appointments.save(appointment);
     await this.notifyOwner(saved);
+    // Hand the appointment off to the reminders agent: a due-dated task the
+    // reminders sweeper fires ahead of time (bell + email + push to the owner).
+    await this.scheduleReminder(saved);
     // If this customer was waiting for a slot, their request is now fulfilled.
     await this.waitlist.markBookedForContact(
       saved.businessId,
@@ -131,11 +146,46 @@ export class AppointmentsService {
     return saved;
   }
 
+  /**
+   * Creates the owner's advance reminder for a freshly booked appointment as a
+   * due-dated Task, so the reminders agent's sweep delivers it ahead of time.
+   * The due date is a day before the appointment, clamped to "now" for bookings
+   * closer than that. Best-effort — a reminder hiccup never fails the booking,
+   * and past-dated appointments (shouldn't happen) get no reminder.
+   */
+  private async scheduleReminder(appointment: Appointment): Promise<void> {
+    if (appointment.startAt.getTime() <= Date.now()) return;
+    const who = appointment.customerName ?? appointment.phone ?? 'לקוח';
+    const when = israelTime(appointment.startAt);
+    const dueAt = new Date(
+      Math.max(appointment.startAt.getTime() - REMINDER_LEAD_MS, Date.now()),
+    );
+    try {
+      await this.tasks.create({
+        businessId: appointment.businessId,
+        title: `תזכורת לפגישה: ${who}`,
+        description: `${appointment.title} — ${when}`,
+        priority: 'high',
+        dueAt,
+        source: 'agent',
+        relatedType: APPOINTMENT_RELATED_TYPE,
+        relatedId: appointment.id,
+      });
+    } catch (err) {
+      this.log.warn(
+        `[appointments] reminder task not created for appointment ` +
+          `${appointment.id}: ${(err as Error).message}`,
+      );
+    }
+  }
+
   private async notifyOwner(appointment: Appointment): Promise<void> {
     const who = appointment.customerName ?? appointment.phone ?? 'לקוח';
     const when = israelTime(appointment.startAt);
 
-    // Always ring the in-app bell — works immediately, no external setup.
+    // Always ring the in-app bell — works immediately, no external setup — and
+    // push it to the owner's phone/PWA (no-op if they haven't opted in or VAPID
+    // isn't configured). Email is sent separately below with fuller details.
     try {
       await this.notifications.notify({
         businessId: appointment.businessId,
@@ -143,6 +193,7 @@ export class AppointmentsService {
         title: `נקבעה פגישה: ${who}`,
         body: `${appointment.title} — ${when}`,
         link: '/calendar',
+        channels: ['push'],
       });
     } catch (err) {
       this.log.error(
@@ -329,6 +380,19 @@ export class AppointmentsService {
     const appointment = await this.findByIdScoped(businessId, id);
     appointment.status = AppointmentStatus.Cancelled;
     const saved = await this.appointments.save(appointment);
+    // Drop the advance reminder — a cancelled appointment must not still nudge.
+    try {
+      await this.tasks.removeByRelated(
+        businessId,
+        APPOINTMENT_RELATED_TYPE,
+        saved.id,
+      );
+    } catch (err) {
+      this.log.warn(
+        `[appointments] reminder cleanup failed for appointment ${saved.id}: ` +
+          `${(err as Error).message}`,
+      );
+    }
     // Offer the freed slot: first to the waitlist; if no one is waiting, invite
     // an existing customer with a later appointment to move earlier. Best-effort.
     // Never offer the slot back to the customer who just vacated it — after a

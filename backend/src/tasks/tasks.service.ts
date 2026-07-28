@@ -77,6 +77,20 @@ export class TasksService {
   }
 
   /**
+   * Deletes every task linked to a related entity (e.g. an appointment's
+   * reminders). Used when the source object is cancelled so a stale reminder
+   * never fires. Idempotent — returns the number removed, never throws on 0.
+   */
+  async removeByRelated(
+    businessId: string,
+    relatedType: string,
+    relatedId: string,
+  ): Promise<number> {
+    const res = await this.tasks.delete({ businessId, relatedType, relatedId });
+    return res.affected ?? 0;
+  }
+
+  /**
    * True if any task (in any status) is already linked to this related entity.
    * Used by automations to avoid raising the same reminder twice for a doc.
    */

@@ -13,6 +13,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { UsersModule } from '../users/users.module';
 import { WhatsappModule } from '../whatsapp/whatsapp.module';
 import { ConversationsModule } from '../conversations/conversations.module';
+import { TasksModule } from '../tasks/tasks.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { ConversationsModule } from '../conversations/conversations.module';
     UsersModule,
     WhatsappModule,
     ConversationsModule,
+    TasksModule,
   ],
   controllers: [AppointmentsController, WaitlistController],
   providers: [AppointmentsService, WaitlistService],

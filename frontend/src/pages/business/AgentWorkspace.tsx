@@ -9,6 +9,7 @@ import DesignerAgent from "./DesignerAgent";
 import IdeasAgent from "./IdeasAgent";
 import RemindersAgent from "./RemindersAgent";
 import MarketingAgent from "./MarketingAgent";
+import QuoteAgent from "./QuoteAgent";
 
 // Agents that keep a bespoke, richer page. Every other entitled agent falls
 // through to the uniform GenericAgentWorkspace. This is the single dispatcher
@@ -23,6 +24,7 @@ const BESPOKE: Record<
   ideas: IdeasAgent,
   reminders: RemindersAgent,
   marketing: MarketingAgent,
+  quote: QuoteAgent,
 };
 
 export default function AgentWorkspace() {

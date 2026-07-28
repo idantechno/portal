@@ -6,6 +6,7 @@ import { agentsApi } from "../../api/agents";
 import { briefsApi } from "../../api/briefs";
 import { strategiesApi } from "../../api/strategies";
 import { plansApi } from "../../api/plans";
+import { quotesApi } from "../../api/quotes";
 import { campaignsApi, type Campaign } from "../../api/campaigns";
 import { apiErrorMessage } from "../../api/client";
 import {
@@ -493,13 +494,20 @@ function MarketingSection({
     queryFn: () => plansApi.list(businessId, customerId),
     enabled: Boolean(businessId && customerId),
   });
+  const quotes = useQuery({
+    queryKey: ["quotes", businessId, "customer", customerId],
+    queryFn: () => quotesApi.list(businessId, customerId),
+    enabled: Boolean(businessId && customerId),
+  });
 
   const briefList = briefs.data ?? [];
+  const quoteList = quotes.data ?? [];
   const strategyList = strategies.data ?? [];
   const planList = plans.data ?? [];
   const approvedBrief = briefList.find((b) => b.status === "approved") ?? null;
   const approvedStrategy =
     strategyList.find((s) => s.status === "approved") ?? null;
+  const hasApprovedQuote = quoteList.some((q) => q.status === "approved");
 
   const stage = (() => {
     if (planList.some((p) => p.status === "approved"))
@@ -606,6 +614,16 @@ function MarketingSection({
           empty="עוד לא הופקה אסטרטגיה"
         />
         <ReportGroup
+          title="הצעות מחיר"
+          items={quoteList.map((q) => ({
+            id: q.id,
+            title: q.title,
+            approved: q.status === "approved",
+            to: `/app/businesses/${businessId}/quotes/${q.id}`,
+          }))}
+          empty="עוד לא נבנתה הצעת מחיר (נבנית אצל סוכן הצעות המחיר)"
+        />
+        <ReportGroup
           title="תוכניות עבודה"
           items={planList.map((p) => ({
             id: p.id,
@@ -678,7 +696,7 @@ function MarketingSection({
               size="sm"
               variant="secondary"
               icon="tasks"
-              disabled={generatePlan.isPending}
+              disabled={generatePlan.isPending || !hasApprovedQuote}
               onClick={() => {
                 setError(null);
                 generatePlan.mutate(approvedStrategy.id);
@@ -688,6 +706,12 @@ function MarketingSection({
                 ? "מפיק תוכנית…"
                 : "הפק תוכנית מהאסטרטגיה"}
             </Button>
+            {!hasApprovedQuote && (
+              <p className="mt-2 text-xs text-navy-400">
+                התוכנית דורשת הצעת מחיר מאושרת (מסלול לקוח, ערוצים ותקציב) —
+                נבנית אצל סוכן הצעות המחיר.
+              </p>
+            )}
           </div>
         )}
       </Card>

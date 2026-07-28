@@ -32,6 +32,7 @@ const BriefDetail = lazy(() => import("./pages/business/BriefDetail"));
 const StrategyDetail = lazy(() => import("./pages/business/StrategyDetail"));
 const PlanDetail = lazy(() => import("./pages/business/PlanDetail"));
 const CampaignDetail = lazy(() => import("./pages/business/CampaignDetail"));
+const QuoteDetail = lazy(() => import("./pages/business/QuoteDetail"));
 const Tasks = lazy(() => import("./pages/business/Tasks"));
 const Automations = lazy(() => import("./pages/business/Automations"));
 const Growth = lazy(() => import("./pages/business/Growth"));
@@ -211,6 +212,7 @@ export default function App() {
           />
           <Route path="plans/:planId" element={<PlanDetail />} />
           <Route path="campaigns/:campaignId" element={<CampaignDetail />} />
+          <Route path="quotes/:quoteId" element={<QuoteDetail />} />
           <Route path="tasks" element={<Tasks />} />
           <Route path="agents" element={<AgentStudio />} />
           <Route path="agents/:agentKey" element={<AgentWorkspace />} />

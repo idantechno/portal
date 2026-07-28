@@ -109,12 +109,25 @@ export class PlanDrafterService {
 
   constructor(private readonly claude: ClaudeJsonService) {}
 
-  async draft(input: { strategyMarkdown: string }): Promise<PlanDraft> {
+  async draft(input: {
+    strategyMarkdown: string;
+    /** The approved marketing quote — its channels + budget anchor the plan. */
+    quoteMarkdown?: string | null;
+  }): Promise<PlanDraft> {
     const user = [
       '=== האסטרטגיה המאושרת (מקור-אמת) ===',
       input.strategyMarkdown.trim(),
+      ...(input.quoteMarkdown
+        ? [
+            '',
+            '=== הצעת המחיר המאושרת (מסלול הלקוח, ערוצי השיווק והתקציב בפועל) ===',
+            input.quoteMarkdown.trim(),
+            '',
+            'התוכנית חייבת להתיישב עם הערוצים והתקציב שבהצעת המחיר — אל תציע ערוצים או היקפים שלא תואמים לה.',
+          ]
+        : []),
       '',
-      'נסח תוכנית עבודה/ביצוע לפי המבנה. זכור: כל משימה נגזרת מהאסטרטגיה, סדר לפי עדיפות אמיתית, משימות שאפשר לסמן כבוצעו, זמנים ריאליים, ומה שלא באסטרטגיה — לא ממציאים.',
+      'נסח תוכנית עבודה/ביצוע לפי המבנה. זכור: כל משימה נגזרת מהאסטרטגיה (ומהצעת המחיר אם צורפה), סדר לפי עדיפות אמיתית, משימות שאפשר לסמן כבוצעו, זמנים ריאליים, ומה שלא במקורות — לא ממציאים.',
     ].join('\n');
 
     const parsed = await this.claude.json<Partial<PlanDraft>>({

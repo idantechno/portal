@@ -32,31 +32,23 @@ export class CampaignsService {
   ) {}
 
   /**
-   * Create a campaign — hard-gated on every prerequisite being met. Throws 400
-   * listing what's missing otherwise. Stage A (marketing plan) is wired to the
-   * customer's approved plan at creation.
+   * Create a campaign. Stage A is the marketing plan, so creation requires the
+   * customer to have an approved plan — it's wired as the campaign's stage A.
+   * The FULL prerequisite list (brand page, logo, quote, goals, …) is enforced
+   * later, at activation (stage C), not here.
    */
   async create(input: CreateCampaignInput): Promise<Campaign> {
     // Validates the customer belongs to the business (throws 404 otherwise).
     await this.customers.findByIdScoped(input.businessId, input.customerId);
 
-    const report = await this.prerequisites.report(
-      input.businessId,
-      input.customerId,
-    );
-    if (!report.allMet) {
-      const missing = report.items
-        .filter((i) => !i.met)
-        .map((i) => i.label)
-        .join(', ');
-      throw new BadRequestException(
-        `לא ניתן ליצור קמפיין — חסרות דרישות קדם: ${missing}`,
-      );
-    }
-
     const approvedPlan = (
       await this.plans.list(input.businessId, input.customerId)
     ).find((p) => p.status === 'approved');
+    if (!approvedPlan) {
+      throw new BadRequestException(
+        'כדי לפתוח קמפיין צריך קודם תוכנית מאושרת ללקוח (שלב א׳).',
+      );
+    }
 
     return this.campaigns.save(
       this.campaigns.create({
@@ -64,7 +56,7 @@ export class CampaignsService {
         customerId: input.customerId,
         name: input.name.trim().slice(0, 255),
         status: 'building',
-        marketingPlanId: approvedPlan?.id ?? null,
+        marketingPlanId: approvedPlan.id,
       }),
     );
   }
@@ -93,6 +85,22 @@ export class CampaignsService {
     if (input.name !== undefined)
       campaign.name = input.name.trim().slice(0, 255);
     if (input.status !== undefined) {
+      // Activating (stage C) is the hard gate: every prerequisite must be met.
+      if (input.status === 'active' && campaign.status !== 'active') {
+        const report = await this.prerequisites.report(
+          businessId,
+          campaign.customerId,
+        );
+        if (!report.allMet) {
+          const missing = report.items
+            .filter((i) => !i.met)
+            .map((i) => i.label)
+            .join(', ');
+          throw new BadRequestException(
+            `לא ניתן להפעיל קמפיין — חסרות דרישות קדם: ${missing}`,
+          );
+        }
+      }
       campaign.status = input.status;
       if (input.status === 'active' && !campaign.launchedAt) {
         campaign.launchedAt = new Date();

@@ -164,6 +164,13 @@ export class CustomersService {
     if (dto.phone !== undefined) customer.phone = dto.phone?.trim() || null;
     if (dto.email !== undefined) customer.email = dto.email?.trim() || null;
     if (dto.notes !== undefined) customer.notes = dto.notes?.trim() || null;
+    if (dto.brandPageReady !== undefined)
+      customer.brandPageReady = dto.brandPageReady;
+    if (dto.brandPageUrl !== undefined)
+      customer.brandPageUrl = dto.brandPageUrl?.trim() || null;
+    if (dto.logoReady !== undefined) customer.logoReady = dto.logoReady;
+    if (dto.logoUrl !== undefined)
+      customer.logoUrl = dto.logoUrl?.trim() || null;
     if (dto.nextActivityAt !== undefined)
       customer.nextActivityAt = dto.nextActivityAt
         ? new Date(dto.nextActivityAt)

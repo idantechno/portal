@@ -84,6 +84,10 @@ function CustomerEditor({
   const [phone, setPhone] = useState(customer.phone ?? "");
   const [email, setEmail] = useState(customer.email ?? "");
   const [notes, setNotes] = useState(customer.notes ?? "");
+  const [brandPageReady, setBrandPageReady] = useState(customer.brandPageReady);
+  const [brandPageUrl, setBrandPageUrl] = useState(customer.brandPageUrl ?? "");
+  const [logoReady, setLogoReady] = useState(customer.logoReady);
+  const [logoUrl, setLogoUrl] = useState(customer.logoUrl ?? "");
   const [activityAt, setActivityAt] = useState(
     toDateInput(customer.nextActivityAt),
   );
@@ -104,6 +108,10 @@ function CustomerEditor({
         phone: phone.trim() || null,
         email: email.trim() || null,
         notes: notes.trim() || null,
+        brandPageReady,
+        brandPageUrl: brandPageUrl.trim() || null,
+        logoReady,
+        logoUrl: logoUrl.trim() || null,
         nextActivityAt: activityAt
           ? new Date(activityAt).toISOString()
           : null,
@@ -193,6 +201,29 @@ function CustomerEditor({
               placeholder="הקשר, סיכומים, מה שחשוב לזכור על הלקוח…"
               rows={3}
             />
+          </div>
+
+          {/* Brand assets — made outside the system; a manual confirmation. */}
+          <div className="rounded-xl border border-navy-100 p-3">
+            <div className="mb-2 text-xs font-semibold text-navy-500">
+              נכסי מותג (נוצרים מחוץ למערכת)
+            </div>
+            <div className="space-y-2.5">
+              <BrandAssetRow
+                label="דף מותג"
+                ready={brandPageReady}
+                onToggle={() => setBrandPageReady((v) => !v)}
+                url={brandPageUrl}
+                onUrl={setBrandPageUrl}
+              />
+              <BrandAssetRow
+                label="לוגו"
+                ready={logoReady}
+                onToggle={() => setLogoReady((v) => !v)}
+                url={logoUrl}
+                onUrl={setLogoUrl}
+              />
+            </div>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
@@ -327,7 +358,8 @@ function CampaignsSection({
   });
 
   const report = prereqs.data;
-  const allMet = report?.allMet ?? false;
+  const planMet =
+    report?.items.find((i) => i.key === "marketing_plan")?.met ?? false;
   const campaignList = campaigns.data ?? [];
 
   return (
@@ -352,10 +384,10 @@ function CampaignsSection({
         </div>
       )}
 
-      {/* Prerequisite gate */}
+      {/* Readiness — plan opens creation; the full list is needed to activate */}
       <Card className="p-4">
         <div className="mb-2.5 text-sm font-medium text-navy-900">
-          דרישות קדם ליצירת קמפיין
+          מוכנות לקמפיין
         </div>
         {prereqs.isLoading ? (
           <div className="text-xs text-navy-400">טוען…</div>
@@ -391,9 +423,10 @@ function CampaignsSection({
         )}
 
         <div className="mt-4 border-t border-navy-100 pt-3">
-          {!allMet ? (
+          {!planMet ? (
             <p className="text-xs text-navy-400">
-              יצירת קמפיין תיפתח ברגע שכל דרישות הקדם יסומנו ✓. חלקן עדיין בבנייה.
+              כדי לפתוח קמפיין צריך קודם תוכנית מאושרת (שלב א׳). שאר הדרישות
+              נדרשות רק כדי להפעיל את הקמפיין (שלב ג׳).
             </p>
           ) : naming ? (
             <div className="flex flex-wrap items-center gap-2">
@@ -756,6 +789,45 @@ function MarketingSection({
         )}
       </Card>
     </section>
+  );
+}
+
+function BrandAssetRow({
+  label,
+  ready,
+  onToggle,
+  url,
+  onUrl,
+}: {
+  label: string;
+  ready: boolean;
+  onToggle: () => void;
+  url: string;
+  onUrl: (v: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        onClick={onToggle}
+        className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium ring-1 transition ${
+          ready
+            ? "bg-teal-50 text-teal-700 ring-teal-200"
+            : "bg-navy-50 text-navy-500 ring-navy-200"
+        }`}
+      >
+        <Icon name={ready ? "check-circle" : "close"} size={14} />
+        {label}
+        {ready ? " — קיים" : " — לא סומן"}
+      </button>
+      <Input
+        value={url}
+        onChange={(e) => onUrl(e.target.value)}
+        placeholder="קישור (רשות)"
+        dir="ltr"
+        className="h-8 w-48 text-xs"
+      />
+    </div>
   );
 }
 

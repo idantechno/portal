@@ -78,6 +78,28 @@ export class Customer {
   })
   becameCustomerAt!: Date;
 
+  /**
+   * Brand assets are made OUTSIDE the system (each owner builds their own).
+   * These are manual confirmations that they exist — a campaign's stage-C
+   * prerequisites — with an optional link to where they live.
+   */
+  @Column({ type: 'boolean', name: 'brand_page_ready', default: false })
+  brandPageReady!: boolean;
+
+  @Column({
+    type: 'varchar',
+    length: 512,
+    name: 'brand_page_url',
+    nullable: true,
+  })
+  brandPageUrl!: string | null;
+
+  @Column({ type: 'boolean', name: 'logo_ready', default: false })
+  logoReady!: boolean;
+
+  @Column({ type: 'varchar', length: 512, name: 'logo_url', nullable: true })
+  logoUrl!: string | null;
+
   /** Next planned activity — drives the "פעילות קרובה הבאה" sort and the לו"ז tab. */
   @Column({ type: 'timestamptz', name: 'next_activity_at', nullable: true })
   nextActivityAt!: Date | null;

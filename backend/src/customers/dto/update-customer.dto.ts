@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsEmail,
   IsISO8601,
   IsOptional,
@@ -35,6 +36,24 @@ export class UpdateCustomerDto {
   @IsString()
   @MaxLength(4000)
   notes?: string | null;
+
+  @IsOptional()
+  @IsBoolean()
+  brandPageReady?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  brandPageUrl?: string | null;
+
+  @IsOptional()
+  @IsBoolean()
+  logoReady?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  logoUrl?: string | null;
 
   /** Pass null to clear the scheduled activity. */
   @IsOptional()

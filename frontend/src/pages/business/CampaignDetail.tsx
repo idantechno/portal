@@ -46,6 +46,13 @@ export default function CampaignDetail() {
     onError: (e) => setError(apiErrorMessage(e, "המחיקה נכשלה")),
   });
 
+  const customerId = campaign.data?.customerId;
+  const prereqs = useQuery({
+    queryKey: ["campaign-prereqs", businessId, customerId],
+    queryFn: () => campaignsApi.prerequisites(businessId, customerId!),
+    enabled: Boolean(businessId && customerId),
+  });
+
   if (campaign.isLoading || !campaign.data) {
     return (
       <div className="grid place-items-center p-10">
@@ -56,12 +63,13 @@ export default function CampaignDetail() {
 
   const c = campaign.data;
   const status = STATUS_LABEL[c.status];
-  // All three stages complete → the campaign can go live. B/C aren't built yet,
-  // so this stays false for now (honest shell).
   const stageA = Boolean(c.marketingPlanId);
   const stageB = Boolean(c.productionPlan);
   const stageC = Boolean(c.schedule);
-  const ready = stageA && stageB && stageC;
+  // Activation (stage C) is gated on the full prerequisite list being met —
+  // the backend enforces the same on the status→active transition.
+  const prereqItems = prereqs.data?.items ?? [];
+  const allMet = prereqs.data?.allMet ?? false;
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
@@ -88,8 +96,8 @@ export default function CampaignDetail() {
               size="sm"
               variant="teal"
               icon="check-circle"
-              disabled={!ready || update.isPending}
-              title={ready ? undefined : "צריך להשלים את שלושת השלבים"}
+              disabled={!allMet || update.isPending}
+              title={allMet ? undefined : "צריך שכל דרישות הקדם יסומנו ✓"}
               onClick={() => update.mutate({ status: "active" })}
             >
               הפעלת קמפיין
@@ -164,14 +172,33 @@ export default function CampaignDetail() {
         <StageCard
           n="ג'"
           icon="calendar"
-          title="לו״ז"
-          done={stageC}
-          building
+          title="לו״ז והפעלה"
+          done={allMet && stageC}
           body={
-            <span className="text-sm text-navy-400">
-              לוח זמנים (חודשי / חצי-שנה / שנה): באיזה ערוץ כל פריט מתפרסם, מתי,
-              וכמה תקציב מושקע. (בבנייה)
-            </span>
+            <div>
+              <p className="mb-2 text-sm text-navy-400">
+                לוח זמנים (חודשי / חצי-שנה / שנה) עם ערוץ ותקציב לכל פריט —
+                בבנייה. להפעלת הקמפיין צריך שכל דרישות הקדם יסומנו ✓:
+              </p>
+              <ul className="space-y-1.5">
+                {prereqItems.map((it) => (
+                  <li key={it.key} className="flex items-center gap-2 text-sm">
+                    <span
+                      className={`inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] ${
+                        it.met
+                          ? "bg-teal-100 text-teal-700"
+                          : "bg-coral-100 text-coral-600"
+                      }`}
+                    >
+                      {it.met ? "✓" : "!"}
+                    </span>
+                    <span className={it.met ? "text-navy-700" : "text-navy-500"}>
+                      {it.label}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           }
         />
       </div>

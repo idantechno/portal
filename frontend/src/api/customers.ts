@@ -14,6 +14,10 @@ export interface Customer {
   source: CustomerSource;
   leadId: string | null;
   customerContactId: string | null;
+  brandPageReady: boolean;
+  brandPageUrl: string | null;
+  logoReady: boolean;
+  logoUrl: string | null;
   becameCustomerAt: string;
   nextActivityAt: string | null;
   nextActivityNote: string | null;
@@ -37,6 +41,10 @@ export interface UpdateCustomerInput {
   phone?: string | null;
   email?: string | null;
   notes?: string | null;
+  brandPageReady?: boolean;
+  brandPageUrl?: string | null;
+  logoReady?: boolean;
+  logoUrl?: string | null;
   nextActivityAt?: string | null;
   nextActivityNote?: string | null;
 }

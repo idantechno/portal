@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { CustomersService } from '../customers/customers.service';
 import { PlansService } from '../plans/plans.service';
 import { QuotesService } from '../quotes/quotes.service';
 import { ObjectivesService } from '../objectives/objectives.service';
@@ -42,6 +43,7 @@ export interface PrerequisiteReport {
 @Injectable()
 export class CampaignPrerequisitesService {
   constructor(
+    private readonly customers: CustomersService,
     private readonly plans: PlansService,
     private readonly quotes: QuotesService,
     private readonly objectives: ObjectivesService,
@@ -51,27 +53,33 @@ export class CampaignPrerequisitesService {
     businessId: string,
     customerId: string,
   ): Promise<PrerequisiteReport> {
-    const [plans, hasApprovedQuote, hasApprovedObjectives] = await Promise.all([
-      this.plans.list(businessId, customerId),
-      this.quotes.hasApproved(businessId, customerId),
-      this.objectives.hasApproved(businessId, customerId),
-    ]);
+    const [customer, plans, hasApprovedQuote, hasApprovedObjectives] =
+      await Promise.all([
+        this.customers.findByIdScoped(businessId, customerId),
+        this.plans.list(businessId, customerId),
+        this.quotes.hasApproved(businessId, customerId),
+        this.objectives.hasApproved(businessId, customerId),
+      ]);
     const hasApprovedPlan = plans.some((p) => p.status === 'approved');
 
     const items: PrerequisiteItem[] = [
       {
         key: 'brand_page',
         label: 'דף מותג',
-        met: false,
-        available: false,
-        hint: 'שפה עיצובית: סגנון, צבעים ופונטים. (בבנייה)',
+        met: customer.brandPageReady,
+        available: true,
+        hint: customer.brandPageReady
+          ? 'סומן כקיים.'
+          : 'שפה עיצובית (סגנון, צבעים, פונטים) — נוצר מחוץ למערכת; סמן שקיים בכרטיס הלקוח.',
       },
       {
         key: 'logo',
         label: 'לוגו',
-        met: false,
-        available: false,
-        hint: 'לוגו הלקוח. (בבנייה)',
+        met: customer.logoReady,
+        available: true,
+        hint: customer.logoReady
+          ? 'סומן כקיים.'
+          : 'לוגו הלקוח — מובא מבחוץ; סמן שקיים בכרטיס הלקוח.',
       },
       {
         key: 'marketing_plan',

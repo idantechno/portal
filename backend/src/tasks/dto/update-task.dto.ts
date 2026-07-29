@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsIn,
   IsISO8601,
   IsOptional,
@@ -31,4 +32,14 @@ export class UpdateTaskDto {
   @IsOptional()
   @IsISO8601()
   dueAt?: string | null;
+
+  /** Opt this task into (or out of) the reminders sweep — the 🔔 toggle. */
+  @IsOptional()
+  @IsBoolean()
+  remindEnabled?: boolean;
+
+  /** Manual override of when the reminder fires (ISO Israel time). */
+  @IsOptional()
+  @IsISO8601()
+  remindAt?: string | null;
 }

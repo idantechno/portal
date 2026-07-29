@@ -13,6 +13,19 @@ import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { CustomerSort } from './dto/list-customers.dto';
 
+/**
+ * Reduces a phone number to a comparison key: digits only, last 9 kept — so an
+ * E.164 WhatsApp id ("972501234567"), a national form ("0501234567"), and a
+ * dashed CRM entry ("050-123-4567") all collapse to the same "501234567". Below
+ * 7 digits it's not a real number → no key (never match on a fragment).
+ */
+function normalizePhoneKey(phone?: string | null): string | null {
+  if (!phone) return null;
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length < 7) return null;
+  return digits.slice(-9);
+}
+
 @Injectable()
 export class CustomersService {
   constructor(
@@ -206,6 +219,28 @@ export class CustomersService {
     });
     if (!customer) throw new NotFoundException(`Customer ${id} not found`);
     return customer;
+  }
+
+  /**
+   * Finds a registered customer of this business by phone number, tolerant of
+   * formatting (E.164 vs national vs dashed) via a normalized last-9-digit key.
+   * Lets the chat agent tell a real customer apart from a cold lead regardless
+   * of how the CRM row was typed. Returns the first match, or null.
+   *
+   * Scans the business's own customer rows in memory — fine at per-tenant scale;
+   * revisit with a normalized indexed column if a tenant's list grows large.
+   */
+  async findByPhone(
+    businessId: string,
+    phone?: string | null,
+  ): Promise<Customer | null> {
+    const key = normalizePhoneKey(phone);
+    if (!key) return null;
+    const rows = await this.customers.find({
+      where: { businessId },
+      take: 2000,
+    });
+    return rows.find((c) => normalizePhoneKey(c.phone) === key) ?? null;
   }
 
   async update(

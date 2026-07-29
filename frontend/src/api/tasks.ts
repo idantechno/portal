@@ -13,6 +13,12 @@ export interface Task {
   source: "manual" | "automation" | "agent";
   dueAt: string | null;
   completedAt: string | null;
+  /** When this task's reminder is enabled, the reminders agent nudges the owner. */
+  remindEnabled: boolean;
+  /** When the reminder fires — distinct from dueAt (when the event happens). */
+  remindAt: string | null;
+  remindCustomerPhone: string | null;
+  remindCustomerName: string | null;
   relatedType: string | null;
   relatedId: string | null;
   createdAt: string;
@@ -37,7 +43,15 @@ export const tasksApi = {
     api
       .post<Task>(`/businesses/${businessId}/tasks`, body)
       .then((r) => r.data),
-  update: (businessId: string, id: string, body: Partial<CreateTaskBody> & { status?: TaskStatus }) =>
+  update: (
+    businessId: string,
+    id: string,
+    body: Partial<CreateTaskBody> & {
+      status?: TaskStatus;
+      remindEnabled?: boolean;
+      remindAt?: string | null;
+    },
+  ) =>
     api
       .patch<Task>(`/businesses/${businessId}/tasks/${id}`, body)
       .then((r) => r.data),

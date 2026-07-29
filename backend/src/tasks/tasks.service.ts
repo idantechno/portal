@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, LessThanOrEqual, Not, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Task, TaskSource, TaskStatus } from './task.entity';
 
 export interface CreateTaskInput {
@@ -13,6 +13,14 @@ export interface CreateTaskInput {
   createdByUserId?: string | null;
   relatedType?: string | null;
   relatedId?: string | null;
+  /** Opt this task into the reminders sweep. Defaults to false. */
+  remindEnabled?: boolean;
+  /** When to fire the reminder (distinct from dueAt). Null → use dueAt. */
+  remindAt?: string | Date | null;
+  /** Extra WhatsApp recipient — the customer's number. */
+  remindCustomerPhone?: string | null;
+  /** Customer's display name, to personalize their reminder. */
+  remindCustomerName?: string | null;
 }
 
 @Injectable()
@@ -41,6 +49,10 @@ export class TasksService {
       createdByUserId: input.createdByUserId ?? null,
       relatedType: input.relatedType ?? null,
       relatedId: input.relatedId ?? null,
+      remindEnabled: input.remindEnabled ?? false,
+      remindAt: input.remindAt ? new Date(input.remindAt) : null,
+      remindCustomerPhone: input.remindCustomerPhone ?? null,
+      remindCustomerName: input.remindCustomerName ?? null,
       status: 'open',
     });
     return this.tasks.save(task);
@@ -51,7 +63,12 @@ export class TasksService {
     id: string,
     patch: Partial<
       Pick<Task, 'title' | 'description' | 'status' | 'priority'>
-    > & { dueAt?: string | Date | null },
+    > & {
+      dueAt?: string | Date | null;
+      remindEnabled?: boolean;
+      remindAt?: string | Date | null;
+      remindCustomerPhone?: string | null;
+    },
   ): Promise<Task> {
     const task = await this.tasks.findOne({ where: { id, businessId } });
     if (!task) throw new NotFoundException('Task not found');
@@ -63,6 +80,19 @@ export class TasksService {
       task.dueAt = patch.dueAt ? new Date(patch.dueAt) : null;
       // Rescheduling revives the reminder — let it fire again at the new time.
       task.notifiedAt = null;
+    }
+    if (patch.remindEnabled !== undefined) {
+      task.remindEnabled = patch.remindEnabled;
+      // Turning reminders back on revives delivery for this task.
+      if (patch.remindEnabled) task.notifiedAt = null;
+    }
+    if (patch.remindAt !== undefined) {
+      task.remindAt = patch.remindAt ? new Date(patch.remindAt) : null;
+      // A new reminder time re-arms delivery.
+      task.notifiedAt = null;
+    }
+    if (patch.remindCustomerPhone !== undefined) {
+      task.remindCustomerPhone = patch.remindCustomerPhone ?? null;
     }
     if (patch.status !== undefined) {
       task.status = patch.status;
@@ -115,19 +145,22 @@ export class TasksService {
   }
 
   /**
-   * Tasks whose due date has arrived and haven't been reminded yet (and aren't
-   * done). Drives the reminders scheduler — cross-tenant, so no businessId scope.
+   * Reminder-enabled tasks whose fire time has arrived and haven't been reminded
+   * yet (and aren't done). Fire time is `remindAt` when set, otherwise `dueAt` —
+   * so a reminder can precede the event. Drives the reminders scheduler —
+   * cross-tenant, so no businessId scope.
    */
-  findDueUnnotified(now: Date = new Date()): Promise<Task[]> {
-    return this.tasks.find({
-      where: {
-        dueAt: LessThanOrEqual(now),
-        notifiedAt: IsNull(),
-        status: Not('done'),
-      },
-      order: { dueAt: 'ASC' },
-      take: 200,
-    });
+  findDueReminders(now: Date = new Date()): Promise<Task[]> {
+    return this.tasks
+      .createQueryBuilder('t')
+      .where('t.remind_enabled = true')
+      .andWhere('t.notified_at IS NULL')
+      .andWhere("t.status != 'done'")
+      .andWhere('COALESCE(t.remind_at, t.due_at) IS NOT NULL')
+      .andWhere('COALESCE(t.remind_at, t.due_at) <= :now', { now })
+      .orderBy('COALESCE(t.remind_at, t.due_at)', 'ASC')
+      .take(200)
+      .getMany();
   }
 
   /** Stamp a task as reminded so it never double-fires. */

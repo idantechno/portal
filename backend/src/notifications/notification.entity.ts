@@ -15,6 +15,8 @@ export type NotificationType =
   | 'billing'
   | 'automation'
   | 'appointment'
+  | 'ai-update'
+  | 'mail'
   | 'system';
 
 /**

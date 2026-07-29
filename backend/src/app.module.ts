@@ -50,6 +50,8 @@ import { QuotesModule } from './quotes/quotes.module';
 import { ObjectivesModule } from './objectives/objectives.module';
 import { AppointmentsModule } from './appointments/appointments.module';
 import { DataPrivacyModule } from './data-privacy/data-privacy.module';
+import { AiUpdatesModule } from './ai-updates/ai-updates.module';
+import { MailAgentModule } from './mail-agent/mail-agent.module';
 import { WorkspaceAgentModule } from './agents/workspace/workspace-agent.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
@@ -156,6 +158,8 @@ import { RolesGuard } from './auth/guards/roles.guard';
     AppointmentsModule,
     WebsiteFactsModule,
     DataPrivacyModule,
+    AiUpdatesModule,
+    MailAgentModule,
   ],
   controllers: [AppController, HealthController],
   providers: [

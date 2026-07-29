@@ -126,6 +126,14 @@ export class BusinessesService {
     return this.businesses.findOne({ where: { id: businessId } });
   }
 
+  /**
+   * Every (non-deleted) business — used by platform-wide fan-outs like the daily
+   * AI-updates bell. Capped so a runaway tenant count can't unbound the sweep.
+   */
+  listAll(): Promise<Business[]> {
+    return this.businesses.find({ order: { createdAt: 'DESC' }, take: 1000 });
+  }
+
   findByPublicKey(publicKey: string): Promise<Business | null> {
     return this.businesses.findOne({
       where: { publicKey, publicKeyEnabled: true },

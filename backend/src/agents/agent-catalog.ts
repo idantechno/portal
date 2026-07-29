@@ -24,6 +24,8 @@ export const AGENT_KEYS = [
   'ideas',
   'designer',
   'reminders',
+  'ai-updates',
+  'email',
 ] as const;
 
 export type AgentKey = (typeof AGENT_KEYS)[number];
@@ -168,6 +170,29 @@ export const AGENT_CATALOG: readonly AgentDefinition[] = [
     status: 'live',
     pillar: 'growth',
   },
+  {
+    key: 'ai-updates',
+    name: 'עדכוני AI',
+    description:
+      'תקציר יומי של חדשות וכלי AI שימושיים לעסק, ועדכוני Claude שבועיים.',
+    icon: 'news',
+    // Free info feed for everyone — on by default, always available (capability
+    // null below), so every tenant sees the daily digest.
+    defaultEnabled: true,
+    status: 'live',
+    pillar: 'growth',
+  },
+  {
+    key: 'email',
+    name: 'סוכן מייל',
+    description:
+      'סורק את תיבת המייל, מזהה חשבוניות וקבלות ומכניס אותן לתור אישור.',
+    icon: 'mail',
+    // Premium, admin-granted — sold only in the exclusive tier (email_agent).
+    defaultEnabled: false,
+    status: 'live',
+    pillar: 'finance',
+  },
 ];
 
 /**
@@ -193,6 +218,8 @@ export const AGENT_REQUIRED_CAPABILITY: Record<
   ideas: 'all_agents', // exclusive
   designer: 'all_agents', // exclusive
   reminders: 'all_agents', // exclusive
+  'ai-updates': null, // free info feed — always on for every tenant
+  email: 'email_agent', // exclusive — mail invoice triage
 };
 
 export function isAgentKey(key: string): key is AgentKey {

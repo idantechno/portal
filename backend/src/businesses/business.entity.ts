@@ -54,6 +54,22 @@ export interface BusinessBranding {
   slogan?: string;
 }
 
+/**
+ * How the reminders agent times its default reminders for this business. When a
+ * reminder has no explicit time, it fires `defaultLeadHours` before the event,
+ * but clamped into the [`quietStart`, `quietEnd`] daily window so no reminder
+ * lands in the middle of the night. All optional — null falls back to system
+ * defaults (12h lead, 08:00–21:00). Times are Israel wall-clock "HH:MM".
+ */
+export interface BusinessReminderSettings {
+  /** Hours before the event the default reminder fires (default 12). */
+  defaultLeadHours?: number;
+  /** Earliest time of day a reminder may fire, "HH:MM" (default "08:00"). */
+  quietStart?: string;
+  /** Latest time of day a reminder may fire, "HH:MM" (default "21:00"). */
+  quietEnd?: string;
+}
+
 @Entity({ name: 'businesses' })
 export class Business {
   @PrimaryGeneratedColumn('uuid')
@@ -106,6 +122,10 @@ export class Business {
    */
   @Column({ type: 'varchar', length: 32, name: 'owner_phone', nullable: true })
   ownerPhone!: string | null;
+
+  /** Reminders-agent default timing + quiet-hours window. Null = system defaults. */
+  @Column({ type: 'jsonb', name: 'reminder_settings', nullable: true })
+  reminderSettings!: BusinessReminderSettings | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;

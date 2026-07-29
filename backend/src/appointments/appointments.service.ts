@@ -17,13 +17,8 @@ import { UsersService } from '../users/users.service';
 import { WhatsappConnectionsService } from '../whatsapp/whatsapp-connections.service';
 import { WaitlistService } from './waitlist.service';
 import { TasksService } from '../tasks/tasks.service';
-
-/**
- * How far ahead of the appointment the owner reminder fires. A day before is the
- * standard cadence; for bookings closer than this the reminder is clamped to
- * "now" so it still lands on the next reminders sweep.
- */
-const REMINDER_LEAD_MS = 24 * 60 * 60 * 1000;
+import { CustomerContactsService } from '../conversations/customer-contacts.service';
+import { computeRemindAt } from '../common/time/reminder-window';
 
 /** Marks tasks this service creates so cancel() can clean them up. */
 const APPOINTMENT_RELATED_TYPE = 'appointment';
@@ -76,6 +71,7 @@ export class AppointmentsService {
     private readonly whatsapp: WhatsappConnectionsService,
     private readonly waitlist: WaitlistService,
     private readonly tasks: TasksService,
+    private readonly contacts: CustomerContactsService,
   ) {}
 
   /**
@@ -135,6 +131,22 @@ export class AppointmentsService {
 
     const saved = await this.appointments.save(appointment);
     await this.notifyOwner(saved);
+    // Booking is the "became a customer" moment: promote the contact lead →
+    // customer so the chat agent switches to service mode and they surface on
+    // the Customers screen. Idempotent + best-effort — never fails the booking.
+    if (saved.customerContactId) {
+      try {
+        await this.contacts.promoteToCustomer(
+          saved.businessId,
+          saved.customerContactId,
+        );
+      } catch (err) {
+        this.log.warn(
+          `[appointments] contact promotion failed for ${saved.id}: ` +
+            `${(err as Error).message}`,
+        );
+      }
+    }
     // Hand the appointment off to the reminders agent: a due-dated task the
     // reminders sweeper fires ahead of time (bell + email + push to the owner).
     await this.scheduleReminder(saved);
@@ -147,26 +159,34 @@ export class AppointmentsService {
   }
 
   /**
-   * Creates the owner's advance reminder for a freshly booked appointment as a
-   * due-dated Task, so the reminders agent's sweep delivers it ahead of time.
-   * The due date is a day before the appointment, clamped to "now" for bookings
-   * closer than that. Best-effort — a reminder hiccup never fails the booking,
-   * and past-dated appointments (shouldn't happen) get no reminder.
+   * Creates the advance reminder for a freshly booked appointment as a
+   * reminder-enabled Task the reminders sweep delivers ahead of time — to the
+   * owner AND the customer over WhatsApp. `dueAt` is the appointment time (the
+   * event); `remindAt` is when the reminder fires — by default the business's
+   * lead time before it, clamped into its quiet-hours window. Best-effort — a
+   * reminder hiccup never fails the booking, and past appointments get none.
    */
   private async scheduleReminder(appointment: Appointment): Promise<void> {
     if (appointment.startAt.getTime() <= Date.now()) return;
     const who = appointment.customerName ?? appointment.phone ?? 'לקוח';
     const when = israelTime(appointment.startAt);
-    const dueAt = new Date(
-      Math.max(appointment.startAt.getTime() - REMINDER_LEAD_MS, Date.now()),
+    const business = await this.businesses.findById(appointment.businessId);
+    const remindAt = computeRemindAt(
+      appointment.startAt,
+      business?.reminderSettings ?? null,
     );
     try {
       await this.tasks.create({
         businessId: appointment.businessId,
-        title: `תזכורת לפגישה: ${who}`,
+        title: `פגישה עם ${who}`,
         description: `${appointment.title} — ${when}`,
         priority: 'high',
-        dueAt,
+        // The event time (shown in the reminder); remindAt is when it fires.
+        dueAt: appointment.startAt,
+        remindAt,
+        remindEnabled: true,
+        remindCustomerPhone: appointment.phone,
+        remindCustomerName: appointment.customerName,
         source: 'agent',
         relatedType: APPOINTMENT_RELATED_TYPE,
         relatedId: appointment.id,
@@ -269,6 +289,84 @@ export class AppointmentsService {
     }
   }
 
+  /**
+   * Alerts the business owner that a customer cancelled their own appointment
+   * (agent-driven). Fired only from the customer path (`cancelForContact`) — an
+   * operator's own cancel is silent (they already know), and a reschedule's
+   * internal cancel is silent too (it's a move, not a loss). Best-effort across
+   * every channel; a failed alert must never break the cancellation itself.
+   */
+  private async notifyOwnerOfCancellation(
+    appointment: Appointment,
+  ): Promise<void> {
+    const who = appointment.customerName ?? appointment.phone ?? 'לקוח';
+    const when = israelTime(appointment.startAt);
+
+    // In-app bell + push to the owner's phone/PWA (no-op without opt-in/VAPID).
+    try {
+      await this.notifications.notify({
+        businessId: appointment.businessId,
+        type: 'appointment',
+        title: `בוטלה פגישה: ${who}`,
+        body: `${appointment.title} — ${when}`,
+        link: '/calendar',
+        channels: ['push'],
+      });
+    } catch (err) {
+      this.log.error(
+        `[appointments] owner cancellation in-app notification failed: ` +
+          `${(err as Error).message}`,
+      );
+    }
+
+    const business = await this.businesses.findById(appointment.businessId);
+
+    // Email the owner via the business's connected Gmail — reliable, no 24h
+    // window. Best-effort: skipped if Gmail isn't connected or no owner email.
+    try {
+      const owner = business?.ownerUserId
+        ? await this.users.findById(business.ownerUserId)
+        : null;
+      if (owner?.email) {
+        await this.gmail.sendEmail(appointment.businessId, {
+          to: owner.email,
+          subject: `בוטלה פגישה — ${who}`,
+          body:
+            `לקוח ביטל פגישה במערכת:\n\n` +
+            `• פרטים: ${appointment.title}\n` +
+            `• לקוח: ${who}\n` +
+            (appointment.phone ? `• טלפון: ${appointment.phone}\n` : '') +
+            `• מועד שבוטל: ${when}\n`,
+        });
+      }
+    } catch (err) {
+      this.log.warn(
+        `[appointments] owner cancellation email not sent (likely Gmail not ` +
+          `connected): ${(err as Error).message}`,
+      );
+    }
+
+    // Owner's private WhatsApp. There's no approved cancellation template, so
+    // this is free-form only — it lands if the owner messaged the business in
+    // the last 24h, otherwise the bell + email above carry the alert.
+    try {
+      const ownerPhone = business?.ownerPhone?.trim();
+      if (ownerPhone) {
+        await this.whatsapp.sendText(
+          appointment.businessId,
+          ownerPhone,
+          `בוטלה פגישה ❌\n${appointment.title}\nלקוח: ${who}\nמועד: ${when}`,
+        );
+      }
+    } catch (err) {
+      this.log.warn(
+        `[appointments] owner WhatsApp cancellation alert not delivered ` +
+          `(likely no connection or outside 24h window): ` +
+          `${(err as Error).message}`,
+      );
+    }
+  }
+
   list(
     businessId: string,
     opts: { from?: Date; to?: Date; status?: AppointmentStatus } = {},
@@ -333,7 +431,18 @@ export class AppointmentsService {
     appointmentId: string,
   ): Promise<Appointment> {
     await this.requireOwned(businessId, contactId, appointmentId);
-    return this.cancel(businessId, appointmentId);
+    const cancelled = await this.cancel(businessId, appointmentId);
+    // The customer cancelled on their own — let the owner know. Best-effort:
+    // never let an alert failure surface as a failed cancellation to the agent.
+    try {
+      await this.notifyOwnerOfCancellation(cancelled);
+    } catch (err) {
+      this.log.warn(
+        `[appointments] owner cancellation alert failed: ` +
+          `${(err as Error).message}`,
+      );
+    }
+    return cancelled;
   }
 
   /**

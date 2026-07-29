@@ -28,6 +28,8 @@ export type PlanCapability =
   | 'agent_scheduling'
   /** The full agent team, including the reminders agent. Top tier only. */
   | 'all_agents'
+  /** Mail agent: scan connected Gmail for invoices/receipts. Top tier only. */
+  | 'email_agent'
   /** Priority support. */
   | 'priority_support';
 
@@ -46,6 +48,7 @@ export const PLAN_CAPABILITIES: Record<string, readonly PlanCapability[]> = {
     'google',
     'agent_scheduling',
     'all_agents',
+    'email_agent',
     'priority_support',
   ],
 };

@@ -7,10 +7,12 @@ import { FilesystemService } from '../context-files/filesystem.service';
 import { BusinessContextService } from '../context-files/business-context.service';
 import { ChannelRegistry } from '../channels/channel-registry.service';
 import { LeadsService } from '../leads/leads.service';
+import { CustomersService } from '../customers/customers.service';
 import { AppointmentsService } from '../appointments/appointments.service';
 import { WaitlistService } from '../appointments/waitlist.service';
 import { AgentRunner } from '../agents/agent-runner.service';
 import { AgentsService } from '../agents/agents.service';
+import { renderOnboardingProfile } from '../agents/onboarding-context';
 import { BillingService } from '../billing/billing.service';
 import { CalendarService } from '../integrations/calendar.service';
 import { ConversationStatus } from '../common/enums/conversation-status.enum';
@@ -44,6 +46,7 @@ export class AgentWorkerService {
     private readonly contacts: CustomerContactsService,
     private readonly businesses: BusinessesService,
     private readonly leads: LeadsService,
+    private readonly customers: CustomersService,
     private readonly appointments: AppointmentsService,
     private readonly waitlist: WaitlistService,
     private readonly filesystem: FilesystemService,
@@ -129,6 +132,10 @@ export class AgentWorkerService {
     });
 
     const contextBlock = await this.businessContext.promptBlock(business.id);
+    // The business's configured voice (industry, tone, values, what to
+    // emphasise/avoid) — already editable by the operator, now finally reaching
+    // the customer-facing agent so it speaks in this business's own character.
+    const personaBlock = renderOnboardingProfile(business);
 
     // Personalisation: who is on the other end (paying customer vs lead) and
     // whether we've spoken before, so the agent addresses them by name and
@@ -143,10 +150,30 @@ export class AgentWorkerService {
       business.id,
       conversation.customerContactId,
     );
+    // Cross-check the sender against the business's CRM so a real registered
+    // customer gets service-mode treatment even if their contact flag still
+    // reads "lead". Best-effort — a lookup hiccup just leaves them as-is.
+    let crmCustomer: Awaited<ReturnType<CustomersService['findByPhone']>> =
+      null;
+    if (contact) {
+      try {
+        crmCustomer = await this.customers.findByPhone(
+          business.id,
+          contact.phone ?? contact.externalId,
+        );
+      } catch (err) {
+        this.log.warn(
+          `[agent] CRM customer lookup failed for business ${business.id}: ` +
+            `${(err as Error).message}`,
+        );
+      }
+    }
     const contactBlock = buildContactBlock({
       contact,
       messageCount: stats.messageCount,
       firstMessageAt: stats.firstMessageAt,
+      isRegisteredCustomer: !!crmCustomer,
+      registeredName: crmCustomer?.name ?? null,
     });
 
     // Appointment awareness: the customer's own upcoming appointments (so the
@@ -195,6 +222,7 @@ export class AgentWorkerService {
     const { finalText } = await this.runner.run({
       systemPrompt: buildSystemPrompt(
         business,
+        personaBlock,
         contextBlock,
         contactBlock,
         appointmentsBlock,

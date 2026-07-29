@@ -146,6 +146,22 @@ export class CustomerContactsService {
     }));
   }
 
+  /**
+   * Flips a contact from lead → customer once they've actually become one (e.g.
+   * booked an appointment), so the chat agent switches to service mode and the
+   * Customers screen picks them up. Idempotent: only promotes rows still marked
+   * `lead`, so it never clobbers a manual downgrade or re-fires on a customer.
+   */
+  async promoteToCustomer(
+    businessId: string,
+    contactId: string,
+  ): Promise<void> {
+    await this.contacts.update(
+      { id: contactId, businessId, status: ContactStatus.Lead },
+      { status: ContactStatus.Customer },
+    );
+  }
+
   async updateProfile(
     businessId: string,
     id: string,

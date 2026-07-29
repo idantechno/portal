@@ -4,6 +4,7 @@ import { BusinessesModule } from '../businesses/businesses.module';
 import { ContextFilesModule } from '../context-files/context-files.module';
 import { ConversationsModule } from '../conversations/conversations.module';
 import { LeadsModule } from '../leads/leads.module';
+import { CustomersModule } from '../customers/customers.module';
 import { AppointmentsModule } from '../appointments/appointments.module';
 import { AgentsModule } from '../agents/agents.module';
 import { BillingModule } from '../billing/billing.module';
@@ -20,6 +21,7 @@ import { AgentWorkerProcessor } from './agent-worker.processor';
     ContextFilesModule,
     ConversationsModule,
     LeadsModule,
+    CustomersModule,
     AppointmentsModule,
     AgentsModule,
     BillingModule,

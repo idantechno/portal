@@ -65,6 +65,12 @@ export default function RemindersAgent({ businessId }: { businessId: string }) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks", businessId] }),
   });
 
+  const remind = useMutation({
+    mutationFn: ({ id, on }: { id: string; on: boolean }) =>
+      tasksApi.update(businessId, id, { remindEnabled: on }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks", businessId] }),
+  });
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -175,7 +181,11 @@ export default function RemindersAgent({ businessId }: { businessId: string }) {
       </div>
 
       <aside className="hidden lg:block border-s border-neutral-200 bg-neutral-50 overflow-y-auto p-5">
-        <h2 className="text-sm font-semibold text-neutral-700 mb-3">לטיפול</h2>
+        <h2 className="text-sm font-semibold text-neutral-700 mb-1">לטיפול</h2>
+        <p className="text-[11px] text-neutral-400 mb-3 flex items-center gap-1">
+          <Icon name="bell" size={12} className="text-brand-500" />
+          סמן פעמון כדי שאזכיר לך בוואטסאפ
+        </p>
         {tasks.isLoading && (
           <div className="text-sm text-neutral-500">טוען...</div>
         )}
@@ -208,6 +218,12 @@ export default function RemindersAgent({ businessId }: { businessId: string }) {
                       task={t}
                       onDone={() => complete.mutate(t.id)}
                       doing={complete.isPending && complete.variables === t.id}
+                      onToggleRemind={() =>
+                        remind.mutate({ id: t.id, on: !t.remindEnabled })
+                      }
+                      toggling={
+                        remind.isPending && remind.variables?.id === t.id
+                      }
                     />
                   ))}
                 </ul>
@@ -224,26 +240,54 @@ function ReminderItem({
   task,
   onDone,
   doing,
+  onToggleRemind,
+  toggling,
 }: {
   task: Task;
   onDone: () => void;
   doing: boolean;
+  onToggleRemind: () => void;
+  toggling: boolean;
 }) {
+  const fmt = (iso: string) =>
+    new Date(iso).toLocaleString("he-IL", {
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   return (
     <li className="bg-white border border-neutral-200 rounded-lg p-2.5">
-      <div className="text-xs font-medium text-neutral-800 leading-snug mb-1">
-        {task.title}
+      <div className="flex items-start justify-between gap-2 mb-1">
+        <div className="text-xs font-medium text-neutral-800 leading-snug min-w-0">
+          {task.title}
+        </div>
+        <button
+          onClick={onToggleRemind}
+          disabled={toggling}
+          title={
+            task.remindEnabled
+              ? "הסוכן יזכיר על זה — לחץ לביטול"
+              : "הפעל תזכורת מהסוכן"
+          }
+          aria-pressed={task.remindEnabled}
+          className={`shrink-0 rounded-md p-1 -mt-0.5 -me-0.5 transition-colors disabled:opacity-40 ${
+            task.remindEnabled
+              ? "text-brand-600 hover:bg-brand-50"
+              : "text-neutral-300 hover:text-neutral-500 hover:bg-neutral-100"
+          }`}
+        >
+          <Icon name="bell" size={15} />
+        </button>
       </div>
       <div className="flex items-center justify-between">
         <span className="text-[10px] text-neutral-400">
-          {task.dueAt
-            ? new Date(task.dueAt).toLocaleString("he-IL", {
-                day: "2-digit",
-                month: "2-digit",
-                hour: "2-digit",
-                minute: "2-digit",
-              })
-            : "ללא תאריך"}
+          {task.dueAt ? fmt(task.dueAt) : "ללא תאריך"}
+          {task.remindEnabled && task.remindAt && (
+            <span className="text-brand-500">
+              {" · "}מזכיר {fmt(task.remindAt)}
+            </span>
+          )}
         </span>
         <button
           onClick={onDone}

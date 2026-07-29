@@ -3,11 +3,15 @@ import { z } from 'zod';
 import { TasksService } from '../../tasks/tasks.service';
 import { bucketFor } from '../buckets';
 import { parseIsraelDate } from '../../common/time/israel-time';
+import { computeRemindAt } from '../../common/time/reminder-window';
+import type { BusinessReminderSettings } from '../../businesses/business.entity';
 
 export interface ToolContext {
   businessId: string;
   userId?: string | null;
   tasks: TasksService;
+  /** This business's reminder timing defaults, for the default remind time. */
+  reminderSettings: BusinessReminderSettings | null;
   /** Set true when the run created/changed a reminder, so the UI refetches. */
   changed: boolean;
 }
@@ -40,17 +44,31 @@ export function listRemindersTool(ctx: ToolContext) {
 export function createReminderTool(ctx: ToolContext) {
   return tool(
     'create_reminder',
-    'Creates a reminder for the business. Use when the owner wants to be reminded of a follow-up or task.',
+    'Creates a reminder the owner will be nudged about (in-app + WhatsApp). CRITICAL: separate WHEN THE EVENT HAPPENS (event_date) from WHEN TO REMIND (remind_at / remind_before_hours). If the owner only gives an event time, leave remind_at and remind_before_hours empty and the default fires ~12h before within the business quiet hours. Use when the owner wants to be reminded of a task, follow-up, call or errand.',
     {
       title: z
         .string()
         .min(1)
-        .describe('Short title of the reminder (Hebrew).'),
-      due_date: z
+        .describe(
+          'What to remind about, phrased naturally in Hebrew (e.g. "לאסוף ציוד להשכרה", "להתקשר לדנה").',
+        ),
+      event_date: z
         .string()
         .optional()
         .describe(
-          'Due date in ISO format, e.g. "2026-07-10" or "2026-07-10T14:00:00".',
+          'When the thing actually happens, ISO Israel time, e.g. "2026-07-10" or "2026-07-10T12:00:00". Resolve relative days ("מחר") yourself.',
+        ),
+      remind_at: z
+        .string()
+        .optional()
+        .describe(
+          'Explicit time to FIRE the reminder, ISO Israel time. Use only if the owner gave an absolute reminder time.',
+        ),
+      remind_before_hours: z
+        .number()
+        .optional()
+        .describe(
+          'Remind this many hours BEFORE the event (e.g. owner said "תזכיר לי שעתיים לפני" → 2). Requires event_date. Ignored if remind_at is set.',
         ),
       related_type: z
         .string()
@@ -62,23 +80,38 @@ export function createReminderTool(ctx: ToolContext) {
         .describe('Optional linked object id (uuid).'),
     },
     async (args) => {
-      // A due_date without an offset is Israel wall-clock time, not UTC.
-      const dueAt = args.due_date ? parseIsraelDate(args.due_date) : null;
+      // ISO strings without an offset are Israel wall-clock time, not UTC.
+      const eventAt = args.event_date ? parseIsraelDate(args.event_date) : null;
+      let remindAt = args.remind_at ? parseIsraelDate(args.remind_at) : null;
+      if (!remindAt && eventAt) {
+        remindAt =
+          args.remind_before_hours != null
+            ? new Date(eventAt.getTime() - args.remind_before_hours * 3_600_000)
+            : computeRemindAt(eventAt, ctx.reminderSettings);
+      }
+      // Shown as the event time; when there's no distinct event, it's the
+      // reminder time itself so the message still carries a "when".
+      const dueAt = eventAt ?? remindAt;
       const task = await ctx.tasks.create({
         businessId: ctx.businessId,
         title: args.title,
         dueAt,
+        remindAt,
+        remindEnabled: true,
         source: 'agent',
         createdByUserId: ctx.userId ?? null,
         relatedType: args.related_type ?? null,
         relatedId: args.related_id ?? null,
       });
       ctx.changed = true;
+      const fires = remindAt
+        ? ` It will remind at ${remindAt.toISOString()}.`
+        : '';
       return {
         content: [
           {
             type: 'text',
-            text: `Reminder created (id=${task.id}). Confirm briefly in Hebrew.`,
+            text: `Reminder created (id=${task.id}).${fires} Confirm briefly in Hebrew, stating when you'll remind them.`,
           },
         ],
       };
@@ -113,8 +146,9 @@ export function snoozeReminderTool(ctx: ToolContext) {
     },
     async (args) => {
       const days = args.when === 'week' ? 7 : 1;
-      const due = new Date(Date.now() + days * 86_400_000);
-      await ctx.tasks.update(ctx.businessId, args.id, { dueAt: due });
+      const next = new Date(Date.now() + days * 86_400_000);
+      // Snooze pushes the FIRE time; the event (dueAt) stays put.
+      await ctx.tasks.update(ctx.businessId, args.id, { remindAt: next });
       ctx.changed = true;
       return {
         content: [

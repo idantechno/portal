@@ -45,6 +45,47 @@ export class Task {
   @Column({ type: 'timestamptz', name: 'due_at', nullable: true })
   dueAt!: Date | null;
 
+  /**
+   * Master switch for the reminders agent. The reminders sweep only fires a
+   * WhatsApp/bell reminder for this task when true. Manual tasks default OFF —
+   * the owner opts a task in with the 🔔 toggle; reminders the agent or an
+   * appointment created come in already ON. "What isn't marked isn't reminded."
+   */
+  @Column({ type: 'boolean', name: 'remind_enabled', default: false })
+  remindEnabled!: boolean;
+
+  /**
+   * WHEN to fire the reminder — deliberately distinct from `dueAt` (when the
+   * event itself happens). A 12:00 appointment can remind at 08:00; a "collect
+   * gear" task at 12:00 can remind two hours before at 10:00. Null falls back to
+   * `dueAt` (remind exactly at the due time).
+   */
+  @Column({ type: 'timestamptz', name: 'remind_at', nullable: true })
+  remindAt!: Date | null;
+
+  /**
+   * Optional extra WhatsApp recipient — the customer's own number (E.164) — so
+   * the same reminder also reaches the customer, not only the owner. Set for
+   * appointment/session reminders; null for the owner's private tasks. Varies
+   * per reminder (a different customer each time).
+   */
+  @Column({
+    type: 'varchar',
+    length: 32,
+    name: 'remind_customer_phone',
+    nullable: true,
+  })
+  remindCustomerPhone!: string | null;
+
+  /** Customer's display name, to personalize their reminder ("היי דנה 🙂"). */
+  @Column({
+    type: 'varchar',
+    length: 255,
+    name: 'remind_customer_name',
+    nullable: true,
+  })
+  remindCustomerName!: string | null;
+
   @Column({ type: 'timestamptz', name: 'completed_at', nullable: true })
   completedAt!: Date | null;
 

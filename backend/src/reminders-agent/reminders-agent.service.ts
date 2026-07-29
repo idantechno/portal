@@ -60,6 +60,7 @@ export class RemindersAgentService {
       businessId: business.id,
       userId: input.userId ?? null,
       tasks: this.tasks,
+      reminderSettings: business.reminderSettings ?? null,
       changed: false,
     };
 

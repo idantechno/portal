@@ -25,6 +25,8 @@ export interface BusinessBranding {
   secondaryColor?: string;
   accentColor?: string;
   logoUrl?: string;
+  /** The logo's own background color (auto-detected on upload). */
+  logoBgColor?: string;
   slogan?: string;
 }
 

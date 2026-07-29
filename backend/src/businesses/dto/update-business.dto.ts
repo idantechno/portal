@@ -42,6 +42,11 @@ export class BrandingDto {
   @MaxLength(600_000)
   logoUrl?: string;
 
+  /** The logo's own background colour (auto-detected on upload). */
+  @IsOptional()
+  @IsHexColor()
+  logoBgColor?: string;
+
   @IsOptional()
   @IsString()
   @MaxLength(140)

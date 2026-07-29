@@ -7,7 +7,9 @@ export type QuoteTemplate =
   | "sidebar"
   | "bold"
   | "minimal"
-  | "editorial";
+  | "editorial"
+  | "strip"
+  | "emblem";
 
 export interface QuoteChannel {
   name: string;

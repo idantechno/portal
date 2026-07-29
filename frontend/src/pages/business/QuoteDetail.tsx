@@ -25,6 +25,8 @@ const TEMPLATES: { key: QuoteTemplate; label: string; hint: string }[] = [
   { key: "bold", label: "כותרת מודגשת", hint: "בלוק צבע רחב בראש" },
   { key: "minimal", label: "מינימלי", hint: "אוורירי, קו הדגשה" },
   { key: "editorial", label: "אלגנטי", hint: "סריף, מגזיני" },
+  { key: "strip", label: "רצועה", hint: "רקע לבן, רצועת מותג עליונה" },
+  { key: "emblem", label: "אמבלם", hint: "רקע לבן, לוגו בהילה רכה" },
 ];
 
 export default function QuoteDetail() {

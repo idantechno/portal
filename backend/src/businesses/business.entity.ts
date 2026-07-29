@@ -57,6 +57,12 @@ export interface BusinessBranding {
   accentColor?: string;
   /** Logo as a data URI (client-resized) or absolute URL. */
   logoUrl?: string;
+  /**
+   * The logo's OWN background colour (auto-detected on upload; hex). Documents
+   * seat the logo on an element of this colour so it reads as transparent on
+   * its native background — white for the common light/transparent logo.
+   */
+  logoBgColor?: string;
   /** Short tagline shown under the business name. */
   slogan?: string;
 }

@@ -128,6 +128,58 @@ export async function extractPaletteFromFile(
   return chosen.map((c) => toHex(c.r, c.g, c.b));
 }
 
+/**
+ * The logo's own background color: samples the image's border pixels. Mostly
+ * transparent (or no opaque edge) → white, since transparent logos sit on white
+ * by default. Otherwise averages the opaque edge samples into a hex.
+ */
+export async function detectImageBackground(dataUrl: string): Promise<string> {
+  try {
+    const img = await loadImage(dataUrl);
+    const w = img.naturalWidth || img.width;
+    const h = img.naturalHeight || img.height;
+    if (!w || !h) return "#ffffff";
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return "#ffffff";
+    ctx.drawImage(img, 0, 0);
+    const mx = Math.floor(w / 2);
+    const my = Math.floor(h / 2);
+    const pts: [number, number][] = [
+      [0, 0],
+      [w - 1, 0],
+      [0, h - 1],
+      [w - 1, h - 1],
+      [mx, 0],
+      [mx, h - 1],
+      [0, my],
+      [w - 1, my],
+    ];
+    let r = 0;
+    let g = 0;
+    let b = 0;
+    let opaque = 0;
+    for (const [x, y] of pts) {
+      const d = ctx.getImageData(x, y, 1, 1).data;
+      if (d[3] < 24) continue; // transparent edge
+      r += d[0];
+      g += d[1];
+      b += d[2];
+      opaque++;
+    }
+    if (opaque < pts.length / 2) return "#ffffff"; // mostly transparent → white
+    const to = (n: number) =>
+      Math.round(n / opaque)
+        .toString(16)
+        .padStart(2, "0");
+    return `#${to(r)}${to(g)}${to(b)}`;
+  } catch {
+    return "#ffffff";
+  }
+}
+
 /** Index of the most saturated color in a hex list (for picking an accent). */
 export function mostSaturatedIndex(hexes: string[]): number {
   let best = 0;

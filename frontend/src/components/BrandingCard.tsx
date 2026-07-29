@@ -1,11 +1,15 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { businessesApi } from "../api/businesses";
 import { apiErrorMessage } from "../api/client";
 import type { Business } from "../api/types";
 import { Button, Card, FormError, Input, Label, Spinner } from "./ui";
 import { businessThemeVars, DEFAULT_BRANDING, normalizeHex } from "../lib/theme";
-import { extractPaletteFromFile, fileToResizedDataUrl } from "../lib/image";
+import {
+  detectImageBackground,
+  extractPaletteFromFile,
+  fileToResizedDataUrl,
+} from "../lib/image";
 import { Icon } from "./icons";
 
 interface Props {
@@ -53,6 +57,7 @@ export default function BrandingCard({ businessId, business }: Props) {
         ],
   );
   const [logo, setLogo] = useState<string | undefined>(b.logoUrl);
+  const [logoBg, setLogoBg] = useState<string>(b.logoBgColor ?? "#ffffff");
   const [slogan, setSlogan] = useState(b.slogan ?? "");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<null | "logo" | "palette">(null);
@@ -79,6 +84,14 @@ export default function BrandingCard({ businessId, business }: Props) {
       return next;
     });
 
+  // A logo saved before this feature has no stored bg color — detect it once.
+  useEffect(() => {
+    if (logo && !b.logoBgColor) {
+      void detectImageBackground(logo).then(setLogoBg);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const logoInput = useRef<HTMLInputElement>(null);
   const paletteInput = useRef<HTMLInputElement>(null);
 
@@ -93,6 +106,7 @@ export default function BrandingCard({ businessId, business }: Props) {
           secondaryColor: secondary,
           accentColor: accent,
           logoUrl: logo,
+          logoBgColor: logo ? normalizeHex(logoBg) ?? "#ffffff" : undefined,
           slogan: slogan.trim() || undefined,
         },
       }),
@@ -112,7 +126,9 @@ export default function BrandingCard({ businessId, business }: Props) {
     setError(null);
     setBusy("logo");
     try {
-      setLogo(await fileToResizedDataUrl(file));
+      const resized = await fileToResizedDataUrl(file);
+      setLogo(resized);
+      setLogoBg(await detectImageBackground(resized));
     } catch {
       setError("לא ניתן לטעון את הלוגו");
     } finally {
@@ -287,6 +303,30 @@ export default function BrandingCard({ businessId, business }: Props) {
               />
             </div>
           </div>
+
+          {logo && (
+            <div>
+              <Label>רקע הלוגו</Label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={normalizeHex(logoBg) ?? "#ffffff"}
+                  onChange={(e) => setLogoBg(e.target.value)}
+                  className="h-9 w-10 rounded-lg border border-navy-200 bg-white p-0.5 cursor-pointer shrink-0"
+                  aria-label="רקע הלוגו"
+                />
+                <Input
+                  value={logoBg}
+                  onChange={(e) => setLogoBg(e.target.value)}
+                  dir="ltr"
+                  className="font-mono text-sm w-32"
+                />
+              </div>
+              <p className="text-xs text-navy-400 mt-1">
+                הצבע שעליו יושב הלוגו במסמכים — מזוהה אוטומטית, אפשר לתקן.
+              </p>
+            </div>
+          )}
 
           <div>
             <Label htmlFor="brand-slogan">סלוגן</Label>

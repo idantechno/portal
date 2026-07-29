@@ -89,8 +89,8 @@ export default function QuoteAgent({ businessId }: { businessId: string }) {
           <div>
             <h1 className="text-2xl font-bold">סוכן הצעות מחיר</h1>
             <p className="text-sm text-neutral-600">
-              בניית הצעת מחיר שיווקית ללקוח: מסלול הלקוח, ערוצי שיווק ותקציב.
-              הצעה מאושרת נכנסת לתיקיית הלקוח בסוכן השיווק.
+              הצעת מחיר מותאמת ללקוח — הסוכן מנסח את המבנה וההיקף לפי אופי העסק
+              שלך, ואתה קובע את המחירים. הצעה מאושרת נכנסת לתיקיית הלקוח.
             </p>
           </div>
         </div>
@@ -138,7 +138,7 @@ export default function QuoteAgent({ businessId }: { businessId: string }) {
               <Input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="הצעת מחיר — שיווק"
+                placeholder="למשל: הצעת מחיר — בניית אתר"
               />
             </div>
           </div>

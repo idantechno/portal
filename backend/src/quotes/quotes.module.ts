@@ -6,6 +6,8 @@ import { CustomersModule } from '../customers/customers.module';
 import { Quote } from './quote.entity';
 import { QuotesController } from './quotes.controller';
 import { QuotesService } from './quotes.service';
+import { QuoteDrafterService } from './quote-drafter.service';
+import { ClaudeJsonService } from '../briefs/claude-json.service';
 
 @Module({
   imports: [
@@ -16,7 +18,9 @@ import { QuotesService } from './quotes.service';
     CustomersModule,
   ],
   controllers: [QuotesController],
-  providers: [QuotesService],
+  // ClaudeJsonService only needs ConfigService, so it's provided here directly
+  // (it isn't exported by BriefsModule) to power the business-aware drafter.
+  providers: [QuotesService, QuoteDrafterService, ClaudeJsonService],
   exports: [QuotesService],
 })
 export class QuotesModule {}

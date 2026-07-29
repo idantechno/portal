@@ -8,7 +8,7 @@ import {
   MinLength,
   ValidateNested,
 } from 'class-validator';
-import { QuoteChannelDto } from './create-quote.dto';
+import { QuoteChannelDto, QuoteLineItemDto } from './create-quote.dto';
 
 export class UpdateQuoteDto {
   @IsOptional()
@@ -20,6 +20,17 @@ export class UpdateQuoteDto {
   @IsOptional()
   @IsIn(['draft', 'approved'])
   status?: 'draft' | 'approved';
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20_000)
+  intro?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => QuoteLineItemDto)
+  lineItems?: QuoteLineItemDto[];
 
   @IsOptional()
   @IsString()

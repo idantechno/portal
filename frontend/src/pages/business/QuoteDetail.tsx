@@ -1,11 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  quotesApi,
-  type Quote,
-  type QuoteChannel,
-} from "../../api/quotes";
+import { quotesApi, type Quote, type QuoteLineItem } from "../../api/quotes";
 import { apiErrorMessage } from "../../api/client";
 import {
   Button,
@@ -39,7 +35,9 @@ export default function QuoteDetail() {
   }
 
   // Remount on id change so the editor re-seeds from fresh data.
-  return <QuoteEditor key={quote.data.id} businessId={businessId} quote={quote.data} />;
+  return (
+    <QuoteEditor key={quote.data.id} businessId={businessId} quote={quote.data} />
+  );
 }
 
 function QuoteEditor({
@@ -53,11 +51,11 @@ function QuoteEditor({
   const qc = useQueryClient();
 
   const [title, setTitle] = useState(quote.title ?? "");
-  const [journey, setJourney] = useState(quote.journey ?? "");
-  const [channels, setChannels] = useState<QuoteChannel[]>(
-    quote.channels?.length ? quote.channels : [],
+  const [brief, setBrief] = useState("");
+  const [intro, setIntro] = useState(quote.intro ?? "");
+  const [lineItems, setLineItems] = useState<QuoteLineItem[]>(
+    quote.lineItems?.length ? quote.lineItems : [],
   );
-  const [budgetSummary, setBudgetSummary] = useState(quote.budgetSummary ?? "");
   const [total, setTotal] = useState(quote.total ?? "");
   const [notes, setNotes] = useState(quote.notes ?? "");
   const [error, setError] = useState<string | null>(null);
@@ -79,6 +77,26 @@ function QuoteEditor({
     onError: (e) => setError(apiErrorMessage(e, "השמירה נכשלה")),
   });
 
+  const draft = useMutation({
+    mutationFn: () => quotesApi.draft(businessId, quoteId, brief.trim()),
+    onSuccess: (d) => {
+      if (!d) {
+        setError("הניסוח לא הצליח. נסה שוב, או מלא ידנית.");
+        return;
+      }
+      // Fill the form — prices stay empty for the operator to set.
+      setIntro(d.intro || "");
+      setLineItems(
+        d.lineItems.length
+          ? d.lineItems.map((it) => ({ ...it, amount: it.amount || "" }))
+          : [],
+      );
+      if (d.terms) setNotes(d.terms);
+      setError(null);
+    },
+    onError: (e) => setError(apiErrorMessage(e, "הניסוח נכשל")),
+  });
+
   const remove = useMutation({
     mutationFn: () => quotesApi.remove(businessId, quoteId),
     onSuccess: () => {
@@ -90,21 +108,22 @@ function QuoteEditor({
 
   const currentBody = () => ({
     title: title.trim() || "הצעת מחיר",
-    journey,
-    channels: channels
-      .map((c) => ({
-        name: c.name.trim(),
-        description: c.description.trim(),
-        budget: c.budget.trim(),
+    intro,
+    lineItems: lineItems
+      .map((it) => ({
+        name: it.name.trim(),
+        description: it.description.trim(),
+        amount: it.amount.trim(),
       }))
-      .filter((c) => c.name || c.description || c.budget),
-    budgetSummary,
+      .filter((it) => it.name || it.description || it.amount),
     total: total.trim(),
     notes: notes.trim(),
   });
 
-  const setChannel = (i: number, patch: Partial<QuoteChannel>) =>
-    setChannels((cs) => cs.map((c, j) => (j === i ? { ...c, ...patch } : c)));
+  const setItem = (i: number, patch: Partial<QuoteLineItem>) =>
+    setLineItems((items) =>
+      items.map((it, j) => (j === i ? { ...it, ...patch } : it)),
+    );
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
@@ -164,71 +183,96 @@ function QuoteEditor({
           <Input value={title} onChange={(e) => setTitle(e.target.value)} />
         </Card>
 
-        {/* Section 1 — customer journey */}
+        {/* AI draft — tailored to the business */}
+        <Card className="p-4 bg-brand-50/40">
+          <div className="mb-1.5 text-sm font-semibold text-navy-800">
+            ניסוח חכם לפי אופי העסק
+          </div>
+          <p className="mb-2.5 text-xs text-navy-400">
+            כתוב במשפט מה אתה מתמחר, והסוכן ינסח מבנה והיקף שמתאימים לעסק שלך.
+            המחירים תמיד נשארים לך למילוי.
+          </p>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Input
+              value={brief}
+              onChange={(e) => setBrief(e.target.value)}
+              placeholder="למשל: בניית אתר תדמית עם מערכת ניהול תוכן"
+              className="flex-1"
+            />
+            <Button
+              icon="idea"
+              disabled={brief.trim().length < 2 || draft.isPending}
+              onClick={() => draft.mutate()}
+            >
+              {draft.isPending ? "מנסח…" : "נסח עם AI"}
+            </Button>
+          </div>
+        </Card>
+
+        {/* Scope */}
         <Card className="p-4">
           <div className="mb-2 text-sm font-semibold text-navy-800">
-            מסלול הלקוח
+            היקף העבודה
           </div>
           <Textarea
-            value={journey}
-            onChange={(e) => setJourney(e.target.value)}
-            placeholder="מהמפגש הראשון ועד סגירה — שלבי המסע של הלקוח."
-            rows={4}
+            value={intro}
+            onChange={(e) => setIntro(e.target.value)}
+            placeholder="מה כולל הפרויקט / השירות — במשפט או שניים."
+            rows={3}
           />
         </Card>
 
-        {/* Section 2 — channels */}
+        {/* Line items */}
         <Card className="p-4">
           <div className="mb-2 flex items-center justify-between">
-            <div className="text-sm font-semibold text-navy-800">
-              ערוצי שיווק
-            </div>
+            <div className="text-sm font-semibold text-navy-800">פירוט</div>
             <Button
               size="sm"
               variant="ghost"
               icon="plus"
               onClick={() =>
-                setChannels((cs) => [
-                  ...cs,
-                  { name: "", description: "", budget: "" },
+                setLineItems((items) => [
+                  ...items,
+                  { name: "", description: "", amount: "" },
                 ])
               }
             >
-              ערוץ
+              פריט
             </Button>
           </div>
-          {channels.length === 0 ? (
+          {lineItems.length === 0 ? (
             <p className="text-xs text-navy-400">
-              הוסף ערוץ (למשל: אינסטגרם ממומן, גוגל, ניוזלטר) עם תיאור ותקציב.
+              הוסף פריט (למשל: אפיון, עיצוב, פיתוח) עם תיאור ומחיר — או השתמש
+              בניסוח החכם למעלה.
             </p>
           ) : (
             <div className="space-y-2.5">
-              {channels.map((c, i) => (
+              {lineItems.map((it, i) => (
                 <div
                   key={i}
                   className="grid gap-2 rounded-xl border border-navy-100 p-2.5 sm:grid-cols-[1fr_1.6fr_0.8fr_auto]"
                 >
                   <Input
-                    value={c.name}
-                    onChange={(e) => setChannel(i, { name: e.target.value })}
-                    placeholder="ערוץ"
+                    value={it.name}
+                    onChange={(e) => setItem(i, { name: e.target.value })}
+                    placeholder="פריט"
                   />
                   <Input
-                    value={c.description}
+                    value={it.description}
                     onChange={(e) =>
-                      setChannel(i, { description: e.target.value })
+                      setItem(i, { description: e.target.value })
                     }
-                    placeholder="מה נעשה בו"
+                    placeholder="מה כולל"
                   />
                   <Input
-                    value={c.budget}
-                    onChange={(e) => setChannel(i, { budget: e.target.value })}
-                    placeholder="תקציב"
+                    value={it.amount}
+                    onChange={(e) => setItem(i, { amount: e.target.value })}
+                    placeholder="מחיר"
                   />
                   <button
                     type="button"
                     onClick={() =>
-                      setChannels((cs) => cs.filter((_, j) => j !== i))
+                      setLineItems((items) => items.filter((_, j) => j !== i))
                     }
                     className="grid place-items-center rounded-lg px-2 text-navy-400 hover:bg-navy-50"
                     aria-label="הסרה"
@@ -239,17 +283,6 @@ function QuoteEditor({
               ))}
             </div>
           )}
-        </Card>
-
-        {/* Section 3 — budget */}
-        <Card className="p-4">
-          <div className="mb-2 text-sm font-semibold text-navy-800">תקציב</div>
-          <Textarea
-            value={budgetSummary}
-            onChange={(e) => setBudgetSummary(e.target.value)}
-            placeholder="פירוט התקציב, חלוקה, הנחות…"
-            rows={3}
-          />
           <div className="mt-3">
             <Label>סה״כ</Label>
             <Input
@@ -261,12 +294,13 @@ function QuoteEditor({
           </div>
         </Card>
 
+        {/* Terms / notes */}
         <Card className="p-4">
-          <Label>הערות</Label>
+          <Label>תנאים והערות</Label>
           <Textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="תנאים, תוקף ההצעה, הערות…"
+            placeholder="תוקף ההצעה, שלבי תשלום, הערות…"
             rows={2}
           />
         </Card>

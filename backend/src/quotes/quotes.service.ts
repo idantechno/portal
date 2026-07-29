@@ -3,13 +3,20 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FilesystemService } from '../context-files/filesystem.service';
 import { CustomersService } from '../customers/customers.service';
-import { Quote, QuoteChannel, QuoteStatus } from './quote.entity';
+import {
+  Quote,
+  QuoteChannel,
+  QuoteLineItem,
+  QuoteStatus,
+} from './quote.entity';
 import { renderQuote } from './quote-renderer';
 
 export interface CreateQuoteInput {
   businessId: string;
   customerId: string;
   title: string;
+  intro?: string;
+  lineItems?: QuoteLineItem[];
   journey?: string;
   channels?: QuoteChannel[];
   budgetSummary?: string;
@@ -20,6 +27,8 @@ export interface CreateQuoteInput {
 export interface UpdateQuoteInput {
   title?: string;
   status?: QuoteStatus;
+  intro?: string;
+  lineItems?: QuoteLineItem[];
   journey?: string;
   channels?: QuoteChannel[];
   budgetSummary?: string;
@@ -48,6 +57,8 @@ export class QuotesService {
         customerId: input.customerId,
         title: input.title.trim().slice(0, 255),
         status: 'draft',
+        intro: input.intro ?? '',
+        lineItems: input.lineItems ?? [],
         journey: input.journey ?? '',
         channels: input.channels ?? [],
         budgetSummary: input.budgetSummary ?? '',
@@ -89,6 +100,8 @@ export class QuotesService {
     if (patch.title !== undefined)
       quote.title = patch.title.trim().slice(0, 255);
     if (patch.status !== undefined) quote.status = patch.status;
+    if (patch.intro !== undefined) quote.intro = patch.intro;
+    if (patch.lineItems !== undefined) quote.lineItems = patch.lineItems;
     if (patch.journey !== undefined) quote.journey = patch.journey;
     if (patch.channels !== undefined) quote.channels = patch.channels;
     if (patch.budgetSummary !== undefined)

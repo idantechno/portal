@@ -22,11 +22,36 @@ export class QuoteChannelDto {
   budget!: string;
 }
 
+export class QuoteLineItemDto {
+  @IsString()
+  @MaxLength(160)
+  name!: string;
+
+  @IsString()
+  @MaxLength(2000)
+  description!: string;
+
+  @IsString()
+  @MaxLength(120)
+  amount!: string;
+}
+
 export class CreateQuoteDto {
   @IsString()
   @MinLength(1)
   @MaxLength(255)
   title!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20_000)
+  intro?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => QuoteLineItemDto)
+  lineItems?: QuoteLineItemDto[];
 
   @IsOptional()
   @IsString()

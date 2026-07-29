@@ -67,6 +67,10 @@ export class Quote {
   @Column({ type: 'varchar', length: 16, default: 'draft' })
   status!: QuoteStatus;
 
+  /** Chosen PDF design — one of the fixed quote templates (see quote-html.ts). */
+  @Column({ type: 'varchar', length: 24, name: 'template', default: 'classic' })
+  template!: string;
+
   /* -- Flexible structure (business-tailored; supersedes the sections below) */
   /** Scope / what's included — free text intro. */
   @Column({ type: 'text', name: 'intro', default: '' })

@@ -1,15 +1,31 @@
 import { Business } from '../businesses/business.entity';
-import { Quote } from './quote.entity';
+import { Quote, QuoteLineItem } from './quote.entity';
 
 /**
- * Renders a branded, print-ready HTML quote ("הצעת מחיר") for a single business.
- * A TRUSTED template — every user string is HTML-escaped and the result is
- * rendered through `PdfRendererService.renderHtmlToPdf`. RTL Hebrew, Rubik body +
- * Frank Ruhl Libre display, A4, and — the point of this file — a modern, clean,
- * premium look driven by `business.branding` (colors + logo): a thin brand
- * gradient rule, generous whitespace, an elegant title block, and a refined
- * line-items table. Designed to read like a studio that leads on design.
+ * Branded, print-ready HTML for a quote ("הצעת מחיר") — in one of several fixed
+ * DESIGNS the operator picks per quote (`quote.template`). Every design is a
+ * TRUSTED template: user strings are HTML-escaped and the result is rendered
+ * through `PdfRendererService.renderHtmlToPdf`. All are RTL Hebrew, A4, use
+ * Rubik + Frank Ruhl Libre, and pull the business's colours + logo from
+ * `business.branding` so the same quote looks on-brand in any design.
  */
+
+export type QuoteTemplate =
+  | 'classic'
+  | 'sidebar'
+  | 'bold'
+  | 'minimal'
+  | 'editorial';
+
+export const QUOTE_TEMPLATE_KEYS: QuoteTemplate[] = [
+  'classic',
+  'sidebar',
+  'bold',
+  'minimal',
+  'editorial',
+];
+
+const FONTS = `@import url('https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&family=Frank+Ruhl+Libre:wght@500;700&display=swap');`;
 
 function esc(value: string): string {
   return value
@@ -20,13 +36,11 @@ function esc(value: string): string {
     .replace(/'/g, '&#39;');
 }
 
-/** "#rrggbb" / "#rgb" → "r, g, b" for building translucent brand tints. */
 function hexToRgb(hex: string, fallback = '30, 42, 74'): string {
   const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim());
   if (!m) return fallback;
   let h = m[1];
-  if (h.length === 3)
-    h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+  if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
   const n = parseInt(h, 16);
   return `${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}`;
 }
@@ -38,25 +52,67 @@ function safeLogoUrl(logoUrl?: string): string | null {
   return null;
 }
 
-/**
- * Scope text: a single paragraph stays a paragraph, but a multi-line block
- * (the common case — a list of deliverables) becomes a clean checklist with
- * brand-coloured markers, so it reads as intentional rather than dumped text.
- */
-function renderScope(text: string): string {
+interface QuoteData {
+  primary: string;
+  secondary: string;
+  accent: string;
+  primaryRgb: string;
+  logoUrl: string | null;
+  slogan: string;
+  name: string;
+  title: string;
+  dateFormatted: string;
+  approved: boolean;
+  statusLabel: string;
+  intro: string;
+  items: QuoteLineItem[];
+  total: string;
+  notes: string;
+}
+
+function buildData(quote: Quote, business: Business): QuoteData {
+  const b = business.branding ?? {};
+  const primary = b.primaryColor?.trim() || '#1e2a4a';
+  return {
+    primary,
+    secondary: b.secondaryColor?.trim() || primary,
+    accent: b.accentColor?.trim() || '#ff6b5c',
+    primaryRgb: hexToRgb(primary),
+    logoUrl: safeLogoUrl(b.logoUrl),
+    slogan: b.slogan?.trim() || '',
+    name: business.name,
+    title: quote.title,
+    dateFormatted: new Intl.DateTimeFormat('he-IL', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    }).format(quote.updatedAt ?? new Date()),
+    approved: quote.status === 'approved',
+    statusLabel: quote.status === 'approved' ? 'מאושרת' : 'טיוטה',
+    intro: quote.intro?.trim() || '',
+    items: (quote.lineItems ?? []).filter(
+      (i) => i && (i.name || i.description || i.amount),
+    ),
+    total: quote.total?.trim() || '',
+    notes: quote.notes?.trim() || '',
+  };
+}
+
+/** Lines → a brand-marked checklist (2+ short lines) or paragraphs. */
+function scopeHtml(text: string, listClass = 'scope-list'): string {
   const lines = text
     .split(/\n+/)
     .map((l) => l.trim())
     .filter(Boolean);
   if (lines.length >= 2 && lines.every((l) => l.length <= 140)) {
-    return `<ul class="scope-list">${lines
+    return `<ul class="${listClass}">${lines
       .map((l) => `<li>${esc(l)}</li>`)
       .join('')}</ul>`;
   }
   return lines.map((l) => `<p>${esc(l)}</p>`).join('\n');
 }
 
-function paragraphs(text: string): string {
+function paragraphsHtml(text: string): string {
   return text
     .split(/\n+/)
     .map((l) => l.trim())
@@ -65,296 +121,265 @@ function paragraphs(text: string): string {
     .join('\n');
 }
 
-export function renderQuoteHtml(quote: Quote, business: Business): string {
-  const branding = business.branding ?? {};
-  const primary = branding.primaryColor?.trim() || '#1e2a4a';
-  const secondary = branding.secondaryColor?.trim() || primary;
-  const accent = branding.accentColor?.trim() || '#ff6b5c';
-  const primaryRgb = hexToRgb(primary);
-  const logoUrl = safeLogoUrl(branding.logoUrl);
-  const slogan = branding.slogan?.trim();
-
-  const dateSource = quote.updatedAt ?? new Date();
-  const dateFormatted = new Intl.DateTimeFormat('he-IL', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  }).format(dateSource);
-  const approved = quote.status === 'approved';
-  const statusLabel = approved ? 'מאושרת' : 'טיוטה';
-
-  const introHtml =
-    quote.intro && quote.intro.trim()
-      ? `<section class="section">
-        <div class="eyebrow">היקף העבודה</div>
-        <div class="body-text">${renderScope(quote.intro)}</div>
-      </section>`
-      : '';
-
-  const rows = (quote.lineItems ?? [])
-    .filter((item) => item && (item.name || item.description || item.amount))
+function itemRows(items: QuoteLineItem[]): string {
+  return items
     .map(
-      (item) => `<tr>
-        <td class="cell-name">${esc(item.name ?? '')}</td>
-        <td class="cell-desc">${esc(item.description ?? '')}</td>
-        <td class="cell-amount">${esc(item.amount ?? '') || '—'}</td>
+      (it) => `<tr>
+        <td class="c-name">${esc(it.name ?? '')}</td>
+        <td class="c-desc">${esc(it.description ?? '')}</td>
+        <td class="c-amount">${esc(it.amount ?? '') || '—'}</td>
       </tr>`,
     )
     .join('\n');
+}
 
-  const itemsSection = rows
-    ? `<section class="section">
-        <div class="eyebrow">פירוט</div>
-        <div class="table-wrap">
-          <table class="items">
-            <thead>
-              <tr><th>פריט</th><th>תיאור</th><th class="th-amount">מחיר</th></tr>
-            </thead>
-            <tbody>${rows}</tbody>
-          </table>
-        </div>
-      </section>`
-    : '';
+function brandMark(d: QuoteData, cls = 'logo'): string {
+  return d.logoUrl
+    ? `<img src="${esc(d.logoUrl)}" class="${cls}" alt="${esc(d.name)}" />`
+    : `<div class="wordmark">${esc(d.name)}</div>`;
+}
 
-  const totalHtml =
-    quote.total && quote.total.trim()
-      ? `<div class="total-row">
-        <div class="total-card">
-          <span class="total-label">סה״כ</span>
-          <span class="total-value">${esc(quote.total)}</span>
-        </div>
-      </div>`
-      : '';
-
-  const notesHtml =
-    quote.notes && quote.notes.trim()
-      ? `<section class="section notes">
-        <div class="eyebrow">תנאים והערות</div>
-        <div class="body-text">${paragraphs(quote.notes)}</div>
-      </section>`
-      : '';
-
-  const brandMark = logoUrl
-    ? `<img src="${esc(logoUrl)}" class="logo" alt="${esc(business.name)}" />`
-    : `<div class="wordmark">${esc(business.name)}</div>`;
-
-  const sloganHtml = slogan ? `<div class="slogan">${esc(slogan)}</div>` : '';
-
+function doc(title: string, css: string, body: string): string {
   return `<!doctype html>
 <html lang="he" dir="rtl">
 <head>
   <meta charset="utf-8" />
-  <title>הצעת מחיר — ${esc(quote.title)}</title>
+  <title>${esc(title)}</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&family=Frank+Ruhl+Libre:wght@500;700&display=swap');
-
-    :root {
-      --primary: ${esc(primary)};
-      --secondary: ${esc(secondary)};
-      --accent: ${esc(accent)};
-      --primary-rgb: ${primaryRgb};
-      --ink: #20242e;
-      --muted: #8a91a0;
-      --line: #edeff3;
-      --tint: rgba(var(--primary-rgb), 0.05);
-      --tint-strong: rgba(var(--primary-rgb), 0.10);
-    }
-
+    ${FONTS}
     * { box-sizing: border-box; }
-
     @page { margin: 0; }
-
     body {
+      margin: 0; background: #fff; color: #20242e;
       font-family: 'Rubik', 'Heebo', Arial, sans-serif;
-      margin: 0;
-      color: var(--ink);
-      background: #fff;
-      line-height: 1.7;
-      font-size: 14px;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
+      line-height: 1.7; font-size: 14px;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact;
     }
-
-    /* Thin brand gradient rule across the very top — the tech-forward touch. */
-    .brand-bar {
-      height: 5px;
-      background: linear-gradient(90deg, var(--primary), var(--accent));
-    }
-
-    .page { padding: 44px 52px 40px; }
-
-    /* Header: logo / wordmark on the start side, date on the end side. */
-    .doc-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      margin-bottom: 40px;
-    }
-    .logo { max-height: 52px; max-width: 210px; display: block; }
-    .wordmark {
-      font-family: 'Frank Ruhl Libre', 'Rubik', Georgia, serif;
-      font-size: 22px;
-      font-weight: 700;
-      color: var(--primary);
-      letter-spacing: -0.01em;
-    }
-    .slogan { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
-    .header-date { text-align: left; font-size: 11.5px; color: var(--muted); }
-
-    /* Title block. */
-    .title-block { margin-bottom: 36px; }
-    .eyebrow {
-      font-size: 10.5px;
-      font-weight: 600;
-      letter-spacing: 0.16em;
-      color: var(--accent);
-      text-transform: uppercase;
-      margin-bottom: 10px;
-    }
-    h1 {
-      font-family: 'Frank Ruhl Libre', 'Rubik', Georgia, serif;
-      font-size: 32px;
-      line-height: 1.15;
-      font-weight: 700;
-      letter-spacing: -0.015em;
-      margin: 0;
-      color: var(--primary);
-    }
-    .pill {
-      display: inline-block;
-      margin-top: 12px;
-      font-size: 11px;
-      font-weight: 600;
-      padding: 4px 12px;
-      border-radius: 999px;
-      background: var(--tint-strong);
-      color: var(--primary);
-    }
-    .pill.approved { background: rgba(16, 122, 92, 0.12); color: #0d7a5c; }
-
-    .section { margin-bottom: 30px; }
-    .section .eyebrow { color: var(--muted); }
-    .body-text p { margin: 0 0 8px; color: #414755; }
-    .body-text p:last-child { margin-bottom: 0; }
-
-    /* Scope checklist. */
-    .scope-list { list-style: none; margin: 0; padding: 0; }
-    .scope-list li {
-      position: relative;
-      padding-inline-start: 22px;
-      margin-bottom: 9px;
-      color: #414755;
-    }
-    .scope-list li::before {
-      content: "";
-      position: absolute;
-      inline-size: 7px;
-      block-size: 7px;
-      inset-inline-start: 3px;
-      top: 10px;
-      border-radius: 2px;
-      background: var(--accent);
-    }
-
-    /* Line-items table — hairline separators, tinted header, rounded frame. */
-    .table-wrap {
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      overflow: hidden;
-    }
-    table.items { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-    table.items thead th {
-      background: var(--tint);
-      color: var(--primary);
-      text-align: right;
-      font-weight: 600;
-      font-size: 11px;
-      letter-spacing: 0.04em;
-      padding: 13px 16px;
-      border-bottom: 1px solid var(--line);
-    }
-    table.items thead th.th-amount { text-align: left; }
-    table.items tbody td {
-      padding: 14px 16px;
-      border-bottom: 1px solid var(--line);
-      vertical-align: top;
-    }
-    table.items tbody tr:last-child td { border-bottom: none; }
-    table.items tbody tr { break-inside: avoid; }
-    .cell-name { font-weight: 600; color: var(--ink); white-space: nowrap; }
-    .cell-desc { color: #6b7280; }
-    .cell-amount {
-      text-align: left;
-      white-space: nowrap;
-      font-weight: 600;
-      color: var(--ink);
-      font-variant-numeric: tabular-nums;
-    }
-
-    /* Total — a refined brand card aligned to the start side. */
-    .total-row { display: flex; justify-content: flex-start; margin: 6px 0 34px; }
-    .total-card {
-      display: inline-flex;
-      align-items: baseline;
-      gap: 16px;
-      background: linear-gradient(135deg, var(--primary), var(--secondary));
-      color: #fff;
-      border-radius: 12px;
-      padding: 16px 24px;
-      break-inside: avoid;
-      min-width: 200px;
-      justify-content: space-between;
-    }
-    .total-card .total-label { font-size: 13px; font-weight: 500; opacity: 0.85; }
-    .total-card .total-value {
-      font-size: 22px;
-      font-weight: 700;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .notes .body-text p { color: var(--muted); font-size: 12.5px; }
-
-    .doc-footer {
-      margin-top: 48px;
-      padding-top: 16px;
-      border-top: 1px solid var(--line);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 10.5px;
-      color: var(--muted);
-    }
-    .doc-footer .mark { color: var(--primary); font-weight: 600; }
+    .wordmark { font-family: 'Frank Ruhl Libre', Georgia, serif; font-weight: 700; }
+    ${css}
   </style>
 </head>
-<body>
-  <div class="brand-bar"></div>
-  <div class="page">
-    <header class="doc-header">
-      <div class="brand">
-        ${brandMark}
-        ${sloganHtml}
-      </div>
-      <div class="header-date">${esc(dateFormatted)}</div>
-    </header>
-
-    <div class="title-block">
-      <div class="eyebrow">הצעת מחיר</div>
-      <h1>${esc(quote.title)}</h1>
-      <span class="pill${approved ? ' approved' : ''}">${statusLabel}</span>
-    </div>
-
-    ${introHtml}
-    ${itemsSection}
-    ${totalHtml}
-    ${notesHtml}
-
-    <div class="doc-footer">
-      <span class="mark">${esc(business.name)}</span>
-      <span>נערך ב-${esc(dateFormatted)}</span>
-    </div>
-  </div>
-</body>
+<body>${body}</body>
 </html>`;
+}
+
+/* ── 1. CLASSIC — clean modern, brand gradient rule ───────────────────────── */
+function tplClassic(d: QuoteData): string {
+  const css = `
+    :root { --p:${d.primary}; --s:${d.secondary}; --a:${d.accent}; --prgb:${d.primaryRgb}; }
+    .bar { height:5px; background:linear-gradient(90deg,var(--p),var(--a)); }
+    .page { padding:44px 52px 40px; }
+    .hd { display:flex; align-items:center; justify-content:space-between; margin-bottom:40px; }
+    .logo { max-height:52px; max-width:210px; display:block; }
+    .wordmark { font-size:22px; color:var(--p); }
+    .slogan { font-size:11.5px; color:#8a91a0; margin-top:3px; }
+    .hd-date { font-size:11.5px; color:#8a91a0; text-align:left; }
+    .eyebrow { font-size:10.5px; font-weight:600; letter-spacing:.16em; color:var(--a); text-transform:uppercase; margin-bottom:10px; }
+    h1 { font-family:'Frank Ruhl Libre',serif; font-size:32px; line-height:1.15; font-weight:700; margin:0; color:var(--p); }
+    .pill { display:inline-block; margin-top:12px; font-size:11px; font-weight:600; padding:4px 12px; border-radius:999px; background:rgba(var(--prgb),.10); color:var(--p); }
+    .sec { margin:30px 0; }
+    .sec .eyebrow { color:#8a91a0; }
+    .scope-list { list-style:none; margin:0; padding:0; }
+    .scope-list li { position:relative; padding-inline-start:22px; margin-bottom:9px; color:#414755; }
+    .scope-list li::before { content:""; position:absolute; width:7px; height:7px; inset-inline-start:3px; top:10px; border-radius:2px; background:var(--a); }
+    .twrap { border:1px solid #edeff3; border-radius:12px; overflow:hidden; }
+    table { width:100%; border-collapse:collapse; font-size:13.5px; }
+    thead th { background:rgba(var(--prgb),.05); color:var(--p); text-align:right; font-size:11px; letter-spacing:.04em; font-weight:600; padding:13px 16px; border-bottom:1px solid #edeff3; }
+    thead th.c-amount { text-align:left; }
+    tbody td { padding:14px 16px; border-bottom:1px solid #edeff3; vertical-align:top; }
+    tbody tr:last-child td { border-bottom:none; }
+    .c-name { font-weight:600; white-space:nowrap; }
+    .c-desc { color:#6b7280; }
+    .c-amount { text-align:left; font-weight:600; white-space:nowrap; }
+    .total-row { display:flex; margin:6px 0 34px; }
+    .total { display:inline-flex; gap:16px; justify-content:space-between; min-width:200px; background:linear-gradient(135deg,var(--p),var(--s)); color:#fff; border-radius:12px; padding:16px 24px; }
+    .total .l { font-size:13px; opacity:.85; } .total .v { font-size:22px; font-weight:700; }
+    .notes p { color:#8a91a0; font-size:12.5px; }
+    .ft { margin-top:48px; padding-top:16px; border-top:1px solid #edeff3; display:flex; justify-content:space-between; font-size:10.5px; color:#8a91a0; }
+    .ft .m { color:var(--p); font-weight:600; }`;
+  const body = `<div class="bar"></div><div class="page">
+    <div class="hd"><div>${brandMark(d)}${d.slogan ? `<div class="slogan">${esc(d.slogan)}</div>` : ''}</div><div class="hd-date">${esc(d.dateFormatted)}</div></div>
+    <div class="eyebrow">הצעת מחיר</div><h1>${esc(d.title)}</h1><span class="pill">${d.statusLabel}</span>
+    ${d.intro ? `<div class="sec"><div class="eyebrow">היקף העבודה</div>${scopeHtml(d.intro)}</div>` : ''}
+    ${d.items.length ? `<div class="sec"><div class="eyebrow">פירוט</div><div class="twrap"><table><thead><tr><th>פריט</th><th>תיאור</th><th class="c-amount">מחיר</th></tr></thead><tbody>${itemRows(d.items)}</tbody></table></div></div>` : ''}
+    ${d.total ? `<div class="total-row"><div class="total"><span class="l">סה״כ</span><span class="v">${esc(d.total)}</span></div></div>` : ''}
+    ${d.notes ? `<div class="sec notes"><div class="eyebrow">תנאים והערות</div>${paragraphsHtml(d.notes)}</div>` : ''}
+    <div class="ft"><span class="m">${esc(d.name)}</span><span>נערך ב-${esc(d.dateFormatted)}</span></div>
+  </div>`;
+  return doc(`הצעת מחיר — ${d.title}`, css, body);
+}
+
+/* ── 2. SIDEBAR — coloured brand column with logo + total ──────────────────── */
+function tplSidebar(d: QuoteData): string {
+  const css = `
+    :root { --p:${d.primary}; --s:${d.secondary}; --a:${d.accent}; --prgb:${d.primaryRgb}; }
+    .wrap { display:flex; min-height:297mm; }
+    .aside { width:33%; background:linear-gradient(180deg,var(--p),var(--s)); color:#fff; padding:40px 28px; display:flex; flex-direction:column; }
+    .aside .logo { max-height:46px; max-width:150px; filter:brightness(0) invert(1); margin-bottom:auto; }
+    .aside .wordmark { font-size:20px; color:#fff; margin-bottom:auto; }
+    .aside .slogan { font-size:11px; opacity:.8; margin-top:6px; }
+    .a-meta { margin-top:28px; font-size:12px; opacity:.85; }
+    .a-meta div { margin-bottom:6px; }
+    .a-total { margin-top:22px; padding-top:18px; border-top:1px solid rgba(255,255,255,.25); }
+    .a-total .l { font-size:12px; opacity:.75; } .a-total .v { font-size:24px; font-weight:700; margin-top:4px; }
+    .main { flex:1; padding:44px 44px 40px; }
+    .eyebrow { font-size:10.5px; font-weight:600; letter-spacing:.16em; color:var(--a); text-transform:uppercase; margin-bottom:8px; }
+    h1 { font-family:'Frank Ruhl Libre',serif; font-size:28px; line-height:1.2; margin:0 0 28px; color:var(--p); }
+    .sec { margin-bottom:28px; }
+    .sec .eyebrow { color:#a2a8b4; }
+    .scope-list { list-style:none; margin:0; padding:0; }
+    .scope-list li { position:relative; padding-inline-start:20px; margin-bottom:9px; color:#414755; }
+    .scope-list li::before { content:""; position:absolute; width:6px; height:6px; inset-inline-start:2px; top:10px; border-radius:50%; background:var(--a); }
+    table { width:100%; border-collapse:collapse; font-size:13.5px; }
+    thead th { text-align:right; color:var(--p); font-size:11px; letter-spacing:.04em; font-weight:600; padding:0 4px 10px; border-bottom:2px solid var(--p); }
+    thead th.c-amount { text-align:left; }
+    tbody td { padding:13px 4px; border-bottom:1px solid #edeff3; vertical-align:top; }
+    .c-name { font-weight:600; } .c-desc { color:#6b7280; } .c-amount { text-align:left; font-weight:600; white-space:nowrap; }
+    .notes p { color:#8a91a0; font-size:12.5px; }`;
+  const body = `<div class="wrap">
+    <aside class="aside">
+      ${brandMark(d)}${d.slogan ? `<div class="slogan">${esc(d.slogan)}</div>` : ''}
+      <div class="a-meta"><div>תאריך: ${esc(d.dateFormatted)}</div><div>סטטוס: ${d.statusLabel}</div></div>
+      ${d.total ? `<div class="a-total"><div class="l">סה״כ</div><div class="v">${esc(d.total)}</div></div>` : ''}
+    </aside>
+    <main class="main">
+      <div class="eyebrow">הצעת מחיר</div><h1>${esc(d.title)}</h1>
+      ${d.intro ? `<div class="sec"><div class="eyebrow">היקף העבודה</div>${scopeHtml(d.intro)}</div>` : ''}
+      ${d.items.length ? `<div class="sec"><div class="eyebrow">פירוט</div><table><thead><tr><th>פריט</th><th>תיאור</th><th class="c-amount">מחיר</th></tr></thead><tbody>${itemRows(d.items)}</tbody></table></div>` : ''}
+      ${d.notes ? `<div class="sec notes"><div class="eyebrow">תנאים והערות</div>${paragraphsHtml(d.notes)}</div>` : ''}
+    </main>
+  </div>`;
+  return doc(`הצעת מחיר — ${d.title}`, css, body);
+}
+
+/* ── 3. BOLD — full-width brand header block ───────────────────────────────── */
+function tplBold(d: QuoteData): string {
+  const css = `
+    :root { --p:${d.primary}; --s:${d.secondary}; --a:${d.accent}; --prgb:${d.primaryRgb}; }
+    .head { background:linear-gradient(120deg,var(--p),var(--s)); color:#fff; padding:40px 52px 44px; }
+    .head-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:26px; }
+    .head .logo { max-height:44px; max-width:170px; filter:brightness(0) invert(1); }
+    .head .wordmark { font-size:19px; color:#fff; }
+    .head .date { font-size:12px; opacity:.85; }
+    .head .eyebrow { font-size:11px; font-weight:600; letter-spacing:.18em; text-transform:uppercase; opacity:.8; margin-bottom:8px; }
+    .head h1 { font-family:'Frank Ruhl Libre',serif; font-size:34px; line-height:1.12; margin:0; color:#fff; }
+    .page { padding:36px 52px 40px; }
+    .eyebrow2 { font-size:10.5px; font-weight:600; letter-spacing:.16em; color:var(--a); text-transform:uppercase; margin-bottom:8px; }
+    .sec { margin-bottom:28px; }
+    .scope-list { list-style:none; margin:0; padding:0; }
+    .scope-list li { position:relative; padding-inline-start:22px; margin-bottom:9px; color:#414755; }
+    .scope-list li::before { content:""; position:absolute; width:8px; height:8px; inset-inline-start:2px; top:9px; border-radius:2px; background:var(--a); }
+    table { width:100%; border-collapse:collapse; font-size:13.5px; }
+    thead th { background:var(--p); color:#fff; text-align:right; font-size:11px; letter-spacing:.04em; font-weight:600; padding:12px 16px; }
+    thead th.c-amount { text-align:left; }
+    tbody td { padding:13px 16px; border-bottom:1px solid #edeff3; vertical-align:top; }
+    .c-name { font-weight:600; } .c-desc { color:#6b7280; } .c-amount { text-align:left; font-weight:600; white-space:nowrap; }
+    .total-row { display:flex; justify-content:flex-start; align-items:baseline; gap:14px; margin:22px 0 30px; padding:16px 20px; border:2px solid var(--p); border-radius:12px; }
+    .total-row .l { font-size:13px; color:#6b7280; } .total-row .v { font-size:26px; font-weight:700; color:var(--p); }
+    .notes p { color:#8a91a0; font-size:12.5px; }
+    .ft { padding:0 52px 34px; font-size:10.5px; color:#8a91a0; } .ft .m { color:var(--p); font-weight:600; }`;
+  const body = `<div class="head">
+      <div class="head-top">${brandMark(d)}<div class="date">${esc(d.dateFormatted)} · ${d.statusLabel}</div></div>
+      <div class="eyebrow">הצעת מחיר</div><h1>${esc(d.title)}</h1>
+    </div>
+    <div class="page">
+      ${d.intro ? `<div class="sec"><div class="eyebrow2">היקף העבודה</div>${scopeHtml(d.intro)}</div>` : ''}
+      ${d.items.length ? `<div class="sec"><div class="eyebrow2">פירוט</div><table><thead><tr><th>פריט</th><th>תיאור</th><th class="c-amount">מחיר</th></tr></thead><tbody>${itemRows(d.items)}</tbody></table></div>` : ''}
+      ${d.total ? `<div class="total-row"><span class="l">סה״כ לתשלום</span><span class="v">${esc(d.total)}</span></div>` : ''}
+      ${d.notes ? `<div class="sec notes"><div class="eyebrow2">תנאים והערות</div>${paragraphsHtml(d.notes)}</div>` : ''}
+    </div>
+    <div class="ft"><span class="m">${esc(d.name)}</span> · נערך ב-${esc(d.dateFormatted)}</div>`;
+  return doc(`הצעת מחיר — ${d.title}`, css, body);
+}
+
+/* ── 4. MINIMAL — airy, monochrome + single accent line ────────────────────── */
+function tplMinimal(d: QuoteData): string {
+  const css = `
+    :root { --p:${d.primary}; --a:${d.accent}; }
+    .page { padding:64px 64px 56px; max-width:720px; }
+    .hd { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:56px; }
+    .logo { max-height:38px; max-width:150px; } .wordmark { font-size:16px; color:var(--p); }
+    .hd-date { font-size:11px; color:#9aa0ab; text-align:left; }
+    .eyebrow { font-size:11px; letter-spacing:.22em; text-transform:uppercase; color:#9aa0ab; margin-bottom:14px; }
+    h1 { font-size:30px; font-weight:400; letter-spacing:-.01em; margin:0 0 6px; color:#20242e; }
+    .accent-line { width:44px; height:3px; background:var(--a); margin:18px 0 40px; }
+    .sec { margin-bottom:40px; }
+    .sec-label { font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:#9aa0ab; margin-bottom:14px; }
+    .scope-list { list-style:none; margin:0; padding:0; }
+    .scope-list li { padding-bottom:10px; margin-bottom:10px; border-bottom:1px solid #f1f2f5; color:#3f4552; }
+    .scope-list li:last-child { border-bottom:none; }
+    table { width:100%; border-collapse:collapse; font-size:14px; }
+    thead th { text-align:right; font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:#9aa0ab; font-weight:500; padding:0 0 12px; }
+    thead th.c-amount { text-align:left; }
+    tbody td { padding:15px 0; border-top:1px solid #f1f2f5; vertical-align:top; }
+    .c-name { font-weight:600; } .c-desc { color:#8a91a0; } .c-amount { text-align:left; font-weight:600; white-space:nowrap; }
+    .total-row { display:flex; justify-content:space-between; align-items:baseline; margin:34px 0; padding-top:18px; border-top:2px solid var(--p); }
+    .total-row .l { font-size:13px; color:#9aa0ab; letter-spacing:.06em; } .total-row .v { font-size:24px; font-weight:600; color:var(--p); }
+    .notes p { color:#9aa0ab; font-size:12.5px; }
+    .ft { margin-top:56px; font-size:10.5px; color:#b6bcc6; }`;
+  const body = `<div class="page">
+    <div class="hd"><div>${brandMark(d)}</div><div class="hd-date">${esc(d.dateFormatted)}<br>${d.statusLabel}</div></div>
+    <div class="eyebrow">הצעת מחיר</div><h1>${esc(d.title)}</h1><div class="accent-line"></div>
+    ${d.intro ? `<div class="sec"><div class="sec-label">היקף העבודה</div>${scopeHtml(d.intro)}</div>` : ''}
+    ${d.items.length ? `<div class="sec"><div class="sec-label">פירוט</div><table><thead><tr><th>פריט</th><th>תיאור</th><th class="c-amount">מחיר</th></tr></thead><tbody>${itemRows(d.items)}</tbody></table></div>` : ''}
+    ${d.total ? `<div class="total-row"><span class="l">סה״כ</span><span class="v">${esc(d.total)}</span></div>` : ''}
+    ${d.notes ? `<div class="sec notes"><div class="sec-label">תנאים והערות</div>${paragraphsHtml(d.notes)}</div>` : ''}
+    <div class="ft">${esc(d.name)}</div>
+  </div>`;
+  return doc(`הצעת מחיר — ${d.title}`, css, body);
+}
+
+/* ── 5. EDITORIAL — serif-forward, magazine feel ───────────────────────────── */
+function tplEditorial(d: QuoteData): string {
+  const css = `
+    :root { --p:${d.primary}; --a:${d.accent}; --prgb:${d.primaryRgb}; }
+    .page { padding:52px 60px 44px; }
+    .hd { display:flex; justify-content:space-between; align-items:center; padding-bottom:20px; border-bottom:1px solid #e7e3da; margin-bottom:8px; }
+    .logo { max-height:48px; max-width:190px; } .wordmark { font-size:21px; color:var(--p); }
+    .hd .kicker { font-family:'Frank Ruhl Libre',serif; font-style:italic; font-size:14px; color:var(--a); }
+    .rule2 { height:3px; border-top:1px solid var(--p); border-bottom:1px solid var(--p); margin-bottom:34px; }
+    .eyebrow { font-family:'Frank Ruhl Libre',serif; font-style:italic; font-size:15px; color:var(--a); margin-bottom:6px; }
+    h1 { font-family:'Frank Ruhl Libre',serif; font-size:40px; line-height:1.1; font-weight:700; margin:0 0 10px; color:var(--p); }
+    .meta { font-size:12px; color:#8a7f6e; margin-bottom:36px; }
+    .sec { margin-bottom:30px; }
+    .sec h2 { font-family:'Frank Ruhl Libre',serif; font-size:19px; color:var(--p); margin:0 0 12px; padding-bottom:8px; border-bottom:1px solid #ece7dd; }
+    .body p { color:#4a4740; margin:0 0 8px; }
+    .scope-list { list-style:none; margin:0; padding:0; }
+    .scope-list li { position:relative; padding-inline-start:20px; margin-bottom:9px; color:#4a4740; }
+    .scope-list li::before { content:"—"; position:absolute; inset-inline-start:0; color:var(--a); }
+    table { width:100%; border-collapse:collapse; font-size:14px; }
+    thead th { text-align:right; font-family:'Frank Ruhl Libre',serif; font-size:13px; color:var(--p); font-weight:700; padding:0 6px 10px; border-bottom:2px solid var(--p); }
+    thead th.c-amount { text-align:left; }
+    tbody td { padding:14px 6px; border-bottom:1px solid #ece7dd; vertical-align:top; }
+    .c-name { font-weight:600; color:#332f28; } .c-desc { color:#7a7264; } .c-amount { text-align:left; font-weight:700; white-space:nowrap; font-variant-numeric:tabular-nums; }
+    .total-row { display:flex; justify-content:space-between; align-items:baseline; margin:24px 0 32px; padding:16px 22px; background:rgba(var(--prgb),.05); border-radius:2px; border-inline-start:3px solid var(--a); }
+    .total-row .l { font-family:'Frank Ruhl Libre',serif; font-size:15px; color:var(--p); } .total-row .v { font-size:24px; font-weight:700; color:var(--p); }
+    .notes p { color:#8a7f6e; font-size:12.5px; }
+    .ft { margin-top:44px; padding-top:14px; border-top:1px solid #e7e3da; text-align:center; font-family:'Frank Ruhl Libre',serif; font-style:italic; font-size:12px; color:#8a7f6e; }`;
+  const body = `<div class="page">
+    <div class="hd"><div>${brandMark(d)}</div><div class="kicker">${esc(d.name)}</div></div>
+    <div class="rule2"></div>
+    <div class="eyebrow">הצעת מחיר</div><h1>${esc(d.title)}</h1>
+    <div class="meta">${esc(d.dateFormatted)} · ${d.statusLabel}</div>
+    ${d.intro ? `<div class="sec"><h2>היקף העבודה</h2><div class="body">${scopeHtml(d.intro)}</div></div>` : ''}
+    ${d.items.length ? `<div class="sec"><h2>פירוט</h2><table><thead><tr><th>פריט</th><th>תיאור</th><th class="c-amount">מחיר</th></tr></thead><tbody>${itemRows(d.items)}</tbody></table></div>` : ''}
+    ${d.total ? `<div class="total-row"><span class="l">סה״כ</span><span class="v">${esc(d.total)}</span></div>` : ''}
+    ${d.notes ? `<div class="sec notes"><h2>תנאים והערות</h2><div class="body">${paragraphsHtml(d.notes)}</div></div>` : ''}
+    <div class="ft">${esc(d.name)} · נערך ב-${esc(d.dateFormatted)}</div>
+  </div>`;
+  return doc(`הצעת מחיר — ${d.title}`, css, body);
+}
+
+const RENDERERS: Record<QuoteTemplate, (d: QuoteData) => string> = {
+  classic: tplClassic,
+  sidebar: tplSidebar,
+  bold: tplBold,
+  minimal: tplMinimal,
+  editorial: tplEditorial,
+};
+
+export function renderQuoteHtml(quote: Quote, business: Business): string {
+  const key = (quote.template ?? 'classic') as QuoteTemplate;
+  const render = RENDERERS[key] ?? tplClassic;
+  return render(buildData(quote, business));
 }

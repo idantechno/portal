@@ -2,6 +2,13 @@ import { api } from "./client";
 
 export type QuoteStatus = "draft" | "approved";
 
+export type QuoteTemplate =
+  | "classic"
+  | "sidebar"
+  | "bold"
+  | "minimal"
+  | "editorial";
+
 export interface QuoteChannel {
   name: string;
   description: string;
@@ -22,6 +29,8 @@ export interface Quote {
   customerId: string;
   title: string;
   status: QuoteStatus;
+  /** Chosen PDF design. */
+  template: QuoteTemplate;
   /** Flexible structure (primary). */
   intro: string;
   lineItems: QuoteLineItem[];
@@ -40,6 +49,7 @@ export interface Quote {
 export interface QuoteInput {
   title?: string;
   status?: QuoteStatus;
+  template?: QuoteTemplate;
   intro?: string;
   lineItems?: QuoteLineItem[];
   journey?: string;

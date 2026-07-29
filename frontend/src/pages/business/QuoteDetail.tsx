@@ -1,7 +1,12 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { quotesApi, type Quote, type QuoteLineItem } from "../../api/quotes";
+import {
+  quotesApi,
+  type Quote,
+  type QuoteLineItem,
+  type QuoteTemplate,
+} from "../../api/quotes";
 import { apiErrorMessage } from "../../api/client";
 import {
   Button,
@@ -13,6 +18,14 @@ import {
   Textarea,
 } from "../../components/ui";
 import { Icon } from "../../components/icons";
+
+const TEMPLATES: { key: QuoteTemplate; label: string; hint: string }[] = [
+  { key: "classic", label: "נקי-מודרני", hint: "פס מותג עדין, טבלה מעוגלת" },
+  { key: "sidebar", label: "פס-צד", hint: "עמודת צבע עם לוגו וסה״כ" },
+  { key: "bold", label: "כותרת מודגשת", hint: "בלוק צבע רחב בראש" },
+  { key: "minimal", label: "מינימלי", hint: "אוורירי, קו הדגשה" },
+  { key: "editorial", label: "אלגנטי", hint: "סריף, מגזיני" },
+];
 
 export default function QuoteDetail() {
   const { businessId = "", quoteId = "" } = useParams<{
@@ -51,6 +64,9 @@ function QuoteEditor({
   const qc = useQueryClient();
 
   const [title, setTitle] = useState(quote.title ?? "");
+  const [template, setTemplate] = useState<QuoteTemplate>(
+    quote.template ?? "classic",
+  );
   const [brief, setBrief] = useState("");
   const [intro, setIntro] = useState(quote.intro ?? "");
   const [lineItems, setLineItems] = useState<QuoteLineItem[]>(
@@ -110,6 +126,7 @@ function QuoteEditor({
 
   const currentBody = () => ({
     title: title.trim() || "הצעת מחיר",
+    template,
     intro,
     lineItems: lineItems
       .map((it) => ({
@@ -241,6 +258,34 @@ function QuoteEditor({
         <Card className="p-4">
           <Label>כותרת</Label>
           <Input value={title} onChange={(e) => setTitle(e.target.value)} />
+        </Card>
+
+        {/* Design picker — each template is auto-branded with the business colors + logo */}
+        <Card className="p-4">
+          <div className="mb-2.5 text-sm font-semibold text-navy-800">
+            עיצוב המסמך
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {TEMPLATES.map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => setTemplate(t.key)}
+                className={`rounded-xl border px-3 py-2 text-start transition-colors ${
+                  template === t.key
+                    ? "border-brand-500 bg-brand-50 text-brand-700"
+                    : "border-navy-200 text-navy-600 hover:border-brand-300"
+                }`}
+              >
+                <div className="text-sm font-medium">{t.label}</div>
+                <div className="text-xs text-navy-400">{t.hint}</div>
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-navy-400">
+            כל עיצוב מושך אוטומטית את הצבעים והלוגו של העסק. בחר, ואז "תצוגה
+            מקדימה" למטה כדי לראות.
+          </p>
         </Card>
 
         {/* AI draft — tailored to the business; accepts a brief OR pasted text */}

@@ -1,12 +1,14 @@
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  IsIn,
   IsOptional,
   IsString,
   MaxLength,
   MinLength,
   ValidateNested,
 } from 'class-validator';
+import { QUOTE_TEMPLATE_KEYS } from '../quote-html';
 
 export class QuoteChannelDto {
   @IsString()
@@ -41,6 +43,10 @@ export class CreateQuoteDto {
   @MinLength(1)
   @MaxLength(255)
   title!: string;
+
+  @IsOptional()
+  @IsIn(QUOTE_TEMPLATE_KEYS)
+  template?: string;
 
   @IsOptional()
   @IsString()

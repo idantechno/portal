@@ -9,6 +9,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { QuoteChannelDto, QuoteLineItemDto } from './create-quote.dto';
+import { QUOTE_TEMPLATE_KEYS } from '../quote-html';
 
 export class UpdateQuoteDto {
   @IsOptional()
@@ -20,6 +21,10 @@ export class UpdateQuoteDto {
   @IsOptional()
   @IsIn(['draft', 'approved'])
   status?: 'draft' | 'approved';
+
+  @IsOptional()
+  @IsIn(QUOTE_TEMPLATE_KEYS)
+  template?: string;
 
   @IsOptional()
   @IsString()

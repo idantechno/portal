@@ -9,6 +9,11 @@ import { plansApi } from "../../api/plans";
 import { quotesApi } from "../../api/quotes";
 import { objectivesApi } from "../../api/objectives";
 import { campaignsApi, type Campaign } from "../../api/campaigns";
+import {
+  websiteIntakeApi,
+  type WebsiteIntake,
+  type IntakeAsset,
+} from "../../api/websiteIntake";
 import { apiErrorMessage } from "../../api/client";
 import {
   Button,
@@ -293,6 +298,9 @@ function CustomerEditor({
           )}
         </div>
       </Card>
+
+      {/* Website brief the client submitted through /website-brief */}
+      <WebsiteIntakeSection businessId={businessId} customerId={customerId} />
 
       {/* Marketing work — only if this business has the marketing agent */}
       {marketingEntitled && (
@@ -789,6 +797,204 @@ function MarketingSection({
         )}
       </Card>
     </section>
+  );
+}
+
+function WebsiteIntakeSection({
+  businessId,
+  customerId,
+}: {
+  businessId: string;
+  customerId: string;
+}) {
+  const intakes = useQuery({
+    queryKey: ["website-intakes", businessId, customerId],
+    queryFn: () => websiteIntakeApi.listForCustomer(businessId, customerId),
+    enabled: Boolean(businessId && customerId),
+  });
+
+  const list = intakes.data ?? [];
+  if (list.length === 0) return null;
+
+  return (
+    <section className="mb-6">
+      <div className="mb-3 flex items-center gap-2">
+        <Icon name="compass" size={18} className="text-brand-600" />
+        <h2 className="text-sm font-semibold text-navy-500">בריף אתר</h2>
+      </div>
+      <div className="space-y-4">
+        {list.map((intake) => (
+          <IntakeCard key={intake.id} businessId={businessId} intake={intake} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function IntakeCard({
+  businessId,
+  intake,
+}: {
+  businessId: string;
+  intake: WebsiteIntake;
+}) {
+  const date = new Date(intake.createdAt).toLocaleDateString("he-IL", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
+  const [downloading, setDownloading] = useState(false);
+  const downloadPdf = async () => {
+    setDownloading(true);
+    try {
+      const url = await websiteIntakeApi.operatorPdfBlobUrl(
+        businessId,
+        intake.id,
+      );
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `בריף-אתר-${intake.businessName || intake.contactName || "brief"}.pdf`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  return (
+    <Card className="p-5">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="font-display text-base leading-tight">
+          {intake.businessName || intake.contactName}
+        </div>
+        <div className="flex shrink-0 items-center gap-3">
+          <span className="text-xs text-navy-400">{date}</span>
+          <Button
+            size="sm"
+            variant="secondary"
+            icon="download"
+            onClick={downloadPdf}
+            disabled={downloading}
+          >
+            {downloading ? "מכין…" : "PDF"}
+          </Button>
+        </div>
+      </div>
+
+      {/* Answers */}
+      <div className="space-y-4">
+        {intake.sections.map((section) => (
+          <div key={section.title}>
+            <h3 className="mb-1.5 text-xs font-semibold uppercase text-navy-400">
+              {section.title}
+            </h3>
+            <dl className="space-y-1.5">
+              {section.items.map((it, i) => (
+                <div key={i} className="text-sm">
+                  <dt className="text-navy-500">{it.label}</dt>
+                  <dd className="whitespace-pre-wrap text-navy-900">
+                    {it.value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        ))}
+      </div>
+
+      {/* Assets */}
+      {(intake.logo || intake.images.length > 0) && (
+        <div className="mt-4 border-t border-navy-100 pt-4">
+          {intake.logo && (
+            <div className="mb-3">
+              <h3 className="mb-1.5 text-xs font-semibold uppercase text-navy-400">
+                לוגו
+              </h3>
+              <IntakeAssetTile
+                businessId={businessId}
+                intakeId={intake.id}
+                kind="logo"
+                index={0}
+                asset={intake.logo}
+                contain
+              />
+            </div>
+          )}
+          {intake.images.length > 0 && (
+            <div>
+              <h3 className="mb-1.5 text-xs font-semibold uppercase text-navy-400">
+                תמונות ({intake.images.length})
+              </h3>
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                {intake.images.map((img, i) => (
+                  <IntakeAssetTile
+                    key={i}
+                    businessId={businessId}
+                    intakeId={intake.id}
+                    kind="image"
+                    index={i}
+                    asset={img}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+/** Fetches one asset (with auth) and shows a thumbnail that opens full-size in
+ *  a new tab on click. */
+function IntakeAssetTile({
+  businessId,
+  intakeId,
+  kind,
+  index,
+  asset,
+  contain,
+}: {
+  businessId: string;
+  intakeId: string;
+  kind: "logo" | "image";
+  index: number;
+  asset: IntakeAsset;
+  contain?: boolean;
+}) {
+  const blob = useQuery({
+    queryKey: ["intake-asset", businessId, intakeId, kind, index],
+    queryFn: () =>
+      websiteIntakeApi.assetObjectUrl(businessId, intakeId, kind, index),
+    staleTime: Infinity,
+    gcTime: Infinity,
+  });
+
+  const cls = contain
+    ? "h-20 w-20 rounded-xl border border-navy-100 bg-navy-50 object-contain p-1"
+    : "aspect-square w-full rounded-xl border border-navy-100 object-cover";
+
+  if (!blob.data) {
+    return (
+      <div
+        className={`${contain ? "h-20 w-20" : "aspect-square w-full"} grid place-items-center rounded-xl border border-navy-100 bg-navy-50`}
+      >
+        <Spinner />
+      </div>
+    );
+  }
+
+  return (
+    <a
+      href={blob.data}
+      target="_blank"
+      rel="noreferrer"
+      title={asset.name}
+      className="block transition hover:opacity-90"
+    >
+      <img src={blob.data} alt={asset.name} className={cls} />
+    </a>
   );
 }
 

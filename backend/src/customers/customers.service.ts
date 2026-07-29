@@ -243,6 +243,34 @@ export class CustomersService {
     return rows.find((c) => normalizePhoneKey(c.phone) === key) ?? null;
   }
 
+  /**
+   * Finds an existing customer matching EITHER a normalized phone OR a
+   * case-insensitive email — the dedupe key for public intake submissions, so a
+   * client who fills a form twice (or is already a customer) isn't registered
+   * again. Phone takes priority; email is the fallback. Returns null if neither
+   * is present or nothing matches.
+   */
+  async findByPhoneOrEmail(
+    businessId: string,
+    phone?: string | null,
+    email?: string | null,
+  ): Promise<Customer | null> {
+    const phoneKey = normalizePhoneKey(phone);
+    const emailKey = email?.trim().toLowerCase() || null;
+    if (!phoneKey && !emailKey) return null;
+    const rows = await this.customers.find({
+      where: { businessId },
+      take: 2000,
+    });
+    return (
+      rows.find(
+        (c) =>
+          (phoneKey && normalizePhoneKey(c.phone) === phoneKey) ||
+          (emailKey && (c.email?.trim().toLowerCase() ?? null) === emailKey),
+      ) ?? null
+    );
+  }
+
   async update(
     businessId: string,
     id: string,

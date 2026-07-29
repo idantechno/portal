@@ -17,9 +17,7 @@ export class AddQuotePublicToken1785100000000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "IDX_quotes_public_token"`,
-    );
+    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_quotes_public_token"`);
     await queryRunner.query(
       `ALTER TABLE "quotes" DROP COLUMN IF EXISTS "public_token"`,
     );

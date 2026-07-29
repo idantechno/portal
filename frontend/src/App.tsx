@@ -11,6 +11,7 @@ import Login from "./pages/Login";
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const SignDocument = lazy(() => import("./pages/SignDocument"));
 const Questionnaire = lazy(() => import("./pages/Questionnaire"));
+const WebsiteBrief = lazy(() => import("./pages/WebsiteBrief"));
 const AgentDocumentsPage = lazy(() => import("./pages/AgentDocumentsPage"));
 const AgentIdeasPage = lazy(() => import("./pages/AgentIdeasPage"));
 const AgentMainPage = lazy(() => import("./pages/AgentMainPage"));
@@ -117,6 +118,7 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/sign/:token" element={<SignDocument />} />
         <Route path="/strategy" element={<Questionnaire />} />
+        <Route path="/website-brief" element={<WebsiteBrief />} />
         <Route
           path="/app"
           element={

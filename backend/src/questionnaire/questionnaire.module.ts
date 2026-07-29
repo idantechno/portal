@@ -18,5 +18,7 @@ import { OperatorNotifierService } from './operator-notifier.service';
   ],
   controllers: [QuestionnaireController],
   providers: [QuestionnaireService, OperatorNotifierService],
+  // WebsiteIntakeModule reuses the same out-of-band operator notifier.
+  exports: [OperatorNotifierService],
 })
 export class QuestionnaireModule {}

@@ -7,6 +7,6 @@ export class DraftQuoteDto {
    */
   @IsString()
   @MinLength(2)
-  @MaxLength(8000)
+  @MaxLength(24_000)
   brief!: string;
 }

@@ -75,7 +75,8 @@ Note how \`intro\` stays a single scope sentence and every deliverable is its ow
     const raw = await this.claude.json<RawDraft>({
       system,
       user,
-      maxTokens: 2000,
+      // Headroom so a long paste with many line items isn't truncated mid-JSON.
+      maxTokens: 4000,
       timeoutMs: 120_000,
     });
     if (!raw) {

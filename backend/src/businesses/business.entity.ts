@@ -42,11 +42,18 @@ export interface BusinessOnboarding {
 
 /** Per-business look & feel applied across the cockpit UI. All optional. */
 export interface BusinessBranding {
-  /** Main brand color — base for the sidebar/header. Hex `#rrggbb`. */
+  /**
+   * Full brand palette (up to 5) ordered by preference — index 0 is the most
+   * preferred. The top three feed `primaryColor`/`secondaryColor`/`accentColor`
+   * (kept in sync so every existing consumer keeps working); extra colours are
+   * available for richer document designs. Hex `#rrggbb` each.
+   */
+  palette?: string[];
+  /** Main brand color — base for the sidebar/header (= palette[0]). Hex `#rrggbb`. */
   primaryColor?: string;
-  /** Secondary brand color — links/highlights. Hex `#rrggbb`. */
+  /** Secondary brand color — links/highlights (= palette[1]). Hex `#rrggbb`. */
   secondaryColor?: string;
-  /** Accent color — active state, primary buttons. Hex `#rrggbb`. */
+  /** Accent color — active state, primary buttons (= palette[2]). Hex `#rrggbb`. */
   accentColor?: string;
   /** Logo as a data URI (client-resized) or absolute URL. */
   logoUrl?: string;

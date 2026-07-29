@@ -5,7 +5,7 @@ import { apiErrorMessage } from "../api/client";
 import type { Business } from "../api/types";
 import { Button, Card, FormError, Input, Label, Spinner } from "./ui";
 import { businessThemeVars, DEFAULT_BRANDING, normalizeHex } from "../lib/theme";
-import { extractPaletteFromFile, fileToResizedDataUrl, mostSaturatedIndex } from "../lib/image";
+import { extractPaletteFromFile, fileToResizedDataUrl } from "../lib/image";
 import { Icon } from "./icons";
 
 interface Props {
@@ -13,54 +13,71 @@ interface Props {
   business: Business;
 }
 
-function ColorField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-}) {
+/** Roles the top-3 ranked colors fill (the rest are extra palette colors). */
+const ROLE = ["ראשי", "משני", "הדגשה"];
+
+/** A small CSS-drawn up/down caret for the reorder buttons. */
+function Caret({ dir }: { dir: "up" | "down" }) {
   return (
-    <div>
-      <Label>{label}</Label>
-      <div className="flex items-center gap-2">
-        <input
-          type="color"
-          value={normalizeHex(value) ?? "#000000"}
-          onChange={(e) => onChange(e.target.value)}
-          className="h-9 w-10 rounded-lg border border-navy-200 bg-white p-0.5 cursor-pointer shrink-0"
-          aria-label={label}
-        />
-        <Input
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          dir="ltr"
-          className="font-mono text-sm"
-        />
-      </div>
-    </div>
+    <span
+      style={{
+        display: "inline-block",
+        width: 0,
+        height: 0,
+        borderLeft: "4px solid transparent",
+        borderRight: "4px solid transparent",
+        ...(dir === "up"
+          ? { borderBottom: "5px solid currentColor" }
+          : { borderTop: "5px solid currentColor" }),
+      }}
+    />
   );
 }
 
 export default function BrandingCard({ businessId, business }: Props) {
   const qc = useQueryClient();
   const b = business.branding ?? {};
-  const [primary, setPrimary] = useState(
-    b.primaryColor ?? DEFAULT_BRANDING.primaryColor,
-  );
-  const [secondary, setSecondary] = useState(
-    b.secondaryColor ?? DEFAULT_BRANDING.secondaryColor,
-  );
-  const [accent, setAccent] = useState(
-    b.accentColor ?? DEFAULT_BRANDING.accentColor,
+  const seedPalette =
+    b.palette && b.palette.length
+      ? b.palette
+      : [b.primaryColor, b.secondaryColor, b.accentColor].filter(
+          (c): c is string => Boolean(c),
+        );
+  const [palette, setPalette] = useState<string[]>(
+    seedPalette.length
+      ? seedPalette
+      : [
+          DEFAULT_BRANDING.primaryColor,
+          DEFAULT_BRANDING.secondaryColor,
+          DEFAULT_BRANDING.accentColor,
+        ],
   );
   const [logo, setLogo] = useState<string | undefined>(b.logoUrl);
   const [slogan, setSlogan] = useState(b.slogan ?? "");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<null | "logo" | "palette">(null);
   const [saved, setSaved] = useState(false);
+
+  // The top-3 ranked colors drive the whole app (theme + document designs);
+  // extra palette colors are stored for richer designs later.
+  const primary = normalizeHex(palette[0]) ?? DEFAULT_BRANDING.primaryColor;
+  const secondary = normalizeHex(palette[1]) ?? primary;
+  const accent = normalizeHex(palette[2]) ?? secondary;
+
+  const setColor = (i: number, v: string) =>
+    setPalette((p) => p.map((c, j) => (j === i ? v : c)));
+  const addColor = () =>
+    setPalette((p) => (p.length >= 5 ? p : [...p, "#64748b"]));
+  const removeColor = (i: number) =>
+    setPalette((p) => (p.length <= 1 ? p : p.filter((_, j) => j !== i)));
+  const move = (i: number, d: -1 | 1) =>
+    setPalette((p) => {
+      const j = i + d;
+      if (j < 0 || j >= p.length) return p;
+      const next = [...p];
+      [next[i], next[j]] = [next[j], next[i]];
+      return next;
+    });
 
   const logoInput = useRef<HTMLInputElement>(null);
   const paletteInput = useRef<HTMLInputElement>(null);
@@ -69,10 +86,12 @@ export default function BrandingCard({ businessId, business }: Props) {
     mutationFn: () =>
       businessesApi.update(businessId, {
         branding: {
-          primaryColor: normalizeHex(primary) ?? DEFAULT_BRANDING.primaryColor,
-          secondaryColor:
-            normalizeHex(secondary) ?? DEFAULT_BRANDING.secondaryColor,
-          accentColor: normalizeHex(accent) ?? DEFAULT_BRANDING.accentColor,
+          palette: palette
+            .map((c) => normalizeHex(c))
+            .filter((c): c is string => Boolean(c)),
+          primaryColor: primary,
+          secondaryColor: secondary,
+          accentColor: accent,
           logoUrl: logo,
           slogan: slogan.trim() || undefined,
         },
@@ -108,13 +127,9 @@ export default function BrandingCard({ businessId, business }: Props) {
     setError(null);
     setBusy("palette");
     try {
-      const colors = await extractPaletteFromFile(file, 3);
+      const colors = await extractPaletteFromFile(file, 5);
       if (colors.length) {
-        const accentIdx = mostSaturatedIndex(colors);
-        setAccent(colors[accentIdx]);
-        const rest = colors.filter((_, i) => i !== accentIdx);
-        if (rest[0]) setPrimary(rest[0]);
-        if (rest[1]) setSecondary(rest[1]);
+        setPalette(colors);
       } else {
         setError("לא נמצאו צבעים בתמונה");
       }
@@ -141,10 +156,71 @@ export default function BrandingCard({ businessId, business }: Props) {
       <div className="grid md:grid-cols-2 gap-6">
         {/* Controls */}
         <div className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            <ColorField label="ראשי" value={primary} onChange={setPrimary} />
-            <ColorField label="משני" value={secondary} onChange={setSecondary} />
-            <ColorField label="הדגשה" value={accent} onChange={setAccent} />
+          <div className="space-y-2">
+            <Label>צבעי המותג — לפי סדר העדפה</Label>
+            {palette.map((c, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <span className="w-16 shrink-0 text-xs text-navy-400">
+                  {i + 1}. {ROLE[i] ?? "נוסף"}
+                </span>
+                <input
+                  type="color"
+                  value={normalizeHex(c) ?? "#000000"}
+                  onChange={(e) => setColor(i, e.target.value)}
+                  className="h-9 w-10 rounded-lg border border-navy-200 bg-white p-0.5 cursor-pointer shrink-0"
+                  aria-label={`צבע ${i + 1}`}
+                />
+                <Input
+                  value={c}
+                  onChange={(e) => setColor(i, e.target.value)}
+                  dir="ltr"
+                  className="font-mono text-sm flex-1"
+                />
+                <div className="flex flex-col gap-0.5">
+                  <button
+                    type="button"
+                    onClick={() => move(i, -1)}
+                    disabled={i === 0}
+                    aria-label="הזז מעלה"
+                    className="grid h-4 w-5 place-items-center rounded text-navy-400 hover:bg-navy-50 disabled:opacity-25"
+                  >
+                    <Caret dir="up" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => move(i, 1)}
+                    disabled={i === palette.length - 1}
+                    aria-label="הזז מטה"
+                    className="grid h-4 w-5 place-items-center rounded text-navy-400 hover:bg-navy-50 disabled:opacity-25"
+                  >
+                    <Caret dir="down" />
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeColor(i)}
+                  disabled={palette.length <= 1}
+                  aria-label="הסר צבע"
+                  className="grid h-8 w-7 place-items-center rounded-lg text-navy-400 hover:bg-navy-50 disabled:opacity-25"
+                >
+                  <Icon name="trash" size={14} />
+                </button>
+              </div>
+            ))}
+            {palette.length < 5 && (
+              <button
+                type="button"
+                onClick={addColor}
+                className="inline-flex items-center gap-1.5 text-sm text-brand-700 hover:underline"
+              >
+                <Icon name="plus" size={14} />
+                הוסף צבע
+              </button>
+            )}
+            <p className="text-xs text-navy-400">
+              הצבע הראשון הוא הראשי; שלושת הראשונים בדירוג משמשים לממשק
+              ולמסמכים. עד 5 צבעים.
+            </p>
           </div>
 
           <div>

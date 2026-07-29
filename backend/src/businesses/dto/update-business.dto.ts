@@ -17,6 +17,13 @@ import {
 import { Type } from 'class-transformer';
 
 export class BrandingDto {
+  /** Ordered brand palette (up to 5, index 0 = most preferred). */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(5)
+  @IsHexColor({ each: true })
+  palette?: string[];
+
   @IsOptional()
   @IsHexColor()
   primaryColor?: string;

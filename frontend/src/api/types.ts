@@ -19,6 +19,8 @@ export interface AuthResponse {
 }
 
 export interface BusinessBranding {
+  /** Ordered brand palette (up to 5, index 0 = most preferred). */
+  palette?: string[];
   primaryColor?: string;
   secondaryColor?: string;
   accentColor?: string;

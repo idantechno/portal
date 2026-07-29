@@ -1,4 +1,4 @@
-import { Controller, Get, Header, Param, Res } from '@nestjs/common';
+import { Controller, Get, Param, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { Public } from '../auth/decorators/public.decorator';
 import { QuotePdfService } from './quote-pdf.service';
@@ -13,14 +13,16 @@ import { QuotePdfService } from './quote-pdf.service';
 export class QuotesPublicController {
   constructor(private readonly pdfService: QuotePdfService) {}
 
+  // Write the buffer straight to the response — returning a Buffer through
+  // Nest's reply path serializes it to JSON, which won't render as a PDF.
   @Get(':token/pdf')
-  @Header('Content-Type', 'application/pdf')
   async pdf(
     @Param('token') token: string,
-    @Res({ passthrough: true }) res: Response,
-  ): Promise<Buffer> {
+    @Res() res: Response,
+  ): Promise<void> {
     const { buffer, filename } = await this.pdfService.pdfByToken(token);
+    res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
-    return buffer;
+    res.end(buffer);
   }
 }

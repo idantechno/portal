@@ -3,7 +3,6 @@ import {
   Controller,
   Delete,
   Get,
-  Header,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -64,17 +63,21 @@ export class QuotesController {
     return { ...quote, markdown: renderQuote(quote) };
   }
 
-  /** Streams the branded PDF of the quote inline. */
+  /**
+   * Streams the branded PDF of the quote inline. Writes the buffer directly to
+   * the response — returning a Buffer through Nest's reply path serializes it to
+   * JSON (`{"type":"Buffer",...}`), which browsers can't render as a PDF.
+   */
   @Get('quotes/:id/pdf')
-  @Header('Content-Type', 'application/pdf')
   async pdf(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Param('id', ParseUUIDPipe) id: string,
-    @Res({ passthrough: true }) res: Response,
-  ): Promise<Buffer> {
+    @Res() res: Response,
+  ): Promise<void> {
     const buffer = await this.pdfService.pdf(businessId, id);
+    res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'inline; filename="quote.pdf"');
-    return buffer;
+    res.end(buffer);
   }
 
   /**

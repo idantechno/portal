@@ -58,6 +58,8 @@ function QuoteEditor({
   );
   const [total, setTotal] = useState(quote.total ?? "");
   const [notes, setNotes] = useState(quote.notes ?? "");
+  const [phone, setPhone] = useState("");
+  const [acting, setActing] = useState<"pdf" | "preview" | "wa" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
@@ -125,6 +127,64 @@ function QuoteEditor({
       items.map((it, j) => (j === i ? { ...it, ...patch } : it)),
     );
 
+  // PDF/share act on the SAVED quote, so save the current form first.
+  const saveThen = async (
+    fn: () => Promise<void>,
+    kind: "pdf" | "preview" | "wa",
+  ) => {
+    setActing(kind);
+    setError(null);
+    try {
+      await save.mutateAsync(currentBody());
+      await fn();
+    } catch (e) {
+      setError(apiErrorMessage(e, "הפעולה נכשלה"));
+    } finally {
+      setActing(null);
+    }
+  };
+
+  const downloadPdf = () =>
+    void saveThen(async () => {
+      const blob = await quotesApi.pdf(businessId, quoteId);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "הצעת-מחיר.pdf";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    }, "pdf");
+
+  const previewPdf = () => {
+    // Open the tab synchronously (before await) so popup blockers allow it.
+    const w = window.open("about:blank", "_blank");
+    void saveThen(async () => {
+      const blob = await quotesApi.pdf(businessId, quoteId);
+      const url = URL.createObjectURL(blob);
+      if (w) w.location.href = url;
+      else window.open(url, "_blank");
+    }, "preview");
+  };
+
+  const sendWhatsapp = () => {
+    const digits = phone.replace(/\D/g, "");
+    const intl = digits.startsWith("0") ? `972${digits.slice(1)}` : digits;
+    if (intl.length < 9) {
+      setError("מספר טלפון לא תקין");
+      return;
+    }
+    const w = window.open("about:blank", "_blank");
+    void saveThen(async () => {
+      const { publicUrl } = await quotesApi.share(businessId, quoteId);
+      const msg = `הצעת מחיר — ${title.trim()}\n${publicUrl}`;
+      const wa = `https://wa.me/${intl}?text=${encodeURIComponent(msg)}`;
+      if (w) w.location.href = wa;
+      else window.open(wa, "_blank");
+    }, "wa");
+  };
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
       <Link
@@ -183,22 +243,23 @@ function QuoteEditor({
           <Input value={title} onChange={(e) => setTitle(e.target.value)} />
         </Card>
 
-        {/* AI draft — tailored to the business */}
+        {/* AI draft — tailored to the business; accepts a brief OR pasted text */}
         <Card className="p-4 bg-brand-50/40">
           <div className="mb-1.5 text-sm font-semibold text-navy-800">
             ניסוח חכם לפי אופי העסק
           </div>
           <p className="mb-2.5 text-xs text-navy-400">
-            כתוב במשפט מה אתה מתמחר, והסוכן ינסח מבנה והיקף שמתאימים לעסק שלך.
-            המחירים תמיד נשארים לך למילוי.
+            כתוב במשפט מה אתה מתמחר — או הדבק כאן תוכן קיים (הצעה ישנה, מייל,
+            רשימת שירותים) — והסוכן יבנה ממנו הצעה שמתאימה לעסק שלך. המחירים תמיד
+            נשארים לך למילוי.
           </p>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Input
-              value={brief}
-              onChange={(e) => setBrief(e.target.value)}
-              placeholder="למשל: בניית אתר תדמית עם מערכת ניהול תוכן"
-              className="flex-1"
-            />
+          <Textarea
+            value={brief}
+            onChange={(e) => setBrief(e.target.value)}
+            placeholder="למשל: בניית אתר תדמית עם מערכת ניהול תוכן — או הדבק טקסט קיים"
+            rows={3}
+          />
+          <div className="mt-2 flex justify-end">
             <Button
               icon="idea"
               disabled={brief.trim().length < 2 || draft.isPending}
@@ -303,6 +364,53 @@ function QuoteEditor({
             placeholder="תוקף ההצעה, שלבי תשלום, הערות…"
             rows={2}
           />
+        </Card>
+
+        {/* Document + send to client */}
+        <Card className="p-4">
+          <div className="mb-3 text-sm font-semibold text-navy-800">
+            מסמך ושליחה
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="ghost"
+              icon="doc"
+              disabled={acting !== null}
+              onClick={previewPdf}
+            >
+              {acting === "preview" ? "מכין…" : "תצוגה מקדימה"}
+            </Button>
+            <Button
+              variant="ghost"
+              icon="download"
+              disabled={acting !== null}
+              onClick={downloadPdf}
+            >
+              {acting === "pdf" ? "מכין…" : "הורד PDF"}
+            </Button>
+          </div>
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
+            <div className="flex-1">
+              <Label>טלפון הלקוח</Label>
+              <Input
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="050-0000000"
+              />
+            </div>
+            <Button
+              variant="teal"
+              icon="whatsapp"
+              disabled={acting !== null || phone.replace(/\D/g, "").length < 9}
+              onClick={sendWhatsapp}
+            >
+              {acting === "wa" ? "מכין…" : "שלח בוואטסאפ"}
+            </Button>
+          </div>
+          <p className="mt-2 text-xs text-navy-400">
+            השמירה מתבצעת אוטומטית לפני כל פעולה. השליחה פותחת וואטסאפ עם הודעה
+            ולינק להצעה — לחיצה על "שלח" בוואטסאפ תעביר אותה ללקוח.
+          </p>
         </Card>
 
         <div className="flex justify-end">

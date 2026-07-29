@@ -80,12 +80,28 @@ export const quotesApi = {
       .patch<Quote>(`/businesses/${businessId}/quotes/${id}`, patch)
       .then((r) => r.data),
 
-  /** AI-draft a business-tailored quote body from a one-line brief. */
+  /** AI-draft a business-tailored quote body from a brief OR pasted content. */
   draft: (businessId: string, id: string, brief: string) =>
     api
       .post<QuoteDraft | null>(
         `/businesses/${businessId}/quotes/${id}/draft`,
         { brief },
+      )
+      .then((r) => r.data),
+
+  /** The rendered branded PDF as a Blob (for download / preview). */
+  pdf: (businessId: string, id: string) =>
+    api
+      .get<Blob>(`/businesses/${businessId}/quotes/${id}/pdf`, {
+        responseType: "blob",
+      })
+      .then((r) => r.data),
+
+  /** Ensure a public link and get its URL — for sending to the client. */
+  share: (businessId: string, id: string) =>
+    api
+      .post<{ token: string; publicUrl: string }>(
+        `/businesses/${businessId}/quotes/${id}/share`,
       )
       .then((r) => r.data),
 

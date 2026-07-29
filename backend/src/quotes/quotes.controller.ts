@@ -3,16 +3,21 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   Param,
   ParseUUIDPipe,
   Patch,
   Post,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
+import { ConfigService } from '@nestjs/config';
 import { BusinessScopeGuard } from '../businesses/guards/business-scope.guard';
 import { QuotesService } from './quotes.service';
 import { QuoteDrafterService } from './quote-drafter.service';
+import { QuotePdfService } from './quote-pdf.service';
 import { CreateQuoteDto } from './dto/create-quote.dto';
 import { UpdateQuoteDto } from './dto/update-quote.dto';
 import { DraftQuoteDto } from './dto/draft-quote.dto';
@@ -29,6 +34,8 @@ export class QuotesController {
   constructor(
     private readonly quotes: QuotesService,
     private readonly drafter: QuoteDrafterService,
+    private readonly pdfService: QuotePdfService,
+    private readonly config: ConfigService,
   ) {}
 
   @Post('customers/:customerId/quotes')
@@ -55,6 +62,36 @@ export class QuotesController {
   ) {
     const quote = await this.quotes.findByIdScoped(businessId, id);
     return { ...quote, markdown: renderQuote(quote) };
+  }
+
+  /** Streams the branded PDF of the quote inline. */
+  @Get('quotes/:id/pdf')
+  @Header('Content-Type', 'application/pdf')
+  async pdf(
+    @Param('businessId', ParseUUIDPipe) businessId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<Buffer> {
+    const buffer = await this.pdfService.pdf(businessId, id);
+    res.setHeader('Content-Disposition', 'inline; filename="quote.pdf"');
+    return buffer;
+  }
+
+  /**
+   * Mints (or returns) the public share token and the absolute public PDF URL
+   * the frontend drops into a wa.me link.
+   */
+  @Post('quotes/:id/share')
+  async share(
+    @Param('businessId', ParseUUIDPipe) businessId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const token = await this.quotes.ensurePublicToken(businessId, id);
+    const apiBase = this.config.get<string>(
+      'API_PUBLIC_URL',
+      'https://api.portalstudio.co.il',
+    );
+    return { token, publicUrl: `${apiBase}/api/quotes/p/${token}/pdf` };
   }
 
   /**

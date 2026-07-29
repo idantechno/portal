@@ -96,6 +96,14 @@ export class Quote {
   @Column({ type: 'text', nullable: true })
   notes!: string | null;
 
+  /**
+   * Unguessable token that authenticates the public PDF link (the wa.me share).
+   * Null until the operator shares the quote; set once and reused thereafter.
+   */
+  @Index({ unique: true })
+  @Column({ type: 'varchar', length: 64, name: 'public_token', nullable: true })
+  publicToken!: string | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 

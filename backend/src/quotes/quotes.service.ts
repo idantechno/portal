@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -111,6 +112,23 @@ export class QuotesService {
     const saved = await this.quotes.save(quote);
     await this.mirror(saved);
     return saved;
+  }
+
+  /**
+   * Returns the quote's public share token, minting one on first use. The token
+   * authenticates the public PDF link the frontend drops into a wa.me message.
+   */
+  async ensurePublicToken(businessId: string, id: string): Promise<string> {
+    const quote = await this.findByIdScoped(businessId, id);
+    if (quote.publicToken) return quote.publicToken;
+    quote.publicToken = randomBytes(24).toString('base64url');
+    const saved = await this.quotes.save(quote);
+    return saved.publicToken!;
+  }
+
+  /** Public lookup by share token — no business scope; the token is the auth. */
+  findByPublicToken(token: string): Promise<Quote | null> {
+    return this.quotes.findOne({ where: { publicToken: token } });
   }
 
   async remove(businessId: string, id: string): Promise<void> {

@@ -40,18 +40,34 @@ export class QuoteDrafterService {
 
     const system = `You draft a professional price quote ("הצעת מחיר") that a business sends to its customer. Tailor it to THIS business's character and field: a web/design studio quotes discovery/design/development/CMS/support lines; a clinic quotes treatments or packages; a marketer quotes channels; a consultant quotes phases — and so on. Read the business profile and infer the right kind of line items.
 
+The input may be a short brief OR pasted existing content (an old quote, notes, an email). Either way, extract and structure it into the JSON below, tailored to the business.
+
 Hard rules:
 - Write everything in Hebrew.
+- \`intro\` is ONE short paragraph of overall scope ONLY. Each concrete deliverable MUST be a separate object in \`lineItems\` — NEVER list deliverables inside \`intro\`.
 - Produce concise, realistic line items that fit both what is being quoted AND the kind of business. Prefer 3–7 items.
 - NEVER include, guess, or imply prices, amounts, or budgets. Pricing is the operator's decision — leave all money out entirely.
 - Ground the work in the business profile below; do not invent facts about the business or the customer.
 
 Return ONLY a JSON object of exactly this shape (no prose, no code fences):
 {
-  "intro": "<1-3 sentence scope / what is included>",
+  "intro": "<1 short paragraph of overall scope — NO deliverable lists>",
   "lineItems": [ { "name": "<short item name>", "description": "<what it covers>" } ],
   "terms": "<short terms: validity of the quote, payment stages, notes — still NO prices>"
-}`;
+}
+
+Example (for a brief "בניית אתר תדמית למסעדה"):
+{
+  "intro": "בניית אתר תדמית למסעדה, מותאם למובייל, שמציג את הקונספט, התפריט ופרטי ההזמנה.",
+  "lineItems": [
+    { "name": "אפיון ואסטרטגיה", "description": "פגישת אפיון, מיפוי עמודים ומסרים מרכזיים." },
+    { "name": "עיצוב UI/UX", "description": "עיצוב ויזואלי לכל עמודי האתר בהתאמה למותג." },
+    { "name": "פיתוח ובנייה", "description": "בניית האתר מותאם למובייל עם מערכת ניהול תוכן." },
+    { "name": "העלאה לאוויר", "description": "חיבור דומיין, בדיקות ופרסום האתר." }
+  ],
+  "terms": "ההצעה בתוקף ל-30 יום. תשלום ב-2 פעימות: מקדמה בתחילת העבודה ויתרה בהעלאה לאוויר."
+}
+Note how \`intro\` stays a single scope sentence and every deliverable is its own line item — never inside intro.`;
 
     const profileBlock = profile ? `\n\nBusiness profile:\n${profile}` : '';
     const user = `Draft a quote for: ${brief.trim()}${profileBlock}`;

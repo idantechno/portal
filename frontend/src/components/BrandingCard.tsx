@@ -321,9 +321,21 @@ export default function BrandingCard({ businessId, business }: Props) {
                   dir="ltr"
                   className="font-mono text-sm w-32"
                 />
+                <button
+                  type="button"
+                  onClick={() =>
+                    void detectImageBackground(logo).then(setLogoBg)
+                  }
+                  className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-navy-200 px-3 py-2 text-sm hover:bg-cream-50"
+                >
+                  <Icon name="palette" size={14} />
+                  זהה מהלוגו
+                </button>
               </div>
               <p className="text-xs text-navy-400 mt-1">
-                הצבע שעליו יושב הלוגו במסמכים — מזוהה אוטומטית, אפשר לתקן.
+                הצבע שעליו יושב הלוגו במסמכים — נדגם ישירות מפיקסלי הלוגו כדי
+                לשחזר את הגוון המדויק (כך אפקט הלוגו הצף עובד חלק). אפשר גם לתקן
+                ידנית.
               </p>
             </div>
           )}

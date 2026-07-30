@@ -20,13 +20,13 @@ import {
 import { Icon } from "../../components/icons";
 
 const TEMPLATES: { key: QuoteTemplate; label: string; hint: string }[] = [
-  { key: "classic", label: "נקי-מודרני", hint: "פס מותג עדין, טבלה מעוגלת" },
-  { key: "sidebar", label: "פס-צד", hint: "עמודת צבע עם לוגו וסה״כ" },
-  { key: "bold", label: "כותרת מודגשת", hint: "בלוק צבע רחב בראש" },
-  { key: "minimal", label: "מינימלי", hint: "אוורירי, קו הדגשה" },
-  { key: "editorial", label: "אלגנטי", hint: "סריף, מגזיני" },
-  { key: "strip", label: "רצועה", hint: "רקע לבן, רצועת מותג עליונה" },
-  { key: "emblem", label: "אמבלם", hint: "רקע לבן, לוגו בהילה רכה" },
+  { key: "classic", label: "קלאסי", hint: "רקע בצבע הלוגו, פס מותג" },
+  { key: "bold", label: "מודגש", hint: "רקע בצבע הלוגו, בלוק כותרת" },
+  { key: "minimal", label: "מינימלי", hint: "רקע בצבע הלוגו, אוורירי" },
+  { key: "editorial", label: "אלגנטי", hint: "רקע בצבע הלוגו, סריף" },
+  { key: "emblem", label: "אמבלם", hint: "רקע בצבע הלוגו, לוגו במרכז" },
+  { key: "sidebar", label: "פס-צד", hint: "מסמך לבן + סיידבר בצבע הלוגו" },
+  { key: "strip", label: "רצועה", hint: "מסמך לבן + רצועה בצבע הלוגו" },
 ];
 
 export default function QuoteDetail() {

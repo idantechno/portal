@@ -69,10 +69,6 @@ export class CustomerContactsService {
     );
   }
 
-  findById(id: string): Promise<CustomerContact | null> {
-    return this.contacts.findOne({ where: { id } });
-  }
-
   findByExternalId(
     channel: Channel,
     externalId: string,

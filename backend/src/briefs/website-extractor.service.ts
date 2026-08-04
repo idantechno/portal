@@ -1,6 +1,6 @@
 import * as dns from 'node:dns/promises';
 import { Injectable, Logger } from '@nestjs/common';
-import { type Browser, type Page, launch } from 'puppeteer';
+import type { Browser, Page } from 'puppeteer';
 import { ClaudeJsonService } from './claude-json.service';
 import { UNKNOWN } from './brief-facts';
 
@@ -280,6 +280,10 @@ export class WebsiteExtractorService {
   }
 
   private async launchBrowser(): Promise<Browser> {
+    // Imported lazily (puppeteer ships ESM-only) so requiring this module —
+    // e.g. from an unrelated test file elsewhere in the same directory —
+    // doesn't force a synchronous CJS load of it.
+    const { launch } = await import('puppeteer');
     // System Chromium in prod (PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium),
     // bundled binary locally. --no-sandbox: the container is the boundary.
     return launch({

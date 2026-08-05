@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -82,15 +82,15 @@ export default function ContactDetail() {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [confirmErase, setConfirmErase] = useState(false);
+  const [seededContactId, setSeededContactId] = useState<string | null>(null);
 
-  // Seed the editable fields once the card loads.
-  useEffect(() => {
-    if (card.data) {
-      setName(card.data.contact.displayName ?? "");
-      setNotes(card.data.contact.notes ?? "");
-      setSt(card.data.contact.status);
-    }
-  }, [card.data]);
+  // Seed the editable fields once the card loads (or a different contact loads).
+  if (card.data && card.data.contact.id !== seededContactId) {
+    setSeededContactId(card.data.contact.id);
+    setName(card.data.contact.displayName ?? "");
+    setNotes(card.data.contact.notes ?? "");
+    setSt(card.data.contact.status);
+  }
 
   const save = useMutation({
     mutationFn: () =>

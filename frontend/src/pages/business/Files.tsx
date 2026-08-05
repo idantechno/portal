@@ -4,19 +4,51 @@ import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { filesApi } from "../../api/files";
+import { businessesApi } from "../../api/businesses";
 import { apiErrorMessage } from "../../api/client";
 import { useAuthStore } from "../../store/auth";
 import { isPlatformStaff } from "../../lib/roles";
 import {
   Button,
   Card,
+  EmptyState,
   FormError,
+  IconTile,
   Input,
+  Label,
+  PageHeader,
   Spinner,
+  Textarea,
 } from "../../components/ui";
 import { renderMarkdown } from "../../components/markdown";
 import { Icon } from "../../components/icons";
 import type { ContextFile, ContextFileTree } from "../../api/types";
+
+/**
+ * Top-level folders under the business root that hold agent OUTPUT or other
+ * internal feature state — never the client's own business knowledge. The
+ * client "ידע והנחיות" view hides these; the operator file manager still shows
+ * everything. `_hidden/` is already stripped server-side for non-staff, but is
+ * listed here too as defence-in-depth.
+ */
+const CLIENT_HIDDEN_FOLDERS = new Set([
+  "_hidden",
+  "briefs",
+  "ideas",
+  "quotes",
+  "strategies",
+  "plans",
+  "campaigns",
+  "designs",
+  "objectives",
+  "expenses",
+  "filing",
+]);
+
+function topFolder(relativePath: string): string {
+  const i = relativePath.indexOf("/");
+  return i < 0 ? "" : relativePath.slice(0, i);
+}
 
 const TEXT_EXTENSIONS = new Set([
   "md", "markdown", "txt", "csv", "json", "yaml", "yml",
@@ -109,6 +141,21 @@ export default function Files() {
   const [searchParams, setSearchParams] = useSearchParams();
   const path = searchParams.get("path") ?? "";
   const fileId = searchParams.get("file");
+  const user = useAuthStore((s) => s.user);
+
+  // Same query the layout already caches — no extra fetch. Tells us whether the
+  // current viewer reached this business through platform-staff privilege.
+  const biz = useQuery({
+    queryKey: ["business", businessId],
+    queryFn: () => businessesApi.get(businessId),
+    enabled: Boolean(businessId),
+  });
+
+  // Operator = platform staff (by role) or someone who entered via staff. Only
+  // the operator gets the full file/folder manager, hidden agent instructions
+  // and the internal output folders; the client gets a friendly knowledge view.
+  const isOperator =
+    isPlatformStaff(user?.role) || Boolean(biz.data?.viaPlatformStaff);
 
   const tree = useQuery({
     queryKey: ["files-tree", businessId],
@@ -116,15 +163,33 @@ export default function Files() {
     enabled: Boolean(businessId),
   });
 
+  const openFile = (id: string) => {
+    searchParams.set("file", id);
+    setSearchParams(searchParams);
+  };
+  const closeFile = () => {
+    searchParams.delete("file");
+    setSearchParams(searchParams, { replace: true });
+  };
+
   if (fileId) {
     return (
       <FileEditor
         businessId={businessId}
         fileId={fileId}
-        onClose={() => {
-          searchParams.delete("file");
-          setSearchParams(searchParams, { replace: true });
-        }}
+        friendly={!isOperator}
+        onClose={closeFile}
+      />
+    );
+  }
+
+  if (!isOperator) {
+    return (
+      <ClientKnowledge
+        businessId={businessId}
+        tree={tree.data}
+        loading={tree.isLoading}
+        onOpenFile={openFile}
       />
     );
   }
@@ -140,11 +205,369 @@ export default function Files() {
         else searchParams.delete("path");
         setSearchParams(searchParams, { replace: true });
       }}
-      onOpenFile={(id) => {
-        searchParams.set("file", id);
-        setSearchParams(searchParams);
-      }}
+      onOpenFile={openFile}
     />
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Client (non-operator) view: a calm, plain-language knowledge screen. No file
+// tree, no paths, no `.md` framing — just the business's own information cards.
+// ---------------------------------------------------------------------------
+
+interface ClientKnowledgeProps {
+  businessId: string;
+  tree: ContextFileTree | undefined;
+  loading: boolean;
+  onOpenFile: (id: string) => void;
+}
+
+function ClientKnowledge({
+  businessId,
+  tree,
+  loading,
+  onOpenFile,
+}: ClientKnowledgeProps) {
+  const { i18n } = useTranslation();
+  const qc = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const replaceInputRef = useRef<HTMLInputElement>(null);
+  const replaceTargetRef = useRef<ContextFile | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [showNote, setShowNote] = useState(false);
+
+  const files = useMemo(() => {
+    if (!tree) return [] as ContextFile[];
+    return tree.files
+      .filter(
+        (f) =>
+          !f.hiddenForBusiness &&
+          !CLIENT_HIDDEN_FOLDERS.has(topFolder(f.relativePath)),
+      )
+      .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  }, [tree]);
+
+  const invalidate = () =>
+    qc.invalidateQueries({ queryKey: ["files-tree", businessId] });
+
+  const uploadMut = useMutation({
+    mutationFn: (file: File) => filesApi.upload(businessId, file),
+    onSuccess: invalidate,
+    onError: (err) => setError(apiErrorMessage(err, "העלאת הקובץ נכשלה")),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (fileId: string) => filesApi.delete(businessId, fileId),
+    onSuccess: invalidate,
+    onError: (err) => setError(apiErrorMessage(err, "מחיקת הקובץ נכשלה")),
+  });
+
+  // Replace = drop the old file and upload the picked one into the same folder.
+  const replaceMut = useMutation({
+    mutationFn: async ({ target, file }: { target: ContextFile; file: File }) => {
+      await filesApi.delete(businessId, target.id);
+      await filesApi.upload(businessId, file, {
+        folder: dirname(target.relativePath),
+      });
+    },
+    onSuccess: invalidate,
+    onError: (err) => setError(apiErrorMessage(err, "החלפת הקובץ נכשלה")),
+  });
+
+  function onPick(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setError(null);
+    uploadMut.mutate(file);
+  }
+
+  function onPickReplacement(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    const target = replaceTargetRef.current;
+    e.target.value = "";
+    replaceTargetRef.current = null;
+    if (!file || !target) return;
+    setError(null);
+    replaceMut.mutate({ target, file });
+  }
+
+  function startReplace(file: ContextFile) {
+    replaceTargetRef.current = file;
+    replaceInputRef.current?.click();
+  }
+
+  function onDeleteFile(file: ContextFile) {
+    if (!confirm(`למחוק את "${basename(file.relativePath)}"?`)) return;
+    setError(null);
+    deleteMut.mutate(file.id);
+  }
+
+  const busy = uploadMut.isPending || replaceMut.isPending;
+
+  return (
+    <div className="px-4 sm:px-6 py-6 sm:py-8 max-w-4xl mx-auto">
+      <PageHeader
+        title="הידע של העסק שלך"
+        subtitle="כאן נמצא המידע שהסוכן שלך משתמש בו כדי לענות ללקוחות שלך — מחירון, רשימת שירותים או מוצרים, שעות פעילות ושאלות נפוצות. ככל שתוסיף כאן יותר, כך התשובות שלו יהיו מדויקות יותר."
+        action={
+          <Button
+            icon="upload"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={busy}
+          >
+            {uploadMut.isPending ? (
+              <>
+                <Spinner /> מעלה...
+              </>
+            ) : (
+              "הוסף מידע"
+            )}
+          </Button>
+        }
+      />
+
+      <input
+        type="file"
+        ref={fileInputRef}
+        className="hidden"
+        onChange={onPick}
+      />
+      <input
+        type="file"
+        ref={replaceInputRef}
+        className="hidden"
+        onChange={onPickReplacement}
+      />
+
+      {error && (
+        <div className="mb-4">
+          <FormError message={error} />
+        </div>
+      )}
+
+      {showNote && (
+        <NoteComposer
+          businessId={businessId}
+          onCancel={() => setShowNote(false)}
+          onSaved={() => {
+            setShowNote(false);
+            invalidate();
+          }}
+        />
+      )}
+
+      {loading ? (
+        <Card className="p-10 text-center text-navy-400 text-sm">
+          <Spinner /> טוען...
+        </Card>
+      ) : files.length === 0 ? (
+        <Card>
+          <EmptyState
+            icon="doc"
+            title="עדיין לא הוספת מידע על העסק"
+            text="הוסף את המידע שהסוכן צריך כדי לענות ללקוחות — למשל מחירון, רשימת שירותים, שעות פעילות או שאלות נפוצות. אפשר להעלות קובץ קיים או לכתוב הערה קצרה."
+            action={
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <Button
+                  icon="upload"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={busy}
+                >
+                  העלה קובץ
+                </Button>
+                <Button
+                  variant="secondary"
+                  icon="pencil"
+                  onClick={() => setShowNote(true)}
+                >
+                  כתוב הערה
+                </Button>
+              </div>
+            }
+          />
+        </Card>
+      ) : (
+        <>
+          <Card className="divide-y divide-navy-100/70">
+            {files.map((file) => (
+              <ClientFileRow
+                key={file.id}
+                file={file}
+                lang={i18n.language}
+                busy={busy || deleteMut.isPending}
+                onOpen={() => onOpenFile(file.id)}
+                onReplace={() => startReplace(file)}
+                onDelete={() => onDeleteFile(file)}
+              />
+            ))}
+          </Card>
+          {!showNote && (
+            <div className="mt-4">
+              <Button
+                variant="secondary"
+                size="sm"
+                icon="pencil"
+                onClick={() => setShowNote(true)}
+              >
+                כתוב הערה
+              </Button>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function ClientFileRow({
+  file,
+  lang,
+  busy,
+  onOpen,
+  onReplace,
+  onDelete,
+}: {
+  file: ContextFile;
+  lang: string;
+  busy: boolean;
+  onOpen: () => void;
+  onReplace: () => void;
+  onDelete: () => void;
+}) {
+  const name = basename(file.relativePath);
+  const folder = dirname(file.relativePath);
+  const canView = isTextFile(file);
+  const updated = new Date(file.createdAt).toLocaleDateString(
+    lang === "he" ? "he-IL" : "en-US",
+    { day: "numeric", month: "short", year: "numeric" },
+  );
+
+  return (
+    <div className="flex items-center gap-3 p-3 sm:p-4">
+      <IconTile icon="doc" tone="brand" size="sm" />
+      <div className="min-w-0 flex-1">
+        <button
+          onClick={canView ? onOpen : undefined}
+          className={
+            canView
+              ? "block max-w-full truncate text-start font-medium text-navy-900 hover:text-brand-600"
+              : "block max-w-full truncate text-start font-medium text-navy-900"
+          }
+          title={name}
+        >
+          {name}
+        </button>
+        <div className="mt-0.5 text-xs text-navy-400">
+          {folder && <span>{folder} · </span>}
+          {formatBytes(file.size)} · עודכן {updated}
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center gap-1">
+        {canView && (
+          <button
+            onClick={onOpen}
+            className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-navy-600 hover:bg-navy-50"
+          >
+            פתח
+          </button>
+        )}
+        <button
+          onClick={onReplace}
+          disabled={busy}
+          className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-navy-600 hover:bg-navy-50 disabled:opacity-50"
+        >
+          החלף
+        </button>
+        <button
+          onClick={onDelete}
+          disabled={busy}
+          className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-coral-600 hover:bg-coral-50 disabled:opacity-50"
+        >
+          מחק
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function NoteComposer({
+  businessId,
+  onCancel,
+  onSaved,
+}: {
+  businessId: string;
+  onCancel: () => void;
+  onSaved: () => void;
+}) {
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const saveMut = useMutation({
+    mutationFn: () => {
+      const safeTitle = title.trim().replace(/[/\\]+/g, "-");
+      return filesApi.createTextFile(businessId, {
+        path: `${safeTitle}.txt`,
+        content: body,
+      });
+    },
+    onSuccess: onSaved,
+    onError: (err) => setError(apiErrorMessage(err, "שמירת ההערה נכשלה")),
+  });
+
+  const canSave = title.trim().length > 0 && body.trim().length > 0;
+
+  return (
+    <Card className="mb-4 p-4 sm:p-5">
+      <h3 className="mb-3 font-display text-base text-navy-900">
+        הוספת הערה
+      </h3>
+      {error && (
+        <div className="mb-3">
+          <FormError message={error} />
+        </div>
+      )}
+      <div className="mb-3">
+        <Label htmlFor="note-title">כותרת</Label>
+        <Input
+          id="note-title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="לדוגמה: שעות פעילות"
+        />
+      </div>
+      <div className="mb-4">
+        <Label htmlFor="note-body">התוכן</Label>
+        <Textarea
+          id="note-body"
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder="כתוב כאן את המידע שהסוכן צריך לדעת..."
+          className="min-h-32"
+        />
+      </div>
+      <div className="flex justify-end gap-2">
+        <Button variant="ghost" onClick={onCancel}>
+          ביטול
+        </Button>
+        <Button
+          onClick={() => {
+            setError(null);
+            saveMut.mutate();
+          }}
+          disabled={!canSave || saveMut.isPending}
+        >
+          {saveMut.isPending ? (
+            <>
+              <Spinner /> שומר...
+            </>
+          ) : (
+            "שמור"
+          )}
+        </Button>
+      </div>
+    </Card>
   );
 }
 
@@ -647,10 +1070,12 @@ function NewItemDialog({
 interface FileEditorProps {
   businessId: string;
   fileId: string;
+  /** Client mode: show a plain filename, not the raw storage path / mime. */
+  friendly?: boolean;
   onClose: () => void;
 }
 
-function FileEditor({ businessId, fileId, onClose }: FileEditorProps) {
+function FileEditor({ businessId, fileId, friendly, onClose }: FileEditorProps) {
   const { t } = useTranslation();
 
   const fileQ = useQuery({
@@ -685,6 +1110,7 @@ function FileEditor({ businessId, fileId, onClose }: FileEditorProps) {
       fileId={fileId}
       file={fileQ.data.file}
       initialContent={fileQ.data.content}
+      friendly={friendly}
       onClose={onClose}
     />
   );
@@ -695,6 +1121,7 @@ interface LoadedFileEditorProps {
   fileId: string;
   file: ContextFile;
   initialContent: string;
+  friendly?: boolean;
   onClose: () => void;
 }
 
@@ -703,6 +1130,7 @@ function LoadedFileEditor({
   fileId,
   file,
   initialContent,
+  friendly,
   onClose,
 }: LoadedFileEditorProps) {
   const { t } = useTranslation();
@@ -734,11 +1162,19 @@ function LoadedFileEditor({
         </Button>
         <Card className="mt-4 p-6 sm:p-8 text-center">
           <FileIcon markdown={false} text={false} />
-          <p className="mt-3 font-mono text-sm" dir="ltr">
-            {file.relativePath}
-          </p>
+          {friendly ? (
+            <p className="mt-3 text-sm font-medium text-navy-900">
+              {basename(file.relativePath)}
+            </p>
+          ) : (
+            <p className="mt-3 font-mono text-sm" dir="ltr">
+              {file.relativePath}
+            </p>
+          )}
           <p className="mt-1 text-neutral-500 text-sm">
-            {file.mimeType} · {formatBytes(file.size)}
+            {friendly
+              ? formatBytes(file.size)
+              : `${file.mimeType} · ${formatBytes(file.size)}`}
           </p>
           <p className="mt-4 text-neutral-600 text-sm">
             {t("files.notEditable")}
@@ -777,13 +1213,22 @@ function LoadedFileEditor({
           <Button variant="ghost" size="sm" icon="arrow-start" onClick={onClose}>
             {t("common.back")}
           </Button>
-          <span
-            className="font-mono text-sm text-neutral-700 truncate"
-            dir="ltr"
-            title={file.relativePath}
-          >
-            {file.relativePath}
-          </span>
+          {friendly ? (
+            <span
+              className="truncate text-sm font-medium text-navy-800"
+              title={basename(file.relativePath)}
+            >
+              {basename(file.relativePath)}
+            </span>
+          ) : (
+            <span
+              className="font-mono text-sm text-neutral-700 truncate"
+              dir="ltr"
+              title={file.relativePath}
+            >
+              {file.relativePath}
+            </span>
+          )}
           {dirty && (
             <span className="text-amber-600 text-xs">
               {t("files.unsaved")}

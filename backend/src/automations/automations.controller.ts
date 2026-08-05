@@ -18,6 +18,7 @@ import { UserRole } from '../common/enums/user-role.enum';
 import { AutomationsService } from './automations.service';
 import { UpsertAutomationDto } from './dto/upsert-automation.dto';
 import { SetEnabledDto } from './dto/set-enabled.dto';
+import { RequestAutomationDto } from './dto/request-automation.dto';
 import {
   AUTOMATION_ACTION_TYPES,
   AUTOMATION_TRIGGERS,
@@ -55,6 +56,20 @@ export class AutomationsController {
     @Body() dto: SetEnabledDto,
   ) {
     return this.automations.setEnabled(businessId, id, dto.enabled);
+  }
+
+  /**
+   * Owner-allowed: the business owner cannot author rules, so instead they
+   * describe the automation they want in plain Hebrew. This files a support
+   * request that reaches the operator (idant), who then builds the rule.
+   */
+  @Post('requests')
+  requestAutomation(
+    @Param('businessId', ParseUUIDPipe) businessId: string,
+    @Body() dto: RequestAutomationDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.automations.requestAutomation(businessId, dto, user.id);
   }
 
   @Roles(UserRole.SuperAdmin, UserRole.Support)

@@ -39,6 +39,12 @@ export interface AutomationCatalog {
   actionTypes: AutomationActionType[];
 }
 
+export interface AutomationRequestBody {
+  description: string;
+  trigger?: string;
+  subject?: string;
+}
+
 export const automationsApi = {
   catalog: (businessId: string) =>
     api
@@ -70,5 +76,12 @@ export const automationsApi = {
   remove: (businessId: string, id: string) =>
     api
       .delete(`/businesses/${businessId}/automations/${id}`)
+      .then((r) => r.data),
+  requestAutomation: (businessId: string, body: AutomationRequestBody) =>
+    api
+      .post<{ ok: true }>(
+        `/businesses/${businessId}/automations/requests`,
+        body,
+      )
       .then((r) => r.data),
 };

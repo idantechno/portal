@@ -4,9 +4,11 @@ import { Repository } from 'typeorm';
 import { TasksService } from '../tasks/tasks.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { OrchestratorService } from '../agents/orchestrator/orchestrator.service';
+import { SupportRequestsService } from '../support/support-requests.service';
 import { AutomationRule } from './automation-rule.entity';
 import { AutomationAction, AutomationTrigger } from './automation.constants';
 import { UpsertAutomationDto } from './dto/upsert-automation.dto';
+import { RequestAutomationDto } from './dto/request-automation.dto';
 
 type EventPayload = Record<string, unknown>;
 
@@ -26,6 +28,7 @@ export class AutomationsService {
     private readonly tasks: TasksService,
     private readonly notifications: NotificationsService,
     private readonly orchestrator: OrchestratorService,
+    private readonly support: SupportRequestsService,
   ) {}
 
   list(businessId: string): Promise<AutomationRule[]> {
@@ -82,6 +85,29 @@ export class AutomationsService {
   async remove(businessId: string, id: string): Promise<void> {
     const res = await this.rules.delete({ id, businessId });
     if (!res.affected) throw new NotFoundException('Automation not found');
+  }
+
+  /**
+   * Owner-facing: record a free-text automation request and route it to the
+   * operator (idant). Reuses the existing support-request inbox — the same
+   * cross-tenant surface platform staff already watches — rather than inventing
+   * a new pipeline. Returns nothing sensitive; the owner only needs the ack.
+   */
+  async requestAutomation(
+    businessId: string,
+    dto: RequestAutomationDto,
+    userId: string | null,
+  ): Promise<{ ok: true }> {
+    const parts = [dto.description.trim()];
+    if (dto.trigger?.trim()) parts.push(`\nמתי / טריגר: ${dto.trigger.trim()}`);
+    if (dto.subject?.trim()) parts.push(`נושא / מספר: ${dto.subject.trim()}`);
+    await this.support.create({
+      businessId,
+      createdByUserId: userId,
+      subject: 'בקשת אוטומציה',
+      details: parts.join('\n'),
+    });
+    return { ok: true };
   }
 
   /**

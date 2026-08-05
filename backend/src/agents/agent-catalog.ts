@@ -51,6 +51,14 @@ export interface AgentDefinition {
   /** 'live' = generation flow built; 'soon' = catalogued, flow still a stub. */
   status: 'live' | 'soon';
   pillar: AgentPillar;
+  /**
+   * Operator-only agent: visible/usable only by platform staff (or someone who
+   * entered the business via staff — `viaPlatformStaff`), never by a regular
+   * business-owner client. Orthogonal to plan entitlement — the frontend hub
+   * filters these out for clients, the workspace guards the route, and the
+   * agent's own controllers gate their data endpoints on staff.
+   */
+  operatorOnly?: boolean;
 }
 
 export const AGENT_CATALOG: readonly AgentDefinition[] = [
@@ -176,11 +184,14 @@ export const AGENT_CATALOG: readonly AgentDefinition[] = [
     description:
       'תקציר יומי של חדשות וכלי AI שימושיים לעסק, ועדכוני Claude שבועיים.',
     icon: 'news',
-    // Free info feed for everyone — on by default, always available (capability
-    // null below), so every tenant sees the daily digest.
+    // Operator-only research feed. On by default + always available (capability
+    // null below) so the operator never has to grant it, but `operatorOnly`
+    // hides it from clients: only platform staff (or staff who entered the
+    // business) see the hub card, reach the page, or read the digests.
     defaultEnabled: true,
     status: 'live',
     pillar: 'growth',
+    operatorOnly: true,
   },
   {
     key: 'email',

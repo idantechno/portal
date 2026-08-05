@@ -9,6 +9,7 @@ import {
   Button,
   Card,
   EmptyState,
+  IconTile,
   Input,
   Spinner,
 } from "../../../components/ui";
@@ -16,6 +17,10 @@ import type { BadgeTone } from "../../../components/ui";
 
 const shekels = (cents: number) =>
   `₪${(cents / 100).toLocaleString("he-IL")}`;
+
+function countLabel(n: number): string {
+  return n === 1 ? "חשבונית אחת" : `${n} חשבוניות`;
+}
 
 const INVOICE_STATUS: Record<Invoice["status"], string> = {
   draft: "טיוטה",
@@ -31,8 +36,10 @@ const INVOICE_STATUS_TONE: Record<Invoice["status"], BadgeTone> = {
 };
 
 /**
- * The owner's customer-invoices surface (income) — create an invoice, mark it
- * paid, watch the status. Content only; the כסף page owns the header + tabs.
+ * The owner's customer-invoices surface (income). Same two-zone contrast as the
+ * expenses tab: a brand-tinted "הוספה" card where an invoice is *created*, then
+ * a white card that only *lists* what already exists. Content only; the כסף
+ * page owns the header + tabs.
  */
 export default function IncomeSection({ businessId }: { businessId: string }) {
   const qc = useQueryClient();
@@ -50,77 +57,126 @@ export default function IncomeSection({ businessId }: { businessId: string }) {
       qc.invalidateQueries({ queryKey: billingKeys.invoices(businessId) }),
   });
 
+  const rows = invoices.data ?? [];
+  const count = rows.length;
+
   return (
-    <section>
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-semibold text-brand-600">
-          חשבוניות ללקוחות
-        </h2>
-        {!showInvoice && (
-          <Button size="sm" icon="plus" onClick={() => setShowInvoice(true)}>
-            חשבונית
-          </Button>
-        )}
-      </div>
-
-      {showInvoice && (
-        <InvoiceForm
-          businessId={businessId}
-          onDone={() => {
-            setShowInvoice(false);
-            qc.invalidateQueries({ queryKey: billingKeys.invoices(businessId) });
-          }}
-          onCancel={() => setShowInvoice(false)}
-        />
-      )}
-
-      {invoices.data && invoices.data.length === 0 && !showInvoice && (
-        <Card>
-          <EmptyState
-            icon="receipt"
-            title="אין חשבוניות עדיין"
-            text="הפק את החשבונית הראשונה שלך ללקוח — היא תופיע כאן."
-            action={
-              <Button icon="plus" onClick={() => setShowInvoice(true)}>
-                צור חשבונית ראשונה
+    <div className="space-y-6">
+      {/* ── INPUT: create an invoice ─────────────────────────────────────
+          Brand-tinted so it reads as the one place data goes IN, distinct
+          from the white list below. */}
+      <Card className="border border-brand-100 bg-brand-50/40 p-5 sm:p-6">
+        <div className="flex items-start gap-3">
+          <IconTile icon="receipt" tone="brand" />
+          <div className="min-w-0 flex-1">
+            <div className="eyebrow text-brand-500 mb-0.5">הוספה</div>
+            <h2 className="font-display text-lg text-navy-900">
+              הפקת חשבונית ללקוח
+            </h2>
+            <p className="text-sm text-navy-500 mt-0.5">
+              צור חשבונית חדשה — היא תתווסף לרשימה למטה ותיכנס להכנסות החודש
+              כשתסמן אותה כשולמה.
+            </p>
+            {!showInvoice && (
+              <Button
+                className="mt-4"
+                icon="plus"
+                onClick={() => setShowInvoice(true)}
+              >
+                חשבונית חדשה
               </Button>
-            }
-          />
-        </Card>
-      )}
+            )}
+          </div>
+        </div>
 
-      {invoices.data && invoices.data.length > 0 && (
-        <Card className="divide-y divide-navy-50 overflow-hidden">
-          {invoices.data.map((inv) => (
-            <div
-              key={inv.id}
-              className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3"
-            >
-              <span className="font-mono text-xs text-navy-500 shrink-0" dir="ltr">
-                {inv.number}
-              </span>
-              <div className="min-w-0 flex-1 text-sm text-navy-800 truncate">
-                {inv.customerName ?? "—"}
-              </div>
-              <span className="text-sm font-medium text-navy-900 shrink-0">
-                {shekels(inv.amountCents)}
-              </span>
-              <Badge tone={INVOICE_STATUS_TONE[inv.status]} className="shrink-0">
-                {INVOICE_STATUS[inv.status]}
-              </Badge>
-              {inv.status !== "paid" && (
-                <button
-                  onClick={() => markPaidMut.mutate(inv.id)}
-                  className="text-xs text-brand-600 hover:text-brand-700 shrink-0"
+        {showInvoice && (
+          <div className="mt-5 border-t border-brand-100 pt-5">
+            <InvoiceForm
+              businessId={businessId}
+              onDone={() => {
+                setShowInvoice(false);
+                qc.invalidateQueries({
+                  queryKey: billingKeys.invoices(businessId),
+                });
+              }}
+              onCancel={() => setShowInvoice(false)}
+            />
+          </div>
+        )}
+      </Card>
+
+      {/* ── VIEW: the invoices, listed ───────────────────────────────────── */}
+      <Card className="overflow-hidden">
+        <div className="flex items-center justify-between gap-4 p-5 pb-4 sm:p-6 sm:pb-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <IconTile icon="doc" tone="secondary" size="sm" />
+            <h3 className="font-display text-lg text-navy-900">
+              החשבוניות שלי
+            </h3>
+          </div>
+          {count > 0 && (
+            <span className="text-[11px] text-navy-400 shrink-0">
+              {countLabel(count)}
+            </span>
+          )}
+        </div>
+
+        {invoices.isLoading ? (
+          <div className="flex justify-center border-t border-navy-100 py-8">
+            <Spinner />
+          </div>
+        ) : count === 0 ? (
+          <div className="border-t border-navy-100">
+            <EmptyState
+              icon="receipt"
+              title="אין חשבוניות עדיין"
+              text="הפק את החשבונית הראשונה שלך ללקוח — היא תופיע כאן."
+              action={
+                <Button icon="plus" onClick={() => setShowInvoice(true)}>
+                  צור חשבונית ראשונה
+                </Button>
+              }
+            />
+          </div>
+        ) : (
+          <div className="border-t border-navy-100 divide-y divide-navy-50">
+            {rows.map((inv) => (
+              <div
+                key={inv.id}
+                className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3.5 sm:px-6"
+              >
+                <span
+                  className="font-mono text-xs text-navy-500 shrink-0"
+                  dir="ltr"
                 >
-                  סמן כשולמה
-                </button>
-              )}
-            </div>
-          ))}
-        </Card>
-      )}
-    </section>
+                  {inv.number}
+                </span>
+                <div className="min-w-0 flex-1 text-sm text-navy-800 truncate">
+                  {inv.customerName ?? "—"}
+                </div>
+                <span className="text-sm font-medium text-navy-900 shrink-0">
+                  {shekels(inv.amountCents)}
+                </span>
+                <Badge
+                  tone={INVOICE_STATUS_TONE[inv.status]}
+                  className="shrink-0"
+                >
+                  {INVOICE_STATUS[inv.status]}
+                </Badge>
+                {inv.status !== "paid" && (
+                  <button
+                    onClick={() => markPaidMut.mutate(inv.id)}
+                    className="text-xs text-brand-600 hover:text-brand-700 shrink-0"
+                  >
+                    סמן כשולמה
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+    </div>
   );
 }
 
@@ -159,45 +215,43 @@ function InvoiceForm({
   }
 
   return (
-    <Card className="p-5 mb-4">
-      <form onSubmit={submit} className="space-y-3">
+    <form onSubmit={submit} className="space-y-3">
+      <Input
+        value={customerName}
+        onChange={(e) => setCustomerName(e.target.value)}
+        placeholder="שם הלקוח"
+      />
+      <Input
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        placeholder="תיאור הפריט"
+      />
+      <div className="grid grid-cols-2 gap-3">
         <Input
-          value={customerName}
-          onChange={(e) => setCustomerName(e.target.value)}
-          placeholder="שם הלקוח"
+          type="number"
+          min="1"
+          value={quantity}
+          onChange={(e) => setQuantity(e.target.value)}
+          placeholder="כמות"
+          dir="ltr"
         />
         <Input
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="תיאור הפריט"
+          type="number"
+          min="0"
+          value={unitPrice}
+          onChange={(e) => setUnitPrice(e.target.value)}
+          placeholder="מחיר ליחידה (₪)"
+          dir="ltr"
         />
-        <div className="grid grid-cols-2 gap-3">
-          <Input
-            type="number"
-            min="1"
-            value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
-            placeholder="כמות"
-            dir="ltr"
-          />
-          <Input
-            type="number"
-            min="0"
-            value={unitPrice}
-            onChange={(e) => setUnitPrice(e.target.value)}
-            placeholder="מחיר ליחידה (₪)"
-            dir="ltr"
-          />
-        </div>
-        <div className="flex items-center gap-3">
-          <Button type="submit" disabled={createMut.isPending}>
-            {createMut.isPending ? <Spinner /> : "צור חשבונית"}
-          </Button>
-          <Button type="button" variant="ghost" onClick={onCancel}>
-            ביטול
-          </Button>
-        </div>
-      </form>
-    </Card>
+      </div>
+      <div className="flex items-center gap-3">
+        <Button type="submit" disabled={createMut.isPending}>
+          {createMut.isPending ? <Spinner /> : "צור חשבונית"}
+        </Button>
+        <Button type="button" variant="ghost" onClick={onCancel}>
+          ביטול
+        </Button>
+      </div>
+    </form>
   );
 }

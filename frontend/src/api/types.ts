@@ -200,6 +200,8 @@ export interface AgentDefinition {
   defaultEnabled: boolean;
   status?: "live" | "soon";
   pillar?: AgentPillar;
+  /** Visible/usable only by the operator (platform staff / entered via staff). */
+  operatorOnly?: boolean;
 }
 
 export interface AgentAccessView extends AgentDefinition {

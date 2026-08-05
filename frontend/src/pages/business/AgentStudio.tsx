@@ -1,8 +1,11 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { agentsApi } from "../../api/agents";
+import { businessesApi } from "../../api/businesses";
 import type { AgentDefinition } from "../../api/types";
 import { agentRoute } from "../../lib/agentRoutes";
+import { useAuthStore } from "../../store/auth";
+import { isPlatformStaff } from "../../lib/roles";
 import { Card, EmptyState, PageHeader, Spinner } from "../../components/ui";
 import { Icon, ServerIcon } from "../../components/icons";
 
@@ -19,7 +22,20 @@ export default function AgentStudio() {
     enabled: Boolean(businessId),
   });
 
-  const allAgents = agents.data ?? [];
+  // Operator = platform staff, or a staff member who entered this business.
+  const user = useAuthStore((s) => s.user);
+  const biz = useQuery({
+    queryKey: ["business", businessId],
+    queryFn: () => businessesApi.get(businessId),
+    enabled: Boolean(businessId),
+  });
+  const isOperator =
+    isPlatformStaff(user?.role) || (biz.data?.viaPlatformStaff ?? false);
+
+  // Operator-only agents (e.g. AI updates) never show as cards for clients.
+  const allAgents = (agents.data ?? []).filter(
+    (a) => isOperator || !a.operatorOnly,
+  );
 
   function open(agent: AgentDefinition) {
     const to = agentRoute(agent.key, businessId);

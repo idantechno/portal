@@ -94,14 +94,16 @@ export default function Money() {
           error={expensesError}
         />
         <StatCard
-          label="רווח נקי החודש"
+          label={netCents < 0 ? "מאזן החודש" : "רווח נקי החודש"}
           icon="coins"
-          tone="accent"
+          tone={netCents < 0 ? "coral" : "accent"}
           value={shekels(netCents)}
           sub={
             incomeError || expensesError
               ? "לא ניתן לטעון נתונים כרגע"
-              : "הכנסות פחות הוצאות"
+              : netCents < 0
+                ? "ההוצאות גבוהות מההכנסות החודש"
+                : "הכנסות פחות הוצאות"
           }
           error={incomeError || expensesError}
         />

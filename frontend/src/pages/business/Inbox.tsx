@@ -21,11 +21,6 @@ import type { IconName } from "../../components/icons";
 import AgentScheduleSettings from "./AgentScheduleSettings";
 import ContactPanel from "./ContactPanel";
 
-type Tab = "all" | "bot" | "human" | "closed";
-
-const tabToStatus = (tab: Tab): ConversationStatus | undefined =>
-  tab === "all" ? undefined : (tab as ConversationStatus);
-
 function statusBadge(status: ConversationStatus, t: (k: string) => string) {
   const tone =
     status === "bot"
@@ -161,7 +156,6 @@ export default function Inbox() {
   const user = useAuthStore((s) => s.user);
   const qc = useQueryClient();
 
-  const [tab, setTab] = useState<Tab>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [composer, setComposer] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -172,9 +166,8 @@ export default function Inbox() {
   const threadEndRef = useRef<HTMLDivElement | null>(null);
 
   const conversations = useQuery({
-    queryKey: ["conversations", businessId, tab],
-    queryFn: () =>
-      conversationsApi.list(businessId, { status: tabToStatus(tab) }),
+    queryKey: ["conversations", businessId],
+    queryFn: () => conversationsApi.list(businessId),
     enabled: Boolean(businessId),
     refetchInterval: socketReady ? false : 15_000,
   });
@@ -277,12 +270,6 @@ export default function Inbox() {
   }
 
   const list = conversations.data ?? [];
-  const tabs: Array<{ key: Tab; label: string }> = [
-    { key: "all", label: t("inbox.tabAll") },
-    { key: "bot", label: t("inbox.tabBot") },
-    { key: "human", label: t("inbox.tabHuman") },
-    { key: "closed", label: t("inbox.tabClosed") },
-  ];
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] h-full">
@@ -324,21 +311,6 @@ export default function Inbox() {
                 {socketReady ? t("inbox.live") : t("inbox.offline")}
               </span>
             </div>
-          </div>
-          <div className="flex gap-1">
-            {tabs.map((tt) => (
-              <button
-                key={tt.key}
-                onClick={() => setTab(tt.key)}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium ${
-                  tab === tt.key
-                    ? "bg-brand-100 text-brand-700"
-                    : "text-neutral-600 hover:bg-neutral-50"
-                }`}
-              >
-                {tt.label}
-              </button>
-            ))}
           </div>
         </header>
         <div className="flex-1 overflow-y-auto min-h-0">

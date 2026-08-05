@@ -142,7 +142,25 @@ export class ClaudeJsonService {
         });
         if (!res.ok) {
           const body = await res.text().catch(() => '');
-          this.log.warn(`web-search call ${res.status}: ${body.slice(0, 300)}`);
+          // Distinguish the server-side web-search cap from ordinary failures so
+          // the operator can act on it. "Server tool use limit exceeded" (and
+          // 429s referencing tool use) means Claude's account-level web-search
+          // allotment is exhausted — nothing we can retry around; the operator
+          // must raise the limit/quota on the Anthropic account.
+          const limitHit =
+            res.status === 429 || /server tool use|tool.*limit/i.test(body);
+          if (limitHit) {
+            this.log.error(
+              `web-search server-tool limit exceeded (${res.status}). ` +
+                `Claude's account-level web_search allotment is likely ` +
+                `exhausted — raise the limit/quota on the Anthropic account. ` +
+                `${body.slice(0, 200)}`,
+            );
+          } else {
+            this.log.warn(
+              `web-search call ${res.status}: ${body.slice(0, 300)}`,
+            );
+          }
           return null;
         }
         const json = (await res.json()) as AnthropicResponse & {

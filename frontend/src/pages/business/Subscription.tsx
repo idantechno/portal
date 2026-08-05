@@ -4,13 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { billingApi } from "../../api/billing";
 import { apiErrorMessage } from "../../api/client";
 import { billingKeys } from "../../lib/queryKeys";
-import {
-  Badge,
-  Banner,
-  Button,
-  Card,
-  PageHeader,
-} from "../../components/ui";
+import { Banner, Button, Card, PageHeader } from "../../components/ui";
 
 const shekels = (cents: number) =>
   `₪${(cents / 100).toLocaleString("he-IL")}`;
@@ -88,7 +82,6 @@ export default function Subscription() {
   }
 
   const currentPlan = sub.data?.planCode;
-  const providers = plans.data?.providers ?? [];
 
   return (
     <div className="px-4 sm:px-6 py-6 sm:py-8 max-w-4xl mx-auto">
@@ -166,15 +159,6 @@ export default function Subscription() {
           >
             {checkoutError}
           </Banner>
-        )}
-        {providers.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-3">
-            {providers.map((p) => (
-              <Badge key={p.name} tone={p.configured ? "teal" : "neutral"}>
-                {p.label}: {p.configured ? "מחובר" : "דורש הגדרה"}
-              </Badge>
-            ))}
-          </div>
         )}
       </section>
     </div>

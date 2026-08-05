@@ -93,9 +93,12 @@ export class AiUpdatesService implements OnModuleInit {
       'כל הטקסט בעברית פרט לכותרות ולכתובות המקורות. אל תמציא — אם לא מצאת די ' +
       'חדשות, החזר פחות פריטים.';
 
-    const update = await this.generate('business', system, user);
-    if (update) await this.fanOutBusinessBell(update);
-    return update;
+    // The AI-updates agent is operator-only (see agent-catalog `operatorOnly`),
+    // so we no longer ring a daily bell across every client business — that
+    // would deep-link clients to a page they can't open. The operator reads the
+    // digest by opening the agent page. `fanOutBusinessBell` is kept for a
+    // possible future operator-scoped notification.
+    return this.generate('business', system, user);
   }
 
   /**
@@ -147,7 +150,11 @@ export class AiUpdatesService implements OnModuleInit {
       system,
       user,
       maxTokens: 4000,
-      maxSearches: 6,
+      // Cap the server-side web searches per run. Claude meters the web_search
+      // server tool at the account level; keeping this modest stretches that
+      // allotment across many daily/weekly runs and avoids "Server tool use
+      // limit exceeded". 3–5 items rarely need more than this.
+      maxSearches: 5,
       timeoutMs: 300_000,
     });
     if (!payload || !payload.title || !payload.summary) {

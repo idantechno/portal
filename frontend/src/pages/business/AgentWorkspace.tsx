@@ -1,6 +1,9 @@
 import { Navigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { agentsApi } from "../../api/agents";
+import { businessesApi } from "../../api/businesses";
+import { useAuthStore } from "../../store/auth";
+import { isPlatformStaff } from "../../lib/roles";
 import { Spinner } from "../../components/ui";
 import GenericAgentWorkspace from "./GenericAgentWorkspace";
 import MainAgent from "./MainAgent";
@@ -43,6 +46,16 @@ export default function AgentWorkspace() {
     enabled: Boolean(businessId),
   });
 
+  // Operator = platform staff, or a staff member who entered this business.
+  const user = useAuthStore((s) => s.user);
+  const biz = useQuery({
+    queryKey: ["business", businessId],
+    queryFn: () => businessesApi.get(businessId),
+    enabled: Boolean(businessId),
+  });
+  const isOperator =
+    isPlatformStaff(user?.role) || (biz.data?.viaPlatformStaff ?? false);
+
   // The WhatsApp/widget bot's "page" is the live inbox.
   if (agentKey === "chat") {
     return <Navigate to={`/app/businesses/${businessId}/inbox`} replace />;
@@ -53,6 +66,13 @@ export default function AgentWorkspace() {
     return (
       <Navigate to={`/app/businesses/${businessId}/agents/main`} replace />
     );
+  }
+
+  // Operator-only agents (e.g. AI updates) are unreachable for clients even by
+  // deep link — bounce them back to the hub. The backend gates the data too.
+  const requested = (agents.data ?? []).find((a) => a.key === agentKey);
+  if (requested?.operatorOnly && !isOperator) {
+    return <Navigate to={`/app/businesses/${businessId}/agents`} replace />;
   }
 
   const Bespoke = BESPOKE[agentKey];

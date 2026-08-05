@@ -12,6 +12,7 @@ import {
   FormError,
   Input,
   Label,
+  PageHeader,
   Spinner,
   Textarea,
 } from "../../components/ui";
@@ -32,7 +33,6 @@ function buildSnippet(publicKey: string): string {
 }
 
 export default function Settings() {
-  const { t } = useTranslation();
   const { businessId = "" } = useParams<{ businessId: string }>();
 
   const biz = useQuery({
@@ -42,7 +42,11 @@ export default function Settings() {
   });
 
   if (biz.isLoading || !biz.data) {
-    return <div className="p-4 sm:p-8 text-neutral-500 text-sm">{t("common.loading")}</div>;
+    return (
+      <div className="flex justify-center p-8">
+        <Spinner />
+      </div>
+    );
   }
 
   return <SettingsForm businessId={businessId} business={biz.data} />;
@@ -99,9 +103,7 @@ function SettingsForm({ businessId, business }: SettingsFormProps) {
 
   return (
     <div className="p-4 sm:p-8 max-w-3xl mx-auto">
-      <header className="mb-6">
-        <h1 className="text-2xl font-bold">{t("settings.title")}</h1>
-      </header>
+      <PageHeader title={t("settings.title")} />
 
       <BrandingCard businessId={businessId} business={business} />
 
@@ -133,7 +135,10 @@ function SettingsForm({ businessId, business }: SettingsFormProps) {
               {save.isPending ? <Spinner /> : t("settings.save")}
             </Button>
             {showSaved && (
-              <span className="text-sm text-green-700">{t("settings.saved")}</span>
+              <span className="inline-flex items-center gap-1.5 text-sm text-teal-600">
+                <Icon name="check-circle" size={16} />
+                {t("settings.saved")}
+              </span>
             )}
           </div>
         </form>
@@ -150,7 +155,7 @@ function SettingsForm({ businessId, business }: SettingsFormProps) {
             <Label>{t("settings.embedSnippet")}</Label>
             <div className="relative">
               <pre
-                className="rounded-lg border border-neutral-200 bg-neutral-50 p-3 text-xs font-mono overflow-x-auto"
+                className="rounded-lg border border-navy-100 bg-cream-50 p-3 text-xs font-mono text-navy-800 overflow-x-auto"
                 dir="ltr"
               >
                 {buildSnippet(business.publicKey)}
@@ -158,7 +163,7 @@ function SettingsForm({ businessId, business }: SettingsFormProps) {
               <button
                 type="button"
                 onClick={copySnippet}
-                className="absolute top-2 end-2 rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs hover:bg-neutral-50"
+                className="absolute top-2 end-2 rounded-md border border-navy-200 bg-white px-2 py-1 text-xs text-navy-700 hover:bg-cream-50"
               >
                 {copied ? t("settings.copied") : t("settings.copy")}
               </button>
@@ -177,7 +182,7 @@ function SettingsForm({ businessId, business }: SettingsFormProps) {
               className="font-mono text-xs"
               placeholder="https://example.com&#10;https://www.example.com"
             />
-            <p className="text-xs text-neutral-500 mt-1">
+            <p className="text-xs text-navy-500 mt-1">
               {t("settings.allowedOriginsHint")}
             </p>
           </div>

@@ -82,7 +82,7 @@ export const WORKSPACE_AGENT_UI: Record<string, WorkspaceAgentUiConfig> = {
       { label: "בנה הצעה", prompt: "בנה לי הצעת מחיר. אשאל אותך מה כלול." },
       { label: "כמה לגבות?", prompt: "כמה כדאי לי לגבות על העבודה הבאה?" },
     ],
-    related: { label: "חיוב", to: "billing" },
+    related: { label: "כסף", to: "money" },
   },
   accounting: {
     subtitle: "חשבוניות, מעקב תשלומים ותמונה פיננסית.",
@@ -95,6 +95,6 @@ export const WORKSPACE_AGENT_UI: Record<string, WorkspaceAgentUiConfig> = {
       { label: "מי לא שילם?", prompt: "אילו חשבוניות עדיין לא שולמו?" },
       { label: "צור חשבונית", prompt: "צור לי חשבונית. אתן לך את הפרטים." },
     ],
-    related: { label: "חיוב", to: "billing" },
+    related: { label: "כסף", to: "money" },
   },
 };

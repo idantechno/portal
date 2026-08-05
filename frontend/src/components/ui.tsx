@@ -3,8 +3,10 @@ import type {
   ButtonHTMLAttributes,
   HTMLAttributes,
   InputHTMLAttributes,
+  SelectHTMLAttributes,
   TextareaHTMLAttributes,
 } from "react";
+import { Link } from "react-router-dom";
 import { Icon } from "./icons";
 import type { IconName } from "./icons";
 
@@ -75,7 +77,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 );
 Button.displayName = "Button";
 
-const fieldClass = cn(
+export const fieldClass = cn(
   "block w-full rounded-xl border border-navy-200 bg-white px-3.5 py-2.5 text-sm text-navy-900",
   "placeholder:text-navy-300 focus:border-brand-400 focus:ring-4 focus:ring-brand-100 focus:outline-none",
   "transition-[border-color,box-shadow] duration-150 ease-[var(--ease-out-brand)]",
@@ -96,6 +98,33 @@ export const Textarea = forwardRef<
   <textarea ref={ref} className={cn(fieldClass, "min-h-24", className)} {...rest} />
 ));
 Textarea.displayName = "Textarea";
+
+/**
+ * Native `<select>` dressed to match `Input`: same height, radius and brand
+ * focus ring, with a trailing chevron from the icon set. `className` styles the
+ * wrapper (layout — flex-1 / width / max-width); every other prop
+ * (value/onChange/children/…) flows to the underlying select.
+ */
+export const Select = forwardRef<
+  HTMLSelectElement,
+  SelectHTMLAttributes<HTMLSelectElement> & { wrapperClassName?: string }
+>(({ className, wrapperClassName, children, ...rest }, ref) => (
+  <div className={cn("relative", wrapperClassName)}>
+    <select
+      ref={ref}
+      className={cn(fieldClass, "h-11 cursor-pointer appearance-none pe-10", className)}
+      {...rest}
+    >
+      {children}
+    </select>
+    <Icon
+      name="chevron-down"
+      size={18}
+      className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-navy-400"
+    />
+  </div>
+));
+Select.displayName = "Select";
 
 export function Label({
   className,
@@ -213,7 +242,50 @@ export function SectionTitle({
   );
 }
 
-type BadgeTone = "neutral" | "brand" | "success" | "warning" | "danger" | "teal";
+/**
+ * The standard page masthead: an optional eyebrow, a display-face `h1`, an
+ * optional subtitle, and a right-aligned action slot. Every business page top
+ * goes through this so titles, spacing and RTL alignment stay identical.
+ */
+export function PageHeader({
+  eyebrow,
+  title,
+  subtitle,
+  action,
+  className,
+}: {
+  eyebrow?: string;
+  title: string;
+  subtitle?: string;
+  action?: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <header
+      className={cn(
+        "mb-6 flex flex-wrap items-start justify-between gap-4",
+        className,
+      )}
+    >
+      <div className="min-w-0">
+        {eyebrow && <div className="eyebrow text-brand-500 mb-1">{eyebrow}</div>}
+        <h1 className="font-display text-2xl md:text-3xl text-navy-900">
+          {title}
+        </h1>
+        {subtitle && <p className="text-navy-500 mt-1">{subtitle}</p>}
+      </div>
+      {action && <div className="ms-auto shrink-0">{action}</div>}
+    </header>
+  );
+}
+
+export type BadgeTone =
+  | "neutral"
+  | "brand"
+  | "success"
+  | "warning"
+  | "danger"
+  | "teal";
 
 const badgeToneClass: Record<BadgeTone, string> = {
   neutral: "bg-navy-50 text-navy-600 ring-navy-100",
@@ -257,6 +329,114 @@ export function FormError({ message }: { message?: string | null }) {
       <span className="min-w-0">{message}</span>
     </div>
   );
+}
+
+type BannerTone = "success" | "info" | "warning" | "danger";
+
+const bannerToneClass: Record<BannerTone, { wrap: string; icon: IconName }> = {
+  success: {
+    wrap: "bg-teal-50 border-teal-200 text-teal-800",
+    icon: "check-circle",
+  },
+  info: { wrap: "bg-brand-50 border-brand-100 text-brand-700", icon: "info" },
+  warning: {
+    wrap: "bg-peach-100 border-peach-300/60 text-wood-700",
+    icon: "warning",
+  },
+  danger: { wrap: "bg-coral-50 border-coral-200 text-coral-700", icon: "error" },
+};
+
+/**
+ * Inline status strip (a.k.a. callout). One treatment for every "the payment
+ * went through" / "the connection failed" message, tinted with brand tokens.
+ */
+export function Banner({
+  tone,
+  children,
+  onDismiss,
+  className,
+}: {
+  tone: BannerTone;
+  children: React.ReactNode;
+  onDismiss?: () => void;
+  className?: string;
+}) {
+  const t = bannerToneClass[tone];
+  return (
+    <div
+      className={cn(
+        "flex items-start gap-2.5 rounded-xl border px-4 py-3 text-sm",
+        t.wrap,
+        className,
+      )}
+    >
+      <Icon name={t.icon} size={18} className="mt-px shrink-0" />
+      <div className="min-w-0 flex-1">{children}</div>
+      {onDismiss && (
+        <button
+          type="button"
+          onClick={onDismiss}
+          aria-label="סגור"
+          className="-me-1 shrink-0 rounded-md p-0.5 opacity-70 transition-opacity hover:opacity-100"
+        >
+          <Icon name="close" size={16} />
+        </button>
+      )}
+    </div>
+  );
+}
+
+type StatTone = "brand" | "accent" | "secondary" | "coral" | "teal" | "neutral";
+
+/**
+ * A single headline metric: label, big value, optional sub-line and an
+ * `IconTile`. Optionally a link to the screen it summarises. Every dashboard
+ * "number card" in the product resolves to this one component.
+ */
+export function StatCard({
+  label,
+  value,
+  sub,
+  icon,
+  tone = "brand",
+  to,
+  error = false,
+}: {
+  label: string;
+  value: number | string;
+  sub?: string;
+  icon?: IconName;
+  tone?: StatTone;
+  to?: string;
+  error?: boolean;
+}) {
+  const inner = (
+    <Card
+      className={cn(
+        "h-full p-5",
+        to &&
+          "transition-[transform,box-shadow,border-color] duration-200 ease-[var(--ease-out-brand)] group-hover:-translate-y-0.5 group-hover:border-navy-100 group-hover:shadow-[var(--shadow-e3)]",
+      )}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-xs text-navy-400 mb-1">{label}</div>
+          <div className="tabular truncate text-2xl font-bold text-navy-900">
+            {error ? "—" : value}
+          </div>
+          {sub && <div className="text-[11px] text-navy-400 mt-1">{sub}</div>}
+        </div>
+        {icon && <IconTile icon={icon} tone={tone} />}
+      </div>
+    </Card>
+  );
+  if (to)
+    return (
+      <Link to={to} className="block group">
+        {inner}
+      </Link>
+    );
+  return inner;
 }
 
 /**

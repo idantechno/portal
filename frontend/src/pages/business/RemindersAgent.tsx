@@ -124,7 +124,7 @@ export default function RemindersAgent({ businessId }: { businessId: string }) {
 
         {onTrial && (
           <Link
-            to={`/app/businesses/${businessId}/billing`}
+            to={`/app/businesses/${businessId}/subscription`}
             className="block bg-amber-50 border-b border-amber-200 px-4 sm:px-8 py-2.5 text-sm text-amber-800 hover:bg-amber-100 transition-colors"
           >
             <span className="inline-flex items-center gap-1.5 align-middle">
@@ -335,7 +335,7 @@ function RemindersLocked({ businessId }: { businessId: string }) {
           המשימות הקיימות שלך נשמרות.
         </p>
         <Link
-          to={`/app/businesses/${businessId}/billing`}
+          to={`/app/businesses/${businessId}/subscription`}
           className="inline-flex items-center justify-center rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 transition-colors"
         >
           לצפייה בתוכניות ולשדרוג

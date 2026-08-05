@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import type { CSSProperties } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { leadsApi } from "../../api/leads";
@@ -7,9 +6,10 @@ import { tasksApi } from "../../api/tasks";
 import { conversationsApi } from "../../api/conversations";
 import { billingApi } from "../../api/billing";
 import { billingKeys } from "../../lib/queryKeys";
-import { Card, Spinner } from "../../components/ui";
+import { Badge, Card, PageHeader, Spinner, StatCard } from "../../components/ui";
 import { Icon } from "../../components/icons";
-import type { IconName } from "../../components/icons";
+
+const LOAD_ERROR = "לא ניתן לטעון נתונים כרגע";
 
 const PLAN_ORDER = ["free", "growth", "scale"];
 
@@ -57,10 +57,6 @@ const MOVE_TIERS: MoveTier[] = [
     ctaPath: "/app/businesses/{id}/agents/main",
   },
 ];
-
-function tint(varName: string, pct = 14): CSSProperties {
-  return { backgroundColor: `color-mix(in srgb, var(${varName}) ${pct}%, white)` };
-}
 
 function shekels(cents: number): string {
   return `₪${Math.round(cents / 100).toLocaleString("he-IL")}`;
@@ -134,53 +130,45 @@ export default function Growth() {
 
   return (
     <div className="px-4 sm:px-6 md:px-8 py-6 md:py-8 max-w-4xl mx-auto">
-      <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-display text-navy-900">
-            הצמיחה שלך
-          </h1>
-          <p className="text-navy-500 mt-1">
-            תמונת מצב של העסק — וכיצד להאיץ קדימה.
-          </p>
-        </div>
-        {currentPlan && (
-          <span
-            className="rounded-full px-3 py-1 text-xs font-semibold text-navy-700"
-            style={tint("--brand-secondary", 18)}
-          >
-            תוכנית: {currentPlan.name}
-          </span>
-        )}
-      </header>
+      <PageHeader
+        title="הצמיחה שלך"
+        subtitle="תמונת מצב של העסק — וכיצד להאיץ קדימה."
+        action={
+          currentPlan ? (
+            <Badge tone="brand">תוכנית: {currentPlan.name}</Badge>
+          ) : undefined
+        }
+      />
 
       {/* Three axes */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-        <Metric
+        <StatCard
           label="צמיחה"
           icon="growth"
-          brand="--brand-primary"
+          tone="brand"
           value={leadCount}
-          sub="לידים שנאספו"
-          loading={leads.isLoading}
-          error={leads.isError}
+          sub={leads.isError ? LOAD_ERROR : "לידים שנאספו"}
+          error={leads.isLoading || leads.isError}
         />
-        <Metric
+        <StatCard
           label="יעילות"
           icon="bolt"
-          brand="--brand-accent"
+          tone="accent"
           value={`${efficiency}%`}
-          sub={`${doneCount} מתוך ${totalTasks} משימות הושלמו`}
-          loading={tasks.isLoading}
-          error={tasks.isError}
+          sub={
+            tasks.isError
+              ? LOAD_ERROR
+              : `${doneCount} מתוך ${totalTasks} משימות הושלמו`
+          }
+          error={tasks.isLoading || tasks.isError}
         />
-        <Metric
+        <StatCard
           label="טווח"
           icon="globe"
-          brand="--brand-secondary"
+          tone="secondary"
           value={convoCount}
-          sub="לקוחות ששוחחו איתך"
-          loading={convos.isLoading}
-          error={convos.isError}
+          sub={convos.isError ? LOAD_ERROR : "לקוחות ששוחחו איתך"}
+          error={convos.isLoading || convos.isError}
         />
       </div>
 
@@ -240,7 +228,7 @@ export default function Growth() {
               </div>
             </div>
             <Link
-              to={`/app/businesses/${businessId}/billing`}
+              to={`/app/businesses/${businessId}/subscription`}
               className="inline-flex items-center justify-center rounded-xl bg-white/95 px-5 py-2.5 text-sm font-semibold text-navy-900 hover:bg-white transition-colors shrink-0"
             >
               שדרג עכשיו
@@ -249,7 +237,11 @@ export default function Growth() {
           <ul className="mt-4 pt-4 border-t border-white/15 grid sm:grid-cols-2 gap-x-6 gap-y-1.5">
             {nextPlan.features.map((f) => (
               <li key={f} className="text-sm text-white/85 flex items-start gap-2">
-                <span className="text-white/60 mt-0.5">✓</span>
+                <Icon
+                  name="check"
+                  size={16}
+                  className="mt-0.5 shrink-0 text-white/60"
+                />
                 {f}
               </li>
             ))}
@@ -272,45 +264,3 @@ export default function Growth() {
   );
 }
 
-function Metric({
-  label,
-  icon,
-  brand,
-  value,
-  sub,
-  loading,
-  error = false,
-}: {
-  label: string;
-  icon: IconName;
-  brand: string;
-  value: number | string;
-  sub: string;
-  loading: boolean;
-  error?: boolean;
-}) {
-  return (
-    <Card className="p-5">
-      <div className="flex items-start justify-between">
-        <div className="min-w-0">
-          <div className="text-xs text-navy-400 mb-1">{label}</div>
-          <div className="text-3xl font-bold text-navy-900">
-            {loading || error ? "—" : value}
-          </div>
-          <div className="text-[11px] text-navy-400 mt-1">
-            {error ? "לא ניתן לטעון נתונים כרגע" : sub}
-          </div>
-        </div>
-        <div
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl"
-          style={{
-            ...tint(brand, 13),
-            color: `color-mix(in srgb, var(${brand}) 88%, black)`,
-          }}
-        >
-          <Icon name={icon} size={20} />
-        </div>
-      </div>
-    </Card>
-  );
-}

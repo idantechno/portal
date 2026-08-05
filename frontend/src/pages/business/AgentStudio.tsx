@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { agentsApi } from "../../api/agents";
 import type { AgentDefinition } from "../../api/types";
 import { agentRoute } from "../../lib/agentRoutes";
-import { Card, EmptyState } from "../../components/ui";
+import { Card, EmptyState, PageHeader, Spinner } from "../../components/ui";
 import { Icon, ServerIcon } from "../../components/icons";
 
 // The single hub listing every agent the business has. Clicking any card opens
@@ -28,14 +28,16 @@ export default function AgentStudio() {
 
   return (
     <div className="p-4 sm:p-8 max-w-5xl mx-auto">
-      <header className="mb-6">
-        <h1 className="text-2xl font-bold text-navy-900 mb-1">הסוכנים שלך</h1>
-        <p className="text-navy-500 text-sm">
-          כל הסוכנים של העסק במקום אחד — בחר סוכן כדי לפתוח את הדף שלו.
-        </p>
-      </header>
+      <PageHeader
+        title="הסוכנים שלך"
+        subtitle="כל הסוכנים של העסק במקום אחד — בחר סוכן כדי לפתוח את הדף שלו."
+      />
 
-      {agents.isLoading && <div className="text-navy-400 text-sm">טוען...</div>}
+      {agents.isLoading && (
+        <div className="flex justify-center py-10">
+          <Spinner />
+        </div>
+      )}
       {!agents.isLoading && allAgents.length === 0 && (
         <Card>
           <EmptyState

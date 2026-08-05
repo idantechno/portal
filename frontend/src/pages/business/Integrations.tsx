@@ -9,7 +9,18 @@ import { billingApi } from "../../api/billing";
 import { apiErrorMessage } from "../../api/client";
 import { useAuthStore } from "../../store/auth";
 import { isPlatformStaff } from "../../lib/roles";
-import { Button, Card, FormError, Input, Spinner, Textarea } from "../../components/ui";
+import {
+  Badge,
+  Banner,
+  Button,
+  Card,
+  FormError,
+  Input,
+  PageHeader,
+  Select,
+  Spinner,
+  Textarea,
+} from "../../components/ui";
 import { Icon, ServerIcon } from "../../components/icons";
 
 export default function Integrations() {
@@ -62,27 +73,27 @@ export default function Integrations() {
 
   return (
     <div className="p-4 sm:p-8 max-w-3xl mx-auto">
-      <header className="mb-6">
-        <h1 className="text-2xl font-bold text-navy-900 mb-1">אינטגרציות</h1>
-        <p className="text-navy-500 text-sm">
-          חבר את כלי Google של העסק כדי שהסוכנים יוכלו לפעול מולם.
-        </p>
-      </header>
+      <PageHeader
+        title="אינטגרציות"
+        subtitle="חבר את כלי Google של העסק כדי שהסוכנים יוכלו לפעול מולם."
+      />
 
       {connected && (
-        <div className="mb-4 rounded-xl bg-teal-50 border border-teal-200 px-4 py-3 text-sm text-teal-800 flex items-center justify-between">
-          <span>החיבור ל-{connected} בוצע בהצלחה ✓</span>
-          <button onClick={clearBanner} className="text-teal-600 hover:text-teal-800">✕</button>
-        </div>
+        <Banner tone="success" className="mb-4" onDismiss={clearBanner}>
+          החיבור ל-{connected} בוצע בהצלחה
+        </Banner>
       )}
       {error && (
-        <div className="mb-4 rounded-xl bg-coral-50 border border-coral-200 px-4 py-3 text-sm text-coral-700 flex items-center justify-between">
-          <span>החיבור נכשל ({error}). נסה שוב.</span>
-          <button onClick={clearBanner} className="text-coral-600 hover:text-coral-800">✕</button>
-        </div>
+        <Banner tone="danger" className="mb-4" onDismiss={clearBanner}>
+          החיבור נכשל ({error}). נסה שוב.
+        </Banner>
       )}
 
-      {list.isLoading && <div className="text-navy-400 text-sm">טוען...</div>}
+      {list.isLoading && (
+        <div className="flex justify-center py-10">
+          <Spinner />
+        </div>
+      )}
 
       <div className="space-y-3">
         {items.map((it) => (
@@ -150,9 +161,9 @@ function ProviderRow({
         </Button>
       ) : !allowed ? (
         // Google connect is sold on the Exclusive tier only.
-        <span className="shrink-0 rounded-full bg-navy-100 px-2.5 py-1 text-xs text-navy-500">
+        <Badge tone="neutral" className="shrink-0">
           אקסקלוסיב
-        </span>
+        </Badge>
       ) : (
         <Button
           size="sm"
@@ -221,9 +232,9 @@ function GmailCompose({ businessId }: { businessId: string }) {
         />
         <FormError message={error} />
         {sentTo && (
-          <div className="rounded-xl bg-teal-50 border border-teal-200 px-3.5 py-2.5 text-sm text-teal-800">
-            המייל נשלח אל {sentTo} ✓
-          </div>
+          <Banner tone="success" onDismiss={() => setSentTo(null)}>
+            המייל נשלח אל {sentTo}
+          </Banner>
         )}
         <Button type="submit" disabled={sendMut.isPending}>
           {sendMut.isPending ? <Spinner /> : "שלח מייל"}
@@ -314,16 +325,15 @@ function GreenInvoiceCard({ businessId }: { businessId: string }) {
           placeholder="API Secret"
           dir="ltr"
         />
-        <select
+        <Select
           value={environment}
           onChange={(e) =>
             setEnvironment(e.target.value as "sandbox" | "production")
           }
-          className="block w-full rounded-xl border border-navy-200 bg-white px-3.5 h-11 text-sm text-navy-900"
         >
           <option value="sandbox">בדיקה (sandbox)</option>
           <option value="production">פרודקשן</option>
-        </select>
+        </Select>
         <FormError message={error} />
         <Button type="submit" disabled={connectMut.isPending}>
           {connectMut.isPending ? <Spinner /> : "חבר חשבונית ירוקה"}

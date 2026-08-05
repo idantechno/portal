@@ -1,14 +1,21 @@
 import { useRef, useState } from "react";
-import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiErrorMessage } from "../../api/client";
+import { apiErrorMessage } from "../../../api/client";
 import {
   type Expense,
   type ExpenseKind,
   expensesApi,
-} from "../../api/expenses";
-import { Button, Card, FormError, Spinner } from "../../components/ui";
-import { Icon } from "../../components/icons";
+} from "../../../api/expenses";
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  FormError,
+  Spinner,
+  StatCard,
+} from "../../../components/ui";
+import { Icon } from "../../../components/icons";
 
 function shekels(cents: number | null): string {
   if (cents == null) return "—";
@@ -20,8 +27,12 @@ function shekels(cents: number | null): string {
 
 const ACCEPT = ".pdf,.txt,.csv,image/*,application/pdf,text/plain";
 
-export default function Expenses() {
-  const { businessId = "" } = useParams<{ businessId: string }>();
+/**
+ * The full expenses experience — OCR upload, monthly summary, fixed/occasional
+ * lists, view/delete. Content only; the כסף page owns the header + tabs. Logic
+ * is unchanged from the former standalone Expenses page.
+ */
+export default function ExpensesSection({ businessId }: { businessId: string }) {
   const qc = useQueryClient();
   const fileInput = useRef<HTMLInputElement>(null);
   const [uploadKind, setUploadKind] = useState<"auto" | ExpenseKind>("auto");
@@ -88,46 +99,39 @@ export default function Expenses() {
   const summaryError = summary.isError;
 
   return (
-    <div className="px-4 sm:px-6 md:px-8 py-6 md:py-8 max-w-4xl mx-auto">
-      <header className="mb-6">
-        <h1 className="text-2xl md:text-3xl font-display text-navy-900">
-          מעקב הוצאות
-        </h1>
-        <p className="text-navy-500 mt-1">
-          העלה חשבונית / קבלה / צילום — המערכת תקרא את הסכום ותתייק. הסכום זורם
-          למאזן בדף הבית.
-        </p>
-      </header>
-
+    <div>
       {/* Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <SumCard
+        <StatCard
           label="קבועות (חודשי)"
+          icon="wallet"
+          tone="brand"
           value={shekels(s?.fixedMonthlyCents ?? 0)}
           sub={
             summaryError
               ? "לא ניתן לטעון נתונים כרגע"
               : `${s?.fixedCount ?? 0} הוצאות קבועות`
           }
-          brand="--brand-primary"
           error={summaryError}
         />
-        <SumCard
+        <StatCard
           label="מזדמנות החודש"
+          icon="wallet"
+          tone="secondary"
           value={shekels(s?.occasionalThisMonthCents ?? 0)}
           sub={
             summaryError
               ? "לא ניתן לטעון נתונים כרגע"
               : `${s?.occasionalCount ?? 0} הוצאות מזדמנות`
           }
-          brand="--brand-secondary"
           error={summaryError}
         />
-        <SumCard
+        <StatCard
           label="סה״כ החודש"
+          icon="wallet"
+          tone="accent"
           value={shekels(s?.monthlyTotalCents ?? 0)}
           sub={summaryError ? "לא ניתן לטעון נתונים כרגע" : "קבועות + מזדמנות"}
-          brand="--brand-accent"
           error={summaryError}
         />
       </div>
@@ -207,6 +211,7 @@ export default function Expenses() {
         }
         onView={viewFile}
         onDelete={(id) => remove.mutate(id)}
+        onUpload={() => fileInput.current?.click()}
       />
       <ExpenseSection
         title="הוצאות מזדמנות"
@@ -219,45 +224,9 @@ export default function Expenses() {
         }
         onView={viewFile}
         onDelete={(id) => remove.mutate(id)}
+        onUpload={() => fileInput.current?.click()}
       />
     </div>
-  );
-}
-
-function SumCard({
-  label,
-  value,
-  sub,
-  brand,
-  error = false,
-}: {
-  label: string;
-  value: string;
-  sub: string;
-  brand: string;
-  error?: boolean;
-}) {
-  return (
-    <Card className="p-5">
-      <div className="flex items-start justify-between">
-        <div className="min-w-0">
-          <div className="text-xs text-navy-400 mb-1">{label}</div>
-          <div className="text-2xl font-bold text-navy-900">
-            {error ? "—" : value}
-          </div>
-          <div className="text-[11px] text-navy-400 mt-1">{sub}</div>
-        </div>
-        <div
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl"
-          style={{
-            backgroundColor: `color-mix(in srgb, var(${brand}) 13%, white)`,
-            color: `color-mix(in srgb, var(${brand}) 88%, black)`,
-          }}
-        >
-          <Icon name="wallet" size={20} />
-        </div>
-      </div>
-    </Card>
   );
 }
 
@@ -270,6 +239,7 @@ function ExpenseSection({
   onAmount,
   onView,
   onDelete,
+  onUpload,
 }: {
   title: string;
   hint: string;
@@ -279,6 +249,7 @@ function ExpenseSection({
   onAmount: (id: string, amountCents: number) => void;
   onView: (id: string) => void;
   onDelete: (id: string) => void;
+  onUpload: () => void;
 }) {
   return (
     <div className="mb-6">
@@ -289,8 +260,17 @@ function ExpenseSection({
           <Spinner />
         </Card>
       ) : rows.length === 0 ? (
-        <Card className="p-6 text-center text-navy-400 text-sm">
-          אין כאן הוצאות עדיין.
+        <Card>
+          <EmptyState
+            icon="receipt"
+            title="אין כאן הוצאות עדיין"
+            text={hint}
+            action={
+              <Button size="sm" variant="secondary" icon="upload" onClick={onUpload}>
+                העלה קובץ
+              </Button>
+            }
+          />
         </Card>
       ) : (
         <Card className="divide-y divide-navy-50">
@@ -370,13 +350,11 @@ function ExpenseRow({
       <button
         onClick={() => onKind(row.id, otherKind)}
         title="החלף סוג"
-        className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${
-          row.kind === "fixed"
-            ? "bg-brand-100 text-brand-700"
-            : "bg-cream-100 text-navy-600"
-        }`}
+        className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
       >
-        {row.kind === "fixed" ? "קבועה" : "מזדמנת"}
+        <Badge tone={row.kind === "fixed" ? "brand" : "neutral"}>
+          {row.kind === "fixed" ? "קבועה" : "מזדמנת"}
+        </Badge>
       </button>
 
       {row.relativePath && (

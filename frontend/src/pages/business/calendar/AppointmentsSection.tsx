@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   appointmentsApi,
@@ -7,10 +6,10 @@ import {
   type Appointment,
   type AppointmentStatus,
   type WaitlistEntry,
-} from "../../api/appointments";
-import { apiErrorMessage } from "../../api/client";
-import { Button, Card, EmptyState, Spinner } from "../../components/ui";
-import { Icon } from "../../components/icons";
+} from "../../../api/appointments";
+import { apiErrorMessage } from "../../../api/client";
+import { Button, Card, EmptyState, FormError, Spinner } from "../../../components/ui";
+import { Icon } from "../../../components/icons";
 
 function fmt(iso: string): string {
   return new Date(iso).toLocaleString("he-IL", {
@@ -54,16 +53,18 @@ const APPT_LABEL: Record<AppointmentStatus, string> = {
   cancelled: "בוטל",
 };
 
-export default function Appointments() {
-  const { businessId = "" } = useParams<{ businessId: string }>();
+export default function AppointmentsSection({
+  businessId,
+}: {
+  businessId: string;
+}) {
   const qc = useQueryClient();
   const [showAdd, setShowAdd] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const appointments = useQuery({
     queryKey: ["appointments", businessId, "scheduled"],
-    queryFn: () =>
-      appointmentsApi.list(businessId, { status: "scheduled" }),
+    queryFn: () => appointmentsApi.list(businessId, { status: "scheduled" }),
     enabled: Boolean(businessId),
   });
 
@@ -114,22 +115,19 @@ export default function Appointments() {
   );
 
   return (
-    <div className="px-4 sm:px-6 py-6 sm:py-8 max-w-4xl mx-auto">
-      <header className="mb-6 flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold mb-1">ניהול תורים</h1>
-          <p className="text-neutral-600 text-sm">
-            כל התורים הקרובים ורשימת ההמתנה. תור שמתבטל מוצע אוטומטית לבא בתור.
-          </p>
-        </div>
+    <div>
+      <div className="mb-6 flex items-center justify-between gap-3">
+        <p className="text-sm text-navy-500">
+          כל התורים הקרובים ורשימת ההמתנה. תור שמתבטל מוצע אוטומטית לבא בתור.
+        </p>
         <Button icon="plus" onClick={() => setShowAdd(true)}>
           תור חדש
         </Button>
-      </header>
+      </div>
 
       {error && (
-        <div className="mb-4 text-sm text-red-700 bg-red-50 rounded-lg px-3 py-2">
-          {error}
+        <div className="mb-4">
+          <FormError message={error} />
         </div>
       )}
 
@@ -168,9 +166,7 @@ export default function Appointments() {
                     <div className="text-xs text-neutral-500">
                       {fmt(a.startAt)}
                       {a.customerName ? ` · ${a.customerName}` : ""}
-                      {a.phone ? (
-                        <span dir="ltr"> · {a.phone}</span>
-                      ) : null}
+                      {a.phone ? <span dir="ltr"> · {a.phone}</span> : null}
                     </div>
                   </div>
                   <span

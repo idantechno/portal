@@ -1,20 +1,29 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { FormEvent } from "react";
-import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { tasksApi } from "../../api/tasks";
-import type { Task, TaskPriority } from "../../api/tasks";
-import { Button, Card, Input, Spinner } from "../../components/ui";
+import { tasksApi } from "../../../api/tasks";
+import type { Task, TaskPriority } from "../../../api/tasks";
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  Input,
+  Select,
+  Spinner,
+} from "../../../components/ui";
+import { Icon } from "../../../components/icons";
+import type { BadgeTone } from "../../../components/ui";
 
 const PRIORITY_LABEL: Record<TaskPriority, string> = {
   high: "גבוהה",
   medium: "בינונית",
   low: "נמוכה",
 };
-const PRIORITY_TONE: Record<TaskPriority, string> = {
-  high: "bg-coral-100 text-coral-700",
-  medium: "bg-brand-100 text-brand-700",
-  low: "bg-navy-100 text-navy-500",
+const PRIORITY_TONE: Record<TaskPriority, BadgeTone> = {
+  high: "danger",
+  medium: "brand",
+  low: "neutral",
 };
 const SOURCE_LABEL: Record<Task["source"], string> = {
   manual: "ידני",
@@ -22,11 +31,11 @@ const SOURCE_LABEL: Record<Task["source"], string> = {
   agent: "סוכן",
 };
 
-export default function Tasks() {
-  const { businessId = "" } = useParams<{ businessId: string }>();
+export default function TasksSection({ businessId }: { businessId: string }) {
   const qc = useQueryClient();
   const [title, setTitle] = useState("");
   const [priority, setPriority] = useState<TaskPriority>("medium");
+  const titleRef = useRef<HTMLInputElement>(null);
 
   const tasks = useQuery({
     queryKey: ["tasks", businessId],
@@ -67,41 +76,51 @@ export default function Tasks() {
   const done = items.filter((t) => t.status === "done");
 
   return (
-    <div className="px-4 sm:px-6 py-6 sm:py-8 max-w-4xl mx-auto">
-      <header className="mb-6">
-        <h1 className="text-2xl font-bold text-navy-900 mb-1">משימות</h1>
-        <p className="text-navy-500 text-sm">
-          המשימות הפתוחות של העסק — ידניות, מאוטומציות ומסוכנים.
-        </p>
-      </header>
+    <div>
+      <p className="mb-4 text-sm text-navy-500">
+        המשימות הפתוחות של העסק — ידניות, מאוטומציות ומסוכנים.
+      </p>
 
       <Card className="p-4 mb-6">
         <form onSubmit={submit} className="flex flex-col sm:flex-row gap-3">
           <Input
+            ref={titleRef}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="משימה חדשה..."
             className="flex-1"
           />
-          <select
+          <Select
             value={priority}
             onChange={(e) => setPriority(e.target.value as TaskPriority)}
-            className="rounded-xl border border-navy-200 bg-white px-3 text-sm text-navy-900 h-11"
           >
             <option value="high">עדיפות גבוהה</option>
             <option value="medium">עדיפות בינונית</option>
             <option value="low">עדיפות נמוכה</option>
-          </select>
+          </Select>
           <Button type="submit" disabled={createMut.isPending}>
             {createMut.isPending ? <Spinner /> : "הוסף"}
           </Button>
         </form>
       </Card>
 
-      {tasks.isLoading && <div className="text-navy-400 text-sm">טוען...</div>}
+      {tasks.isLoading && (
+        <div className="flex justify-center py-10">
+          <Spinner />
+        </div>
+      )}
       {!tasks.isLoading && items.length === 0 && (
-        <Card className="p-12 text-center text-navy-400">
-          אין משימות עדיין. הוסף משימה ראשונה למעלה.
+        <Card>
+          <EmptyState
+            icon="tasks"
+            title="אין תזכורות עדיין"
+            text="הוסף את המשימה הראשונה של העסק — ידנית, או תן לסוכן ליצור אותה."
+            action={
+              <Button icon="plus" onClick={() => titleRef.current?.focus()}>
+                הוסף משימה
+              </Button>
+            }
+          />
         </Card>
       )}
 
@@ -160,7 +179,7 @@ function TaskRow({
             : "border-navy-300 hover:border-brand-400"
         }`}
       >
-        {done && "✓"}
+        {done && <Icon name="check" size={13} />}
       </button>
       <div className="flex-1 min-w-0">
         <div
@@ -172,22 +191,20 @@ function TaskRow({
           <div className="text-xs text-navy-400 mt-0.5">{task.description}</div>
         )}
       </div>
-      <span
-        className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${PRIORITY_TONE[task.priority]}`}
-      >
+      <Badge tone={PRIORITY_TONE[task.priority]} className="shrink-0">
         {PRIORITY_LABEL[task.priority]}
-      </span>
+      </Badge>
       {task.source !== "manual" && (
-        <span className="text-xs text-navy-400 shrink-0 hidden sm:inline">
+        <Badge tone="neutral" className="shrink-0 hidden sm:inline-flex">
           {SOURCE_LABEL[task.source]}
-        </span>
+        </Badge>
       )}
       <button
         onClick={onRemove}
-        className="text-navy-300 hover:text-coral-500 text-sm shrink-0"
+        className="text-navy-300 hover:text-coral-500 shrink-0"
         aria-label="מחק"
       >
-        ✕
+        <Icon name="trash" size={17} />
       </button>
     </Card>
   );

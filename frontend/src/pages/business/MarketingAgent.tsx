@@ -20,13 +20,12 @@ import {
 } from "../../components/ui";
 import { Icon, type IconName } from "../../components/icons";
 
-type Tab = "leads" | "customers" | "campaigns" | "schedule" | "reports";
+type Tab = "leads" | "customers" | "campaigns" | "reports";
 
 const TABS: { key: Tab; label: string; icon: IconName }[] = [
   { key: "leads", label: "לידים", icon: "leads" },
   { key: "customers", label: "לקוחות", icon: "users" },
   { key: "campaigns", label: "קמפיינים", icon: "megaphone" },
-  { key: "schedule", label: 'לו"ז', icon: "calendar" },
   { key: "reports", label: "דוחות", icon: "doc" },
 ];
 
@@ -106,7 +105,6 @@ export default function MarketingAgent({ businessId }: { businessId: string }) {
       )}
       {tab === "customers" && <CustomersPanel businessId={businessId} />}
       {tab === "campaigns" && <CampaignsTab businessId={businessId} />}
-      {tab === "schedule" && <ScheduleTab businessId={businessId} />}
       {tab === "reports" && (
         <ReportsTab businessId={businessId} onError={setError} />
       )}
@@ -382,75 +380,6 @@ function CampaignStatusBadge({ status }: { status: Campaign["status"] }) {
     >
       {map.text}
     </span>
-  );
-}
-
-/* ----------------------------- Schedule tab ------------------------------- */
-
-function ScheduleTab({ businessId }: { businessId: string }) {
-  const navigate = useNavigate();
-  const customers = useQuery({
-    queryKey: ["customers", businessId, "next_activity"],
-    queryFn: () => customersApi.list(businessId, "next_activity"),
-    enabled: Boolean(businessId),
-  });
-
-  const upcoming = (customers.data ?? []).filter((c) => c.nextActivityAt);
-
-  if (customers.isLoading) {
-    return <div className="text-sm text-neutral-500">טוען…</div>;
-  }
-
-  if (upcoming.length === 0) {
-    return (
-      <Card className="p-10">
-        <EmptyState
-          icon="calendar"
-          title="אין פעילויות מתוכננות"
-          text="קבע 'פעילות קרובה' בכרטיס של לקוח והיא תופיע כאן, לפי סדר התאריכים."
-        />
-      </Card>
-    );
-  }
-
-  return (
-    <div className="space-y-2">
-      {upcoming.map((c) => (
-        <button
-          key={c.id}
-          onClick={() =>
-            navigate(`/app/businesses/${businessId}/customers/${c.id}`)
-          }
-          className="w-full text-start"
-        >
-          <Card className="flex items-center gap-3 p-3 transition-shadow hover:shadow-[var(--shadow-e2)]">
-            <div className="shrink-0 rounded-xl bg-amber-50 p-2 text-amber-700">
-              <Icon name="clock" size={18} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-medium">
-                {c.businessName?.trim() || c.name}
-              </div>
-              <div className="truncate text-xs text-neutral-500">
-                {c.nextActivityNote || "פעילות מתוכננת"}
-              </div>
-            </div>
-            <span className="shrink-0 text-xs font-medium text-amber-700">
-              {new Date(c.nextActivityAt as string).toLocaleDateString("he-IL", {
-                day: "2-digit",
-                month: "2-digit",
-                year: "2-digit",
-              })}
-            </span>
-            <Icon
-              name="chevron-end"
-              size={16}
-              className="shrink-0 text-neutral-300"
-            />
-          </Card>
-        </button>
-      ))}
-    </div>
   );
 }
 

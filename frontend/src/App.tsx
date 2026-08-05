@@ -23,7 +23,6 @@ const Inbox = lazy(() => import("./pages/business/Inbox"));
 const Files = lazy(() => import("./pages/business/Files"));
 const Filing = lazy(() => import("./pages/business/Filing"));
 const Calendar = lazy(() => import("./pages/business/Calendar"));
-const Appointments = lazy(() => import("./pages/business/Appointments"));
 const Contacts = lazy(() => import("./pages/business/Contacts"));
 const ContactDetail = lazy(() => import("./pages/business/ContactDetail"));
 const Leads = lazy(() => import("./pages/business/Leads"));
@@ -37,14 +36,13 @@ const QuoteDetail = lazy(() => import("./pages/business/QuoteDetail"));
 const ObjectiveDetail = lazy(
   () => import("./pages/business/ObjectiveDetail"),
 );
-const Tasks = lazy(() => import("./pages/business/Tasks"));
 const Automations = lazy(() => import("./pages/business/Automations"));
 const Growth = lazy(() => import("./pages/business/Growth"));
 const AgentStudio = lazy(() => import("./pages/business/AgentStudio"));
 const AgentWorkspace = lazy(() => import("./pages/business/AgentWorkspace"));
 const Integrations = lazy(() => import("./pages/business/Integrations"));
-const Billing = lazy(() => import("./pages/business/Billing"));
-const Expenses = lazy(() => import("./pages/business/Expenses"));
+const Money = lazy(() => import("./pages/business/Money"));
+const Subscription = lazy(() => import("./pages/business/Subscription"));
 const Members = lazy(() => import("./pages/business/Members"));
 const Settings = lazy(() => import("./pages/business/Settings"));
 const WhatsappSettings = lazy(() => import("./pages/business/WhatsappSettings"));
@@ -201,7 +199,12 @@ export default function App() {
           <Route path="files" element={<Files />} />
           <Route path="filing" element={<Filing />} />
           <Route path="calendar" element={<Calendar />} />
-          <Route path="appointments" element={<Appointments />} />
+          {/* Legacy routes kept alive as redirects so notification links and
+              bookmarks still resolve; the unified יומן reads ?view=. */}
+          <Route
+            path="appointments"
+            element={<Navigate to="../calendar?view=appointments" replace />}
+          />
           <Route path="leads" element={<Leads />} />
           <Route path="customers" element={<Customers />} />
           <Route path="customers/:customerId" element={<CustomerDetail />} />
@@ -222,14 +225,24 @@ export default function App() {
             path="objectives/:objectiveId"
             element={<ObjectiveDetail />}
           />
-          <Route path="tasks" element={<Tasks />} />
+          <Route
+            path="tasks"
+            element={<Navigate to="../calendar?view=reminders" replace />}
+          />
           <Route path="agents" element={<AgentStudio />} />
           <Route path="agents/:agentKey" element={<AgentWorkspace />} />
           <Route path="automations" element={<Automations />} />
           <Route path="growth" element={<Growth />} />
           <Route path="integrations" element={<Integrations />} />
-          <Route path="billing" element={<Billing />} />
-          <Route path="expenses" element={<Expenses />} />
+          <Route path="money" element={<Money />} />
+          <Route path="subscription" element={<Subscription />} />
+          {/* The old money screens are consolidated into כסף (invoices) +
+              המנוי שלי (subscription). Redirects keep bookmarks/CTAs alive. */}
+          <Route path="billing" element={<Navigate to="../money" replace />} />
+          <Route
+            path="expenses"
+            element={<Navigate to="../money?view=expenses" replace />}
+          />
           <Route path="members" element={<Members />} />
           <Route path="settings" element={<Settings />} />
           <Route path="channels/whatsapp" element={<WhatsappSettings />} />

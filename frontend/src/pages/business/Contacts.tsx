@@ -7,7 +7,7 @@ import {
   type ContactStatus,
 } from "../../api/conversations";
 import { leadsApi } from "../../api/leads";
-import { Card, EmptyState } from "../../components/ui";
+import { Card, EmptyState, PageHeader, Spinner } from "../../components/ui";
 import { Icon } from "../../components/icons";
 
 function timeAgo(iso: string | null): string {
@@ -75,13 +75,12 @@ export default function Contacts() {
 
   return (
     <div className="px-4 sm:px-6 py-6 sm:py-8 max-w-3xl mx-auto">
-      <header className="mb-6">
-        <h1 className="text-2xl font-bold mb-1">{copy.title}</h1>
-        <p className="text-neutral-600 text-sm">{copy.subtitle}</p>
-      </header>
+      <PageHeader title={copy.title} subtitle={copy.subtitle} />
 
       {contacts.isLoading && (
-        <div className="text-neutral-500 text-sm">טוען…</div>
+        <div className="flex justify-center py-10">
+          <Spinner />
+        </div>
       )}
 
       {!contacts.isLoading && items.length === 0 && (
@@ -106,29 +105,29 @@ export default function Contacts() {
                   className={`rounded-xl p-2 shrink-0 ${
                     st === "customer"
                       ? "bg-teal-50 text-teal-700"
-                      : "bg-amber-50 text-amber-700"
+                      : "bg-coral-50 text-coral-700"
                   }`}
                 >
                   <Icon name={st === "customer" ? "user" : "leads"} size={18} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="font-medium text-sm truncate">
+                  <div className="font-medium text-sm text-navy-900 truncate">
                     {label(c)}
                   </div>
-                  <div className="text-xs text-neutral-500 truncate">
+                  <div className="text-xs text-navy-500 truncate">
                     <span dir="ltr">{c.phone || c.externalId}</span>
                     {interest ? ` · ${interest}` : ""}
                   </div>
                 </div>
                 {c.lastActivityAt && (
-                  <span className="text-[11px] text-neutral-400 shrink-0">
+                  <span className="text-[11px] text-navy-400 shrink-0">
                     {timeAgo(c.lastActivityAt)}
                   </span>
                 )}
                 <Icon
                   name="chevron-end"
                   size={16}
-                  className="text-neutral-300 shrink-0"
+                  className="text-navy-300 shrink-0"
                 />
               </Card>
             </button>

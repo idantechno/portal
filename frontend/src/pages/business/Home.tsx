@@ -17,9 +17,9 @@ import {
   IconTile,
   SectionTitle,
   Spinner,
+  StatCard,
 } from "../../components/ui";
 import { Icon, ServerIcon } from "../../components/icons";
-import type { IconName } from "../../components/icons";
 import WhatsappStatusBanner from "../../components/WhatsappStatusBanner";
 
 function greeting(): string {
@@ -193,16 +193,16 @@ export default function Home() {
 
       {/* Snapshot: deals / income / week's events */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <Stat
+        <StatCard
           label="עסקאות שנסגרו"
           sub="חשבוניות ששולמו"
           value={paidInvoices.length}
           icon="leads"
           tone="brand"
-          to={`/app/businesses/${businessId}/billing`}
+          to={`/app/businesses/${businessId}/money`}
           error={invoicesError}
         />
-        <Stat
+        <StatCard
           label="מאזן החודש"
           sub={
             balanceError
@@ -214,10 +214,10 @@ export default function Home() {
           value={shekels(monthIncome - (expenses.data?.monthlyTotalCents ?? 0))}
           icon="coins"
           tone="secondary"
-          to={`/app/businesses/${businessId}/expenses`}
+          to={`/app/businesses/${businessId}/money?view=expenses`}
           error={balanceError}
         />
-        <Stat
+        <StatCard
           label="אירועי השבוע"
           sub="7 הימים הקרובים"
           value={weekEvents.length}
@@ -409,37 +409,3 @@ function EmptyStateInline() {
   );
 }
 
-function Stat({
-  label,
-  sub,
-  value,
-  icon,
-  tone,
-  to,
-  error = false,
-}: {
-  label: string;
-  sub: string;
-  value: number | string;
-  icon: IconName;
-  tone: "brand" | "secondary" | "accent";
-  to: string;
-  error?: boolean;
-}) {
-  return (
-    <Link to={to} className="block group">
-      <Card className="h-full p-5 transition-[transform,box-shadow,border-color] duration-200 ease-[var(--ease-out-brand)] group-hover:-translate-y-0.5 group-hover:border-navy-100 group-hover:shadow-[var(--shadow-e3)]">
-        <div className="flex items-start justify-between">
-          <div className="min-w-0">
-            <div className="text-xs text-navy-400 mb-1">{label}</div>
-            <div className="tabular truncate text-2xl font-bold text-navy-900">
-              {error ? "—" : value}
-            </div>
-            <div className="text-[11px] text-navy-400 mt-1">{sub}</div>
-          </div>
-          <IconTile icon={icon} tone={tone} />
-        </div>
-      </Card>
-    </Link>
-  );
-}

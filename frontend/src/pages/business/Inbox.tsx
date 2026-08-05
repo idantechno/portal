@@ -404,7 +404,7 @@ export default function Inbox() {
         )}
         {selected && (
           <>
-            <header className="border-b border-neutral-200 bg-white px-4 sm:px-6 py-4 flex items-center gap-3">
+            <header className="border-b border-neutral-200 bg-white px-4 sm:px-6 py-3 flex flex-wrap items-center gap-x-3 gap-y-2">
               {/* Back to list — mobile only. */}
               <button
                 type="button"
@@ -426,7 +426,7 @@ export default function Inbox() {
                 className="flex-1 min-w-0 text-start rounded-lg -mx-1 px-1 py-0.5 hover:bg-neutral-50 disabled:hover:bg-transparent"
                 title={t("inbox.contactOpenCard")}
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 min-w-0">
                   <span
                     className="font-semibold text-sm truncate"
                     dir={selected.contact?.displayName ? "auto" : "ltr"}
@@ -436,35 +436,39 @@ export default function Inbox() {
                   {selected.contact &&
                     contactStatusBadge(selected.contact.status, t)}
                 </div>
-                {selected.contact?.displayName && (
-                  <div className="text-[11px] text-neutral-500" dir="ltr">
-                    {selected.externalThreadId}
-                  </div>
-                )}
-                <div className="text-xs text-neutral-500">
-                  {timeShort(selected.lastMessageAt, i18n.language)}
+                <div className="flex items-center gap-2 text-[11px] text-neutral-500 mt-0.5">
+                  {selected.contact?.displayName && (
+                    <span dir="ltr" className="truncate">
+                      {selected.externalThreadId}
+                    </span>
+                  )}
+                  <span dir="ltr" className="shrink-0">
+                    {timeShort(selected.lastMessageAt, i18n.language)}
+                  </span>
                 </div>
               </button>
-              {statusBadge(selected.status, t)}
-              {selected.status === "human" && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => returnToBot.mutate()}
-                  disabled={returnToBot.isPending}
-                >
-                  {t("inbox.returnToBot")}
-                </Button>
-              )}
+              <span className="shrink-0">{statusBadge(selected.status, t)}</span>
               {selected.status !== "closed" && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => closeMut.mutate()}
-                  disabled={closeMut.isPending}
-                >
-                  {t("inbox.close")}
-                </Button>
+                <div className="flex items-center gap-1.5 basis-full justify-end sm:basis-auto sm:ms-auto">
+                  {selected.status === "human" && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => returnToBot.mutate()}
+                      disabled={returnToBot.isPending}
+                    >
+                      {t("inbox.returnToBot")}
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => closeMut.mutate()}
+                    disabled={closeMut.isPending}
+                  >
+                    {t("inbox.close")}
+                  </Button>
+                </div>
               )}
             </header>
 

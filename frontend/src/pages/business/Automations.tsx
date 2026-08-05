@@ -10,7 +10,17 @@ import type {
 import { agentsApi } from "../../api/agents";
 import { useAuthStore } from "../../store/auth";
 import { isPlatformStaff } from "../../lib/roles";
-import { Button, Card, Input, Spinner, Textarea } from "../../components/ui";
+import {
+  Button,
+  Card,
+  EmptyState,
+  Input,
+  PageHeader,
+  Select,
+  Spinner,
+  Textarea,
+} from "../../components/ui";
+import { Icon } from "../../components/icons";
 
 const RUN_AGENT_KEYS = [
   "marketing",
@@ -67,17 +77,17 @@ export default function Automations() {
 
   return (
     <div className="p-4 sm:p-8 max-w-4xl mx-auto">
-      <header className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-navy-900 mb-1">אוטומציות</h1>
-          <p className="text-navy-500 text-sm">
-            "כשקורה X — תעשה Y". הרקמה שמחברת בין כל חלקי המערכת.
-          </p>
-        </div>
-        {!showForm && isOperator && (
-          <Button onClick={() => setShowForm(true)}>+ אוטומציה חדשה</Button>
-        )}
-      </header>
+      <PageHeader
+        title="אוטומציות"
+        subtitle='"כשקורה X — תעשה Y". הרקמה שמחברת בין כל חלקי המערכת.'
+        action={
+          !showForm && isOperator ? (
+            <Button icon="plus" onClick={() => setShowForm(true)}>
+              אוטומציה חדשה
+            </Button>
+          ) : undefined
+        }
+      />
 
       {showForm && (
         <RuleForm
@@ -90,12 +100,29 @@ export default function Automations() {
         />
       )}
 
-      {rules.isLoading && <div className="text-navy-400 text-sm">טוען...</div>}
+      {rules.isLoading && (
+        <div className="flex justify-center py-10">
+          <Spinner />
+        </div>
+      )}
       {!rules.isLoading && items.length === 0 && !showForm && (
-        <Card className="p-12 text-center text-navy-400">
-          {isOperator
-            ? 'אין אוטומציות עדיין. צור כלל ראשון, למשל "ליד חדש ← צור משימת מעקב".'
-            : "עדיין לא הוגדרו לך אוטומציות. נגדיר עבורך כללים שתוכל להפעיל בלחיצה."}
+        <Card>
+          <EmptyState
+            icon="bolt"
+            title="אין אוטומציות עדיין"
+            text={
+              isOperator
+                ? 'צור כלל ראשון, למשל "ליד חדש ← צור משימת מעקב".'
+                : "עדיין לא הוגדרו לך אוטומציות. נגדיר עבורך כללים שתוכל להפעיל בלחיצה."
+            }
+            action={
+              isOperator ? (
+                <Button icon="plus" onClick={() => setShowForm(true)}>
+                  צור אוטומציה
+                </Button>
+              ) : undefined
+            }
+          />
         </Card>
       )}
 
@@ -120,14 +147,23 @@ export default function Automations() {
                 <div className="font-semibold text-navy-900 text-sm">
                   {rule.name}
                 </div>
-                <div className="text-xs text-navy-500 mt-0.5">
-                  כש<span className="font-medium">
-                    {TRIGGER_LABEL[rule.trigger] ?? rule.trigger}
-                  </span>{" "}
-                  ←{" "}
-                  {rule.actions
-                    .map((a) => ACTION_LABEL[a.type] ?? a.type)
-                    .join(", ")}
+                <div className="text-xs text-navy-500 mt-0.5 flex flex-wrap items-center gap-1">
+                  <span>
+                    כש
+                    <span className="font-medium">
+                      {TRIGGER_LABEL[rule.trigger] ?? rule.trigger}
+                    </span>
+                  </span>
+                  <Icon
+                    name="arrow-end"
+                    size={13}
+                    className="shrink-0 text-navy-400"
+                  />
+                  <span>
+                    {rule.actions
+                      .map((a) => ACTION_LABEL[a.type] ?? a.type)
+                      .join(", ")}
+                  </span>
                 </div>
               </div>
               <span className="text-xs text-navy-400 shrink-0">
@@ -146,7 +182,7 @@ export default function Automations() {
                     className="text-navy-300 hover:text-coral-500 shrink-0"
                     aria-label="מחק"
                   >
-                    ✕
+                    <Icon name="trash" size={17} />
                   </button>
                 </>
               )}
@@ -223,35 +259,30 @@ function RuleForm({
             <label className="block text-sm font-medium text-navy-800 mb-1.5">
               כאשר (טריגר)
             </label>
-            <select
-              value={trigger}
-              onChange={(e) => setTrigger(e.target.value)}
-              className="block w-full rounded-xl border border-navy-200 bg-white px-3.5 h-11 text-sm text-navy-900"
-            >
+            <Select value={trigger} onChange={(e) => setTrigger(e.target.value)}>
               {Object.entries(TRIGGER_LABEL).map(([k, v]) => (
                 <option key={k} value={k}>
                   {v}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
           <div>
             <label className="block text-sm font-medium text-navy-800 mb-1.5">
               אז (פעולה)
             </label>
-            <select
+            <Select
               value={actionType}
               onChange={(e) =>
                 setActionType(e.target.value as AutomationActionType)
               }
-              className="block w-full rounded-xl border border-navy-200 bg-white px-3.5 h-11 text-sm text-navy-900"
             >
               {Object.entries(ACTION_LABEL).map(([k, v]) => (
                 <option key={k} value={k}>
                   {v}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
         </div>
         {actionType === "run_agent" ? (
@@ -260,11 +291,7 @@ function RuleForm({
               <label className="block text-sm font-medium text-navy-800 mb-1.5">
                 איזה סוכן להפעיל
               </label>
-              <select
-                value={agentKey}
-                onChange={(e) => setAgentKey(e.target.value)}
-                className="block w-full rounded-xl border border-navy-200 bg-white px-3.5 h-11 text-sm text-navy-900"
-              >
+              <Select value={agentKey} onChange={(e) => setAgentKey(e.target.value)}>
                 {runnableAgents.length === 0 && (
                   <option value="marketing">סוכן שיווק</option>
                 )}
@@ -273,7 +300,7 @@ function RuleForm({
                     {a.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="block text-sm font-medium text-navy-800 mb-1.5">

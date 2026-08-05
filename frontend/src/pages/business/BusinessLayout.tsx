@@ -81,58 +81,33 @@ export default function BusinessLayout() {
   // one place for every agent.
   const groups: NavGroup[] = [
     {
-      title: "מוקד",
+      // The everyday core — no header, a flat calm list (Calmark-style) so the
+      // owner's daily screens read as one glance, not a filed taxonomy.
+      title: "",
       items: [
         { to: "home", label: "בית", icon: "home", show: true },
         { to: "inbox", label: "שיחות", icon: "chat", show: true },
         { to: "contacts/lead", label: "לידים", icon: "leads", show: true },
         { to: "customers", label: "לקוחות", icon: "user", show: true },
-      ],
-    },
-    {
-      title: "עבודה",
-      items: [
-        { to: "agents", label: "סוכנים", icon: "agents", show: true },
         {
           to: "calendar",
           label: "יומן",
           icon: "calendar",
           show: hasCap("calendar_manual"),
         },
-        {
-          to: "appointments",
-          label: "תורים",
-          icon: "clock",
-          show: hasCap("calendar_manual"),
-        },
-        {
-          to: "tasks",
-          label: "משימות",
-          icon: "tasks",
-          show: hasCap("calendar_manual"),
-        },
-      ],
-    },
-    {
-      title: "מידע ומסמכים",
-      items: [
+        { to: "agents", label: "הסוכנים שלי", icon: "agents", show: true },
         { to: "filing", label: "מסמכים", icon: "doc", show: true },
-        { to: "files", label: "מידע העסק", icon: "folder", show: true },
+        { to: "money", label: "כסף", icon: "wallet", show: true },
       ],
     },
     {
-      title: "כספים",
+      // Setup / less-daily tools, kept below the core so they don't compete.
+      title: "כלים",
       items: [
-        { to: "billing", label: "חיוב", icon: "receipt", show: true },
-        { to: "expenses", label: "מעקב הוצאות", icon: "wallet", show: true },
-      ],
-    },
-    {
-      title: "צמיחה",
-      items: [
-        { to: "growth", label: "סטטוס וצמיחה", icon: "growth", show: true },
+        { to: "growth", label: "צמיחה", icon: "growth", show: true },
         { to: "automations", label: "אוטומציות", icon: "bolt", show: true },
-        { to: "integrations", label: "אינטגרציות", icon: "link", show: true },
+        { to: "integrations", label: "חיבורים", icon: "link", show: true },
+        { to: "files", label: "ידע והנחיות", icon: "idea", show: true },
       ],
     },
     {
@@ -219,14 +194,16 @@ export default function BusinessLayout() {
       )}
       <div className="p-4 flex-1">
         <nav className="space-y-5" onClick={() => setNavOpen(false)}>
-          {groups.map((group) => {
+          {groups.map((group, i) => {
             const visible = group.items.filter((it) => it.show);
             if (visible.length === 0) return null;
             return (
-              <div key={group.title}>
-                <div className="eyebrow px-3 mb-1.5 text-white/35">
-                  {group.title}
-                </div>
+              <div key={group.title || `g${i}`}>
+                {group.title && (
+                  <div className="eyebrow px-3 mb-1.5 text-white/35">
+                    {group.title}
+                  </div>
+                )}
                 <div className="space-y-0.5">
                   {visible.map((it) => (
                     <NavLink
@@ -246,6 +223,15 @@ export default function BusinessLayout() {
         </nav>
       </div>
       <div className="px-4 pb-4 pt-4 border-t border-white/10 text-sm">
+        <NavLink
+          to="subscription"
+          end
+          onClick={() => setNavOpen(false)}
+          className="mb-1 flex items-center gap-3 rounded-xl px-3 py-2 text-white/60 transition-colors hover:bg-white/[0.08] hover:text-white"
+        >
+          <Icon name="wallet" size={17} className="ms-1.5 opacity-90" />
+          המנוי שלי
+        </NavLink>
         <div className="flex items-center gap-3 px-3 py-1.5">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-white/70">
             <Icon name="user" size={17} />

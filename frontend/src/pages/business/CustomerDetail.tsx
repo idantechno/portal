@@ -299,6 +299,12 @@ function CustomerEditor({
         </div>
       </Card>
 
+      {/* Intake data captured on the person (questionnaire answers, lead
+          payload). Read-only — nothing here is lost from the old leads viewer. */}
+      {customer.capturedData && (
+        <CapturedDataSection data={customer.capturedData} />
+      )}
+
       {/* Website brief the client submitted through /website-brief */}
       <WebsiteIntakeSection businessId={businessId} customerId={customerId} />
 
@@ -796,6 +802,115 @@ function MarketingSection({
           </div>
         )}
       </Card>
+    </section>
+  );
+}
+
+/** Hebrew labels for the well-known intake keys; unknown keys print as-is. */
+const CAPTURED_LABELS: Record<string, string> = {
+  businessName: "שם העסק",
+  businessType: "סוג העסק",
+  audience: "קהל יעד",
+  preferredChannel: "ערוץ מועדף",
+  contactName: "איש קשר",
+  phone: "טלפון",
+  email: "אימייל",
+  interest: "מתעניין ב",
+  notes: "הערות",
+};
+
+type CapturedSection = {
+  title?: string;
+  items?: { label?: string; value?: unknown }[];
+};
+
+/** Renders one captured payload: its scalar fields, then any answer sections. */
+function CapturedPayload({ data }: { data: Record<string, unknown> }) {
+  const scalars = Object.entries(data).filter(
+    ([k, v]) =>
+      k !== "sections" &&
+      k !== "history" &&
+      (typeof v === "string" || typeof v === "number") &&
+      String(v).trim() !== "",
+  );
+  const sections = Array.isArray(data.sections)
+    ? (data.sections as CapturedSection[])
+    : [];
+
+  if (scalars.length === 0 && sections.length === 0) {
+    return <p className="text-sm text-navy-400">אין פרטים שנקלטו.</p>;
+  }
+
+  return (
+    <div className="space-y-4">
+      {scalars.length > 0 && (
+        <dl className="grid grid-cols-2 gap-3 rounded-xl bg-brand-50/50 p-3.5 text-sm">
+          {scalars.map(([k, v]) => (
+            <div key={k}>
+              <dt className="text-xs text-navy-400">
+                {CAPTURED_LABELS[k] ?? k}
+              </dt>
+              <dd className="mt-0.5 whitespace-pre-wrap font-medium text-navy-900">
+                {String(v)}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {sections.map((section, i) => (
+        <div key={i}>
+          {section.title && (
+            <h3 className="mb-2 text-xs font-semibold uppercase text-navy-400">
+              {section.title}
+            </h3>
+          )}
+          <dl className="space-y-1.5">
+            {(section.items ?? []).map((item, j) => (
+              <div key={j} className="text-sm">
+                <dt className="text-navy-500">{item.label}</dt>
+                <dd className="whitespace-pre-wrap text-navy-900">
+                  {item.value == null ? "" : String(item.value)}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Read-only view of a person's `capturedData` — the questionnaire answers / lead
+ * payload the unification moved onto the person. `upsertPerson` accumulates
+ * repeat submissions under `capturedData.history[]`, so the latest payload shows
+ * first and earlier ones follow.
+ */
+function CapturedDataSection({ data }: { data: Record<string, unknown> }) {
+  const history = Array.isArray(data.history)
+    ? (data.history as Record<string, unknown>[])
+    : [];
+  // Newest first: the root payload, then each historical one in reverse.
+  const payloads = [data, ...[...history].reverse()];
+
+  return (
+    <section className="mb-6">
+      <div className="mb-3 flex items-center gap-2">
+        <Icon name="doc" size={18} className="text-brand-600" />
+        <h2 className="text-sm font-semibold text-navy-500">מידע שנקלט</h2>
+      </div>
+      <div className="space-y-4">
+        {payloads.map((payload, i) => (
+          <Card key={i} className="p-5">
+            {payloads.length > 1 && (
+              <div className="mb-2.5 text-xs font-medium text-navy-400">
+                {i === 0 ? "פנייה אחרונה" : `פנייה קודמת ${i}`}
+              </div>
+            )}
+            <CapturedPayload data={payload} />
+          </Card>
+        ))}
+      </div>
     </section>
   );
 }

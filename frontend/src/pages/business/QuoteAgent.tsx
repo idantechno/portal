@@ -36,7 +36,7 @@ export default function QuoteAgent({ businessId }: { businessId: string }) {
   });
   const customers = useQuery({
     queryKey: ["customers", businessId, "recent"],
-    queryFn: () => customersApi.list(businessId, "recent"),
+    queryFn: () => customersApi.list(businessId, { sort: "recent" }),
     enabled: Boolean(businessId),
   });
   const quotes = useQuery({

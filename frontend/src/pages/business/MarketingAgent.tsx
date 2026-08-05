@@ -6,8 +6,6 @@ import { briefsApi, type Brief } from "../../api/briefs";
 import { strategiesApi, type Strategy } from "../../api/strategies";
 import { plansApi, type Plan } from "../../api/plans";
 import { campaignsApi, type Campaign } from "../../api/campaigns";
-import { leadsApi, type Lead } from "../../api/leads";
-import { customersApi } from "../../api/customers";
 import { apiErrorMessage } from "../../api/client";
 import CustomersPanel from "../../components/CustomersPanel";
 import {
@@ -15,7 +13,6 @@ import {
   Card,
   EmptyState,
   FormError,
-  Input,
   Spinner,
 } from "../../components/ui";
 import { Icon, type IconName } from "../../components/icons";
@@ -101,212 +98,16 @@ export default function MarketingAgent({ businessId }: { businessId: string }) {
       )}
 
       {tab === "leads" && (
-        <LeadsTab businessId={businessId} onError={setError} />
+        <CustomersPanel businessId={businessId} stage="lead" />
       )}
-      {tab === "customers" && <CustomersPanel businessId={businessId} />}
+      {tab === "customers" && (
+        <CustomersPanel businessId={businessId} stage="customer" />
+      )}
       {tab === "campaigns" && <CampaignsTab businessId={businessId} />}
       {tab === "reports" && (
         <ReportsTab businessId={businessId} onError={setError} />
       )}
     </div>
-  );
-}
-
-/* ------------------------------- Leads tab -------------------------------- */
-
-function LeadsTab({
-  businessId,
-  onError,
-}: {
-  businessId: string;
-  onError: (msg: string | null) => void;
-}) {
-  const navigate = useNavigate();
-  const qc = useQueryClient();
-
-  const leads = useQuery({
-    queryKey: ["leads", businessId],
-    queryFn: () => leadsApi.list(businessId),
-    enabled: Boolean(businessId),
-  });
-  const briefs = useQuery({
-    queryKey: ["briefs", businessId],
-    queryFn: () => briefsApi.list(businessId),
-    enabled: Boolean(businessId),
-  });
-
-  const briefByLead = new Map(
-    (briefs.data ?? [])
-      .filter((b) => b.leadId)
-      .map((b) => [b.leadId as string, b]),
-  );
-  const questionnaireLeads = (leads.data ?? []).filter(
-    (l) => l.source === "questionnaire",
-  );
-
-  return (
-    <section>
-      <p className="mb-3 text-sm text-navy-500">
-        מליד אפשר להפיק בריף, או להמיר אותו ללקוח כדי להמשיך לאסטרטגיה ותוכנית.
-      </p>
-      {leads.isLoading ? (
-        <div className="text-sm text-neutral-500">טוען לידים…</div>
-      ) : questionnaireLeads.length === 0 ? (
-        <Card>
-          <EmptyState
-            icon="leads"
-            title="אין עדיין לידים משאלון"
-            text="בריף מופק מליד שמילא את שאלון האסטרטגיה (/strategy). ברגע שיגיע כזה — הוא יופיע כאן."
-          />
-        </Card>
-      ) : (
-        <div className="space-y-2.5">
-          {questionnaireLeads.map((lead) => (
-            <LeadRow
-              key={lead.id}
-              lead={lead}
-              businessId={businessId}
-              existing={briefByLead.get(lead.id) ?? null}
-              onGenerated={(brief) => {
-                void qc.invalidateQueries({ queryKey: ["briefs", businessId] });
-                navigate(`/app/businesses/${businessId}/briefs/${brief.id}`);
-              }}
-              onConverted={(customerId) => {
-                void qc.invalidateQueries({
-                  queryKey: ["customers", businessId],
-                });
-                navigate(
-                  `/app/businesses/${businessId}/customers/${customerId}`,
-                );
-              }}
-              onError={onError}
-            />
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
-
-function LeadRow({
-  lead,
-  businessId,
-  existing,
-  onGenerated,
-  onConverted,
-  onError,
-}: {
-  lead: Lead;
-  businessId: string;
-  existing: Brief | null;
-  onGenerated: (brief: Brief) => void;
-  onConverted: (customerId: string) => void;
-  onError: (msg: string | null) => void;
-}) {
-  const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
-  const [website, setWebsite] = useState("");
-
-  const generate = useMutation({
-    mutationFn: () =>
-      briefsApi.generate(businessId, lead.id, {
-        websiteUrl: website.trim() || undefined,
-      }),
-    onSuccess: onGenerated,
-    onError: (err) => onError(apiErrorMessage(err, "הפקת הבריף נכשלה — נסה שוב")),
-  });
-
-  const convert = useMutation({
-    mutationFn: () => customersApi.createFromLead(businessId, lead.id),
-    onSuccess: (customer) => onConverted(customer.id),
-    onError: (err) => onError(apiErrorMessage(err, "ההמרה ללקוח נכשלה")),
-  });
-
-  return (
-    <Card className="p-3.5">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <div className="truncate text-sm font-medium text-navy-900">
-            {lead.name}
-          </div>
-          <div className="truncate text-xs text-navy-400">{lead.interest}</div>
-        </div>
-        <div className="flex shrink-0 flex-wrap justify-end gap-2">
-          {existing && (
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() =>
-                navigate(`/app/businesses/${businessId}/briefs/${existing.id}`)
-              }
-            >
-              פתיחת הבריף
-            </Button>
-          )}
-          <Button
-            size="sm"
-            variant="ghost"
-            icon="user"
-            disabled={convert.isPending}
-            onClick={() => {
-              onError(null);
-              convert.mutate();
-            }}
-          >
-            {convert.isPending ? "ממיר…" : "המר ללקוח"}
-          </Button>
-          {!open ? (
-            <Button
-              size="sm"
-              variant={existing ? "ghost" : "primary"}
-              icon={existing ? "refresh" : "megaphone"}
-              onClick={() => {
-                onError(null);
-                setOpen(true);
-              }}
-            >
-              {existing ? "הפקה מחדש" : "הפק בריף"}
-            </Button>
-          ) : (
-            <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
-              ביטול
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {open && (
-        <div className="mt-3 border-t border-navy-100 pt-3">
-          <p className="mb-2 text-xs text-navy-400">
-            אפשר להוסיף כתובת אתר — ממנה נחלץ שירותים, מחירים, טון והמלצות. בלי
-            אתר, השדות האלה יסומנו ⟨לא ידוע⟩.
-          </p>
-          <div className="flex flex-wrap items-center gap-2">
-            <Input
-              value={website}
-              onChange={(e) => setWebsite(e.target.value)}
-              placeholder="example.co.il (רשות)"
-              dir="ltr"
-              className="w-56"
-              disabled={generate.isPending}
-            />
-            <Button
-              size="sm"
-              icon="agents"
-              disabled={generate.isPending}
-              onClick={() => generate.mutate()}
-            >
-              {generate.isPending ? "מפיק בריף…" : "הפק"}
-            </Button>
-          </div>
-          {generate.isPending && (
-            <p className="mt-2 text-xs text-navy-400">
-              ההפקה כוללת סריקת אתר וניסוח — עד כדקה.
-            </p>
-          )}
-        </div>
-      )}
-    </Card>
   );
 }
 

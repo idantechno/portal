@@ -5,6 +5,7 @@ import {
   customersApi,
   type Customer,
   type CustomerSort,
+  type CustomerStage,
 } from "../api/customers";
 import { apiErrorMessage } from "../api/client";
 import {
@@ -35,18 +36,26 @@ function fmtDate(iso: string | null): string {
 }
 
 /**
- * The customers list + sort + "new customer" flow. Shared verbatim between the
- * sidebar "לקוחות" page and the marketing agent's customers tab — one list of
- * customers, surfaced in both places.
+ * The people list + sort + "new person" flow. Shared between the unified אנשי
+ * קשר screen (לידים/לקוחות tabs) and the marketing agent — one list of people,
+ * surfaced in both places. An optional `stage` filters to לידים or לקוחות;
+ * omitting it shows everyone.
  */
-export default function CustomersPanel({ businessId }: { businessId: string }) {
+export default function CustomersPanel({
+  businessId,
+  stage,
+}: {
+  businessId: string;
+  stage?: CustomerStage;
+}) {
   const navigate = useNavigate();
   const [sort, setSort] = useState<CustomerSort>("recent");
   const [creating, setCreating] = useState(false);
+  const isLead = stage === "lead";
 
   const customers = useQuery({
-    queryKey: ["customers", businessId, sort],
-    queryFn: () => customersApi.list(businessId, sort),
+    queryKey: ["customers", businessId, stage ?? "all", sort],
+    queryFn: () => customersApi.list(businessId, { sort, stage }),
     enabled: Boolean(businessId),
   });
 
@@ -77,9 +86,13 @@ export default function CustomersPanel({ businessId }: { businessId: string }) {
         ) : (
           <span />
         )}
-        <Button icon="plus" size="sm" onClick={() => setCreating(true)}>
-          לקוח חדש
-        </Button>
+        {/* Manual create always makes a customer, so it's offered on the לקוחות
+            (and unfiltered) view — leads arrive through intake, not by hand. */}
+        {!isLead && (
+          <Button icon="plus" size="sm" onClick={() => setCreating(true)}>
+            לקוח חדש
+          </Button>
+        )}
       </div>
 
       {customers.isLoading && (
@@ -90,11 +103,19 @@ export default function CustomersPanel({ businessId }: { businessId: string }) {
 
       {!customers.isLoading && items.length === 0 && (
         <Card className="p-10">
-          <EmptyState
-            icon="users"
-            title="אין עדיין לקוחות"
-            text="הוסף לקוח חדש, או המר ליד ללקוח מטאב הלידים."
-          />
+          {isLead ? (
+            <EmptyState
+              icon="leads"
+              title="עדיין אין לידים"
+              text="לידים נכנסים אוטומטית משיחות ומהשאלון. כשמישהו משאיר פרטים — הוא יופיע כאן, ואפשר להמיר אותו ללקוח."
+            />
+          ) : (
+            <EmptyState
+              icon="users"
+              title="אין עדיין לקוחות"
+              text="הוסף לקוח חדש, או המר ליד ללקוח מטאב הלידים."
+            />
+          )}
         </Card>
       )}
 

@@ -1,7 +1,15 @@
 import { api } from "./client";
 
-export type CustomerSource = "manual" | "lead" | "contact";
+export type CustomerSource =
+  | "manual"
+  | "lead"
+  | "contact"
+  | "agent"
+  | "questionnaire"
+  | "intake";
 export type CustomerSort = "recent" | "alpha" | "next_activity";
+/** Lifecycle stage of a person — the canonical Contact/Lead/Customer axis. */
+export type CustomerStage = "lead" | "customer";
 
 export interface Customer {
   id: string;
@@ -12,6 +20,14 @@ export interface Customer {
   email: string | null;
   notes: string | null;
   source: CustomerSource;
+  /** Lifecycle stage — drives the unified אנשי קשר לידים/לקוחות tabs. */
+  stage: CustomerStage;
+  /** Free-text interest captured at intake, if any. */
+  interest: string | null;
+  /** Finer-grained provenance than `source` (form/campaign/page). */
+  sourceDetail: string | null;
+  /** Structured intake payload (questionnaire answers, tool args, UTM…). */
+  capturedData: Record<string, unknown> | null;
   leadId: string | null;
   customerContactId: string | null;
   brandPageReady: boolean;
@@ -50,10 +66,18 @@ export interface UpdateCustomerInput {
 }
 
 export const customersApi = {
-  list: (businessId: string, sort: CustomerSort = "recent") =>
+  /**
+   * People for a business. `sort` orders the list; the optional `stage` narrows
+   * to one lifecycle stage (lead|customer) for the unified אנשי קשר tabs.
+   * Omitting `stage` returns every person, unchanged.
+   */
+  list: (
+    businessId: string,
+    params: { sort?: CustomerSort; stage?: CustomerStage } = {},
+  ) =>
     api
       .get<Customer[]>(`/businesses/${businessId}/customers`, {
-        params: { sort },
+        params: { sort: params.sort ?? "recent", stage: params.stage },
       })
       .then((r) => r.data),
 

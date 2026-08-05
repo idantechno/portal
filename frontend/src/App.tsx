@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import { useAuthStore } from "./store/auth";
 import { authApi } from "./api/auth";
 import { isPlatformStaff } from "./lib/roles";
@@ -23,9 +23,7 @@ const Inbox = lazy(() => import("./pages/business/Inbox"));
 const Files = lazy(() => import("./pages/business/Files"));
 const Filing = lazy(() => import("./pages/business/Filing"));
 const Calendar = lazy(() => import("./pages/business/Calendar"));
-const Contacts = lazy(() => import("./pages/business/Contacts"));
 const ContactDetail = lazy(() => import("./pages/business/ContactDetail"));
-const Leads = lazy(() => import("./pages/business/Leads"));
 const Customers = lazy(() => import("./pages/business/Customers"));
 const CustomerDetail = lazy(() => import("./pages/business/CustomerDetail"));
 const BriefDetail = lazy(() => import("./pages/business/BriefDetail"));
@@ -61,6 +59,25 @@ const AdminSupport = lazy(() => import("./pages/admin/AdminSupport"));
 const IconGallery = import.meta.env.DEV
   ? lazy(() => import("./pages/dev/IconGallery"))
   : null;
+
+/**
+ * The old contacts LIST (contacts/:status) is folded into the unified אנשי קשר
+ * screen. Redirect it to customers?stage=<status> (lead→lead, customer→customer)
+ * so nav links and bookmarks still resolve. The contact DETAIL page stays live.
+ */
+function ContactsListRedirect() {
+  const { businessId, status } = useParams<{
+    businessId: string;
+    status: string;
+  }>();
+  const stage = status === "customer" ? "customer" : "lead";
+  return (
+    <Navigate
+      to={`/app/businesses/${businessId}/customers?stage=${stage}`}
+      replace
+    />
+  );
+}
 
 function RouteFallback() {
   return (
@@ -205,10 +222,14 @@ export default function App() {
             path="appointments"
             element={<Navigate to="../calendar?view=appointments" replace />}
           />
-          <Route path="leads" element={<Leads />} />
+          {/* Legacy people surfaces folded into the unified אנשי קשר screen. */}
+          <Route
+            path="leads"
+            element={<Navigate to="../customers?stage=lead" replace />}
+          />
           <Route path="customers" element={<Customers />} />
           <Route path="customers/:customerId" element={<CustomerDetail />} />
-          <Route path="contacts/:status" element={<Contacts />} />
+          <Route path="contacts/:status" element={<ContactsListRedirect />} />
           <Route
             path="contacts/:status/:contactId"
             element={<ContactDetail />}

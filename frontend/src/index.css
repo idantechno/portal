@@ -166,6 +166,23 @@ h3:not(.markdown-preview h3) {
   border-color: color-mix(in srgb, var(--color-navy-900) 8%, transparent);
 }
 
+/* Card surface. On the near-white canvas, white cards used to dissolve into the
+   background. Every card now carries a translucent teal wash (palette teal
+   #357d78) so its edges read clearly; hovering deepens the wash for a soft,
+   tactile lift. One definition drives every Card in the product — tune the two
+   percentages here to change the whole system. */
+.surface-card {
+  background-color: color-mix(in srgb, var(--color-teal-400) 30%, transparent);
+  border-color: color-mix(in srgb, var(--color-teal-400) 42%, transparent);
+  transition:
+    background-color 160ms var(--ease-out-brand),
+    border-color 160ms var(--ease-out-brand);
+}
+.surface-card:hover {
+  background-color: color-mix(in srgb, var(--color-teal-400) 55%, transparent);
+  border-color: color-mix(in srgb, var(--color-teal-400) 62%, transparent);
+}
+
 /* Selection picks up the brand rather than the OS blue — one of the few places
    a product's colour shows up without being asked for. */
 ::selection {

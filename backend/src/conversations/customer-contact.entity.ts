@@ -59,6 +59,17 @@ export class CustomerContact {
   })
   status!: ContactStatus;
 
+  /**
+   * Reverse link to the canonical `customers` "person" this channel handle
+   * belongs to, once unified. Nullable and plain-indexed — deliberately NOT a
+   * FK-with-cascade so it can never affect contact/customer deletes. Phase 1
+   * only ADDS the column; no write path populates it yet (the backfill fills it
+   * where a customer already points here via `customer_contact_id`).
+   */
+  @Index()
+  @Column({ type: 'uuid', name: 'customer_id', nullable: true })
+  customerId!: string | null;
+
   /** Free-text operator notes about this person (allergies, preferences, …). */
   @Column({ type: 'text', nullable: true })
   notes!: string | null;

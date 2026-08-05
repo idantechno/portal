@@ -173,14 +173,23 @@ export class CustomersService {
     return customer;
   }
 
-  /** Customers list for a business, ordered per the requested sort. */
+  /**
+   * Customers list for a business, ordered per the requested sort. An optional
+   * `stage` filter narrows to a lifecycle stage (lead|customer) for the future
+   * unified screen; omitting it returns every row exactly as before.
+   */
   async list(
     businessId: string,
     sort: CustomerSort = 'recent',
+    stage?: ContactStatus,
   ): Promise<Customer[]> {
     const qb = this.customers
       .createQueryBuilder('c')
       .where('c.business_id = :businessId', { businessId });
+
+    if (stage) {
+      qb.andWhere('c.stage = :stage', { stage });
+    }
 
     if (sort === 'alpha') {
       // Sort by the display name — business name first, then contact name.

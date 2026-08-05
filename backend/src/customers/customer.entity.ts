@@ -6,6 +6,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { ContactStatus } from '../common/enums/contact-status.enum';
 
 /** How this customer record came to be: created by hand, promoted from a
  *  marketing lead, or promoted from a conversation contact. */
@@ -58,6 +59,48 @@ export class Customer {
 
   @Column({ type: 'varchar', length: 16, default: 'manual' })
   source!: CustomerSource;
+
+  /**
+   * Lifecycle stage of this person — the canonical field for the emerging
+   * Contact/Lead/Customer unification. Reuses {@link ContactStatus} values
+   * (`lead` | `customer`). Defaults to `customer` at the DB level because every
+   * existing `customers` row already represents a paying customer; the column
+   * exists so future intake/lead flows can land here as `lead` and be promoted
+   * in place. Phase 1 only ADDS this field — no write path sets it yet.
+   */
+  @Column({ type: 'varchar', length: 16, default: ContactStatus.Customer })
+  stage!: ContactStatus;
+
+  /** What this person is interested in — free text captured at intake time. */
+  @Column({ type: 'text', nullable: true })
+  interest!: string | null;
+
+  /** Finer-grained provenance than `source` (e.g. which form/campaign/page). */
+  @Column({
+    type: 'varchar',
+    length: 160,
+    name: 'source_detail',
+    nullable: true,
+  })
+  sourceDetail!: string | null;
+
+  /** Arbitrary structured payload captured at intake (form answers, UTM, …). */
+  @Column({ type: 'jsonb', name: 'captured_data', nullable: true })
+  capturedData!: Record<string, unknown> | null;
+
+  /**
+   * Digits-only, last-9 normalization of `phone` (mirrors `normalizePhoneKey`
+   * in the service) — an indexed key so a future unified lookup can match a
+   * person by phone without scanning every row. Plain index, NOT unique.
+   */
+  @Index()
+  @Column({
+    type: 'varchar',
+    length: 16,
+    name: 'normalized_phone',
+    nullable: true,
+  })
+  normalizedPhone!: string | null;
 
   /** The lead this customer was promoted from, if any. Keeps the questionnaire
    *  answers reachable (via the lead) so a brief can still be generated. */

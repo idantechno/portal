@@ -59,7 +59,7 @@ export class CustomersController {
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Query() query: ListCustomersQueryDto,
   ) {
-    return this.customers.list(businessId, query.sort ?? 'recent');
+    return this.customers.list(businessId, query.sort ?? 'recent', query.stage);
   }
 
   @Get(':id')

@@ -14,6 +14,7 @@ import { Business } from '../businesses/business.entity';
 import { User } from '../users/user.entity';
 import { UserRole } from '../common/enums/user-role.enum';
 import { CustomersService } from '../customers/customers.service';
+import { ContactStatus } from '../common/enums/contact-status.enum';
 import { FilesystemService } from '../context-files/filesystem.service';
 import { OperatorNotifierService } from '../questionnaire/operator-notifier.service';
 import {
@@ -93,27 +94,22 @@ export class WebsiteIntakeService {
 
     const platformBusinessId = await this.resolvePlatformBusinessId();
 
-    // Find-or-create the customer. If they're already registered (by phone or
-    // email), reuse that row and only fill in blanks — never a second record.
-    let customer = await this.customers.findByPhoneOrEmail(
-      platformBusinessId,
+    // Find-or-create the customer through the unified helper: deduped by
+    // phone/email, blanks-only enrichment, never a second record. A website
+    // brief means an active customer, so `stage` is set explicitly to
+    // `customer` (preserving today's meaning — these show under לקוחות).
+    // `forceCreate` is redundant here (phone/email is validated above) but makes
+    // the non-null intent explicit.
+    const customer = (await this.customers.upsertPerson(platformBusinessId, {
+      name: contactName,
+      businessName,
       phone,
       email,
-    );
-    if (customer) {
-      await this.customers.update(platformBusinessId, customer.id, {
-        businessName: customer.businessName || businessName,
-        phone: customer.phone || phone || undefined,
-        email: customer.email || email || undefined,
-      });
-    } else {
-      customer = await this.customers.create(platformBusinessId, {
-        name: contactName,
-        businessName,
-        phone: phone || undefined,
-        email: email || undefined,
-      });
-    }
+      stage: ContactStatus.Customer,
+      source: 'intake',
+      sourceDetail: 'בריף אתר',
+      forceCreate: true,
+    }))!;
 
     const intake = this.intakes.create({
       businessId: platformBusinessId,

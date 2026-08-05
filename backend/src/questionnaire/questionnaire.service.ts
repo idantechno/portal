@@ -11,6 +11,8 @@ import { Business } from '../businesses/business.entity';
 import { User } from '../users/user.entity';
 import { UserRole } from '../common/enums/user-role.enum';
 import { LeadsService } from '../leads/leads.service';
+import { CustomersService } from '../customers/customers.service';
+import { ContactStatus } from '../common/enums/contact-status.enum';
 import {
   Audience,
   BusinessType,
@@ -37,6 +39,7 @@ export class QuestionnaireService {
   constructor(
     private readonly config: ConfigService,
     private readonly leads: LeadsService,
+    private readonly customers: CustomersService,
     private readonly operator: OperatorNotifierService,
     @InjectRepository(Business)
     private readonly businesses: Repository<Business>,
@@ -76,7 +79,7 @@ export class QuestionnaireService {
       ? `שאלון אסטרטגיה · ${campaign}`
       : 'שאלון אסטרטגיה';
 
-    await this.leads.create({
+    const lead = await this.leads.create({
       businessId,
       name: dto.contactName,
       phone,
@@ -86,6 +89,25 @@ export class QuestionnaireService {
       sourceDetail,
       answers,
     });
+
+    // Also land this submission in the unified people list as a lead, deduped by
+    // phone/email. Best-effort — the lead + operator alert are the contract, so
+    // a person-upsert hiccup must never fail the public submission.
+    await this.customers
+      .upsertPerson(businessId, {
+        name: dto.contactName,
+        businessName: dto.businessName,
+        phone,
+        email,
+        stage: ContactStatus.Lead,
+        source: 'questionnaire',
+        sourceDetail,
+        interest,
+        capturedData: answers,
+        leadId: lead.id,
+        forceCreate: true,
+      })
+      .catch(() => undefined);
 
     // Out-of-band delivery to the operator — never blocks the submission.
     try {

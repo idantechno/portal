@@ -21,6 +21,11 @@ import { AGENT_RUNS_QUEUE } from '../agent-worker/agent-worker.constants';
       Business,
     ]),
     BusinessesModule,
+    // NOTE: We deliberately do NOT import CustomersModule here. CustomersModule
+    // transitively depends back on ConversationsModule (Customers → Leads →
+    // Automations → Tasks → WhatsApp → Conversations), so importing it would
+    // form a module cycle. CustomerContactsService instead resolves
+    // CustomersService lazily via ModuleRef to reach `upsertPerson`.
     BullModule.registerQueue({ name: AGENT_RUNS_QUEUE }),
   ],
   controllers: [ConversationsController, ContactsController],

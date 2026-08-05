@@ -2,9 +2,11 @@ import { tool } from '@anthropic-ai/claude-agent-sdk';
 import { z } from 'zod';
 import { ConversationsService } from '../conversations/conversations.service';
 import { LeadsService } from '../leads/leads.service';
+import { CustomersService } from '../customers/customers.service';
 import { AppointmentsService } from '../appointments/appointments.service';
 import { WaitlistService } from '../appointments/waitlist.service';
 import { ConversationStatus } from '../common/enums/conversation-status.enum';
+import { ContactStatus } from '../common/enums/contact-status.enum';
 import { MessageRole } from '../common/enums/message-role.enum';
 import { Channel } from '../common/enums/channel.enum';
 import { parseIsraelDate } from '../common/time/israel-time';
@@ -22,6 +24,7 @@ export interface ToolContext {
   /** Channel the conversation arrived on — recorded as the lead's origin. */
   channel?: Channel;
   leads: LeadsService;
+  customers: CustomersService;
   conversations: ConversationsService;
   appointments: AppointmentsService;
   waitlist: WaitlistService;
@@ -84,6 +87,33 @@ export function captureLeadTool(ctx: ToolContext) {
         notes: args.notes ?? null,
         sourceDetail: channelLabel(ctx.channel),
       });
+
+      // Also surface this lead in the unified people list and link it to the
+      // conversation contact. Best-effort: a person-upsert hiccup must never
+      // fail the capture the agent already promised the customer.
+      await ctx.customers
+        .upsertPerson(ctx.businessId, {
+          name: args.name,
+          phone: args.phone ?? null,
+          email: args.email ?? null,
+          stage: ContactStatus.Lead,
+          source: 'agent',
+          sourceDetail: channelLabel(ctx.channel),
+          interest: args.interest,
+          notes: args.notes ?? null,
+          capturedData: {
+            name: args.name,
+            phone: args.phone ?? null,
+            email: args.email ?? null,
+            interest: args.interest,
+            notes: args.notes ?? null,
+          },
+          customerContactId: ctx.customerContactId,
+          leadId: lead.id,
+          forceCreate: true,
+        })
+        .catch(() => undefined);
+
       return {
         content: [
           {

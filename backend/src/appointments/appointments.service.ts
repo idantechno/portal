@@ -18,6 +18,8 @@ import { WhatsappConnectionsService } from '../whatsapp/whatsapp-connections.ser
 import { WaitlistService } from './waitlist.service';
 import { TasksService } from '../tasks/tasks.service';
 import { CustomerContactsService } from '../conversations/customer-contacts.service';
+import { CustomersService } from '../customers/customers.service';
+import { ContactStatus } from '../common/enums/contact-status.enum';
 import { computeRemindAt } from '../common/time/reminder-window';
 
 /** Marks tasks this service creates so cancel() can clean them up. */
@@ -72,6 +74,7 @@ export class AppointmentsService {
     private readonly waitlist: WaitlistService,
     private readonly tasks: TasksService,
     private readonly contacts: CustomerContactsService,
+    private readonly customers: CustomersService,
   ) {}
 
   /**
@@ -140,6 +143,15 @@ export class AppointmentsService {
           saved.businessId,
           saved.customerContactId,
         );
+        // Promote the unified person too — found via the contact link, or by
+        // phone as a fallback. `forceCreate` is off, so this only PROMOTES an
+        // existing person and never spawns a new row from a booking alone.
+        await this.customers.upsertPerson(saved.businessId, {
+          stage: ContactStatus.Customer,
+          customerContactId: saved.customerContactId,
+          phone: saved.phone,
+          name: saved.customerName,
+        });
       } catch (err) {
         this.log.warn(
           `[appointments] contact promotion failed for ${saved.id}: ` +

@@ -1,14 +1,10 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { MoreThanOrEqual, Repository } from 'typeorm';
+import { IsNull, MoreThanOrEqual, Repository } from 'typeorm';
 import { LeadsService } from '../leads/leads.service';
 import { CustomerContact } from '../conversations/customer-contact.entity';
 import { ContactStatus } from '../common/enums/contact-status.enum';
-import { Customer } from './customer.entity';
+import { Customer, CustomerSource } from './customer.entity';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { CustomerSort } from './dto/list-customers.dto';
@@ -24,6 +20,35 @@ function normalizePhoneKey(phone?: string | null): string | null {
   const digits = phone.replace(/\D/g, '');
   if (digits.length < 7) return null;
   return digits.slice(-9);
+}
+
+/**
+ * Everything a caller can offer when finding-or-creating the canonical
+ * `customers` "person" for a business. Every field is optional — the helper
+ * enriches only the blanks on an existing person and never overwrites a
+ * non-null value (the one exception being a lead→customer stage promotion).
+ */
+export interface UpsertPersonInput {
+  name?: string | null;
+  businessName?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  /** Lifecycle stage to move TOWARDS — only ever promotes lead→customer. */
+  stage?: ContactStatus;
+  source?: CustomerSource;
+  sourceDetail?: string | null;
+  interest?: string | null;
+  notes?: string | null;
+  /** Arbitrary structured intake payload (form answers, tool args, UTM, …). */
+  capturedData?: Record<string, unknown> | null;
+  customerContactId?: string | null;
+  leadId?: string | null;
+  /**
+   * Create a person even when no phone/email is present. Off by default so an
+   * anonymous/no-identity caller (e.g. a web-widget session) never spawns a
+   * junk row; explicit lead-capture paths turn it on.
+   */
+  forceCreate?: boolean;
 }
 
 @Injectable()
@@ -56,6 +81,178 @@ export class CustomersService {
   }
 
   /**
+   * THE unification entry point: find-or-create the one canonical `customers`
+   * "person" for a business and enrich it, keyed by **normalized phone first,
+   * then case-insensitive email** (falling back to an explicit
+   * `customerContactId` / `leadId` link when neither identity is given).
+   *
+   * Rules:
+   * - Enrich blanks only — an existing non-null field is NEVER overwritten. The
+   *   sole exception is `stage`, which may be PROMOTED lead→customer (never
+   *   demoted). A promotion also (re)stamps `becameCustomerAt` to now.
+   * - `normalizedPhone` is always kept in sync whenever a phone is present.
+   * - `capturedData` accumulates: if the person already has some, the new
+   *   payload is appended under `capturedData.history[]` instead of clobbering.
+   * - With no phone/email AND no `forceCreate`, an unmatched call creates
+   *   nothing and returns `null` (keeps anonymous sessions out of the list).
+   * - When `customerContactId` is given, the contact's reverse `customerId`
+   *   link is set (only while still NULL) so the thread and the person are one.
+   *
+   * Additive & transition-safe: callers keep writing their existing lead/contact
+   * rows; this just ALSO maintains the unified person alongside them.
+   */
+  async upsertPerson(
+    businessId: string,
+    input: UpsertPersonInput,
+  ): Promise<Customer | null> {
+    const phone = input.phone?.trim() || null;
+    const email = input.email?.trim() || null;
+    const phoneKey = normalizePhoneKey(phone);
+    const emailKey = email?.toLowerCase() || null;
+
+    // Locate the existing person: phone/email identity first, then an explicit
+    // contact/lead link (covers identity-less captures that still map to a row).
+    let person: Customer | null = null;
+    if (phoneKey || emailKey) {
+      person = await this.findByPhoneOrEmail(businessId, phone, email);
+    }
+    if (!person && input.customerContactId) {
+      person = await this.customers.findOne({
+        where: { businessId, customerContactId: input.customerContactId },
+      });
+    }
+    if (!person && input.leadId) {
+      person = await this.customers.findOne({
+        where: { businessId, leadId: input.leadId },
+      });
+    }
+
+    if (!person) {
+      // Nothing to enrich — decide whether we're allowed to create at all.
+      if (!phoneKey && !emailKey && !input.forceCreate) return null;
+      const created = this.customers.create({
+        businessId,
+        name: input.name?.trim() || phone || email || 'לקוח',
+        businessName: input.businessName?.trim() || null,
+        phone,
+        email,
+        normalizedPhone: phoneKey,
+        // Undefined lets the column default ('customer') stand.
+        stage: input.stage ?? undefined,
+        source: input.source ?? 'manual',
+        sourceDetail: input.sourceDetail?.trim() || null,
+        interest: input.interest?.trim() || null,
+        notes: input.notes?.trim() || null,
+        capturedData: input.capturedData ?? null,
+        customerContactId: input.customerContactId ?? null,
+        leadId: input.leadId ?? null,
+      });
+      person = await this.customers.save(created);
+      await this.linkContactToPerson(
+        businessId,
+        input.customerContactId,
+        person.id,
+      );
+      return person;
+    }
+
+    // --- Enrich an existing person: blanks only, never clobber a non-null. ---
+    let changed = false;
+    const fillBlank = <K extends keyof Customer>(
+      field: K,
+      value: Customer[K] | null | undefined,
+    ): void => {
+      if (
+        value !== null &&
+        value !== undefined &&
+        value !== '' &&
+        (person![field] === null || person![field] === undefined)
+      ) {
+        person![field] = value;
+        changed = true;
+      }
+    };
+
+    fillBlank('businessName', input.businessName?.trim() || null);
+    fillBlank('interest', input.interest?.trim() || null);
+    fillBlank('notes', input.notes?.trim() || null);
+    fillBlank('sourceDetail', input.sourceDetail?.trim() || null);
+    fillBlank('leadId', input.leadId ?? null);
+    fillBlank('customerContactId', input.customerContactId ?? null);
+
+    // Phone / email: fill only when absent, and keep the phone key in step.
+    if (phone && !person.phone) {
+      person.phone = phone;
+      person.normalizedPhone = phoneKey;
+      changed = true;
+    } else if (person.phone && !person.normalizedPhone) {
+      // Backfill a missing key on a row that already carries a phone.
+      person.normalizedPhone = normalizePhoneKey(person.phone);
+      changed = true;
+    }
+    if (email && !person.email) {
+      person.email = email;
+      changed = true;
+    }
+
+    // Stage: promote lead→customer only, and mark WHEN they became one. Never
+    // demote a customer back to a lead.
+    if (
+      input.stage === ContactStatus.Customer &&
+      person.stage === ContactStatus.Lead
+    ) {
+      person.stage = ContactStatus.Customer;
+      person.becameCustomerAt = new Date();
+      changed = true;
+    }
+
+    // Captured data accumulates rather than overwrites: keep the first payload
+    // in place and push each subsequent one onto capturedData.history[].
+    if (input.capturedData) {
+      if (!person.capturedData) {
+        person.capturedData = input.capturedData;
+      } else {
+        const existing = person.capturedData;
+        const history = Array.isArray(
+          (existing as { history?: unknown }).history,
+        )
+          ? (existing as { history: unknown[] }).history
+          : [];
+        person.capturedData = {
+          ...existing,
+          history: [...history, input.capturedData],
+        };
+      }
+      changed = true;
+    }
+
+    if (changed) person = await this.customers.save(person);
+    await this.linkContactToPerson(
+      businessId,
+      input.customerContactId,
+      person.id,
+    );
+    return person;
+  }
+
+  /**
+   * Point a conversation contact at its canonical person — but only while the
+   * contact isn't already linked, so we never steal a contact from another
+   * person or thrash it on every message.
+   */
+  private async linkContactToPerson(
+    businessId: string,
+    contactId: string | null | undefined,
+    personId: string,
+  ): Promise<void> {
+    if (!contactId) return;
+    await this.contacts.update(
+      { id: contactId, businessId, customerId: IsNull() },
+      { customerId: personId },
+    );
+  }
+
+  /**
    * Promote a lead into a customer. Copies the lead's identity and keeps the
    * `leadId` link so the questionnaire answers stay reachable (a brief can still
    * be generated for this customer). Idempotent-ish: refuses to create a second
@@ -65,34 +262,46 @@ export class CustomersService {
     const lead = await this.leads.findByIdScoped(businessId, leadId);
     if (!lead) throw new NotFoundException('Lead not found');
 
-    const existing = await this.customers.findOne({
-      where: { businessId, leadId },
-    });
-    if (existing) {
-      throw new BadRequestException('כבר קיים לקוח שנוצר מהליד הזה');
-    }
-
     const businessName =
       (lead.answers as { businessName?: string } | null)?.businessName ?? null;
 
-    const customer = await this.customers.save(
-      this.customers.create({
-        businessId,
-        name: lead.name,
-        businessName: businessName?.trim() || null,
-        phone: lead.phone,
-        email: lead.email,
-        notes: lead.notes,
-        source: 'lead',
-        leadId: lead.id,
-        customerContactId: lead.customerContactId,
-      }),
-    );
+    // Route through the unified helper so converting DEDUPES by phone/email and
+    // promotes the existing person to `customer` in place (rather than always
+    // inserting a second row). Idempotent: a lead already converted just returns
+    // the same person, promoted. `forceCreate` guarantees a non-null result.
+    const customer = (await this.upsertPerson(businessId, {
+      name: lead.name,
+      businessName,
+      phone: lead.phone,
+      email: lead.email,
+      notes: lead.notes,
+      interest: lead.interest,
+      sourceDetail: lead.sourceDetail,
+      stage: ContactStatus.Customer,
+      source: 'lead',
+      leadId: lead.id,
+      customerContactId: lead.customerContactId,
+      capturedData: lead.answers ?? undefined,
+      forceCreate: true,
+    }))!;
 
     // Adopt any documents already generated from this lead (e.g. a brief made
     // from the leads tab, with customer_id NULL) so they surface under the new
     // customer. Cascades brief → strategy/objective, strategy → plan.
     await this.linkLeadDocuments(businessId, lead.id, customer.id);
+
+    // Keep the conversation contact (if any) in sync — they're now a customer.
+    // Targeted update so we don't clobber the reverse `customerId` link.
+    if (lead.customerContactId) {
+      await this.contacts.update(
+        {
+          id: lead.customerContactId,
+          businessId,
+          status: ContactStatus.Lead,
+        },
+        { status: ContactStatus.Customer },
+      );
+    }
     return customer;
   }
 
@@ -143,31 +352,28 @@ export class CustomersService {
     });
     if (!contact) throw new NotFoundException('Contact not found');
 
-    const existing = await this.customers.findOne({
-      where: { businessId, customerContactId: contactId },
-    });
-    if (existing) {
-      throw new BadRequestException('כבר קיים לקוח שנוצר מאיש הקשר הזה');
-    }
+    // Route through the unified helper: dedupe by phone/email, promote the
+    // existing person to `customer` in place, and link the contact both ways.
+    // Idempotent — a contact already converted returns the same person.
+    const customer = (await this.upsertPerson(businessId, {
+      name: contact.displayName?.trim() || contact.phone || contact.externalId,
+      phone: contact.phone,
+      email: contact.email,
+      notes: contact.notes,
+      stage: ContactStatus.Customer,
+      source: 'contact',
+      customerContactId: contact.id,
+      forceCreate: true,
+    }))!;
 
-    const customer = await this.customers.save(
-      this.customers.create({
-        businessId,
-        name:
-          contact.displayName?.trim() || contact.phone || contact.externalId,
-        businessName: null,
-        phone: contact.phone,
-        email: contact.email,
-        notes: contact.notes,
-        source: 'contact',
-        customerContactId: contact.id,
-      }),
-    );
-
-    // Keep the conversation contact in sync — it's now a paying customer.
+    // Keep the conversation contact in sync — it's now a paying customer. A
+    // targeted update avoids clobbering the reverse `customerId` link that
+    // `upsertPerson` just wrote onto this same row.
     if (contact.status !== ContactStatus.Customer) {
-      contact.status = ContactStatus.Customer;
-      await this.contacts.save(contact);
+      await this.contacts.update(
+        { id: contact.id, businessId },
+        { status: ContactStatus.Customer },
+      );
     }
 
     return customer;

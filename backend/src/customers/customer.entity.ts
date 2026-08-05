@@ -8,9 +8,20 @@ import {
 } from 'typeorm';
 import { ContactStatus } from '../common/enums/contact-status.enum';
 
-/** How this customer record came to be: created by hand, promoted from a
- *  marketing lead, or promoted from a conversation contact. */
-export type CustomerSource = 'manual' | 'lead' | 'contact';
+/**
+ * How this person record came to be. The original three (`manual` | `lead` |
+ * `contact`) mark hand-created / lead-promoted / contact-promoted rows; the
+ * unification adds finer provenance for people who land straight in the
+ * unified list from an intake flow (`agent` capture, public `questionnaire`,
+ * website `intake`). Stored as a plain varchar — widening this union is
+ * additive and never rewrites an existing value. */
+export type CustomerSource =
+  | 'manual'
+  | 'lead'
+  | 'contact'
+  | 'agent'
+  | 'questionnaire'
+  | 'intake';
 
 /**
  * The central customer/account record — a business (or person) the operator

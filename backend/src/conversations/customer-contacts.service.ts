@@ -1,9 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { CustomerContact } from './customer-contact.entity';
 import { Channel } from '../common/enums/channel.enum';
 import { ContactStatus } from '../common/enums/contact-status.enum';
+import { CustomersService } from '../customers/customers.service';
 
 export interface UpsertContactInput {
   businessId: string;
@@ -26,6 +28,10 @@ export class CustomerContactsService {
   constructor(
     @InjectRepository(CustomerContact)
     private readonly contacts: Repository<CustomerContact>,
+    // Resolved lazily (see linkPerson) to avoid a module cycle:
+    // ConversationsModule cannot import CustomersModule because Customers
+    // depends back on Conversations through the Leads→…→WhatsApp chain.
+    private readonly moduleRef: ModuleRef,
   ) {}
 
   async upsert(input: UpsertContactInput): Promise<CustomerContact> {
@@ -54,9 +60,11 @@ export class CustomerContactsService {
         existing.metadata = { ...existing.metadata, ...input.metadata };
         changed = true;
       }
-      return changed ? this.contacts.save(existing) : existing;
+      const saved = changed ? await this.contacts.save(existing) : existing;
+      await this.linkPerson(saved);
+      return saved;
     }
-    return this.contacts.save(
+    const created = await this.contacts.save(
       this.contacts.create({
         businessId: input.businessId,
         channel: input.channel,
@@ -67,6 +75,43 @@ export class CustomerContactsService {
         metadata: input.metadata ?? {},
       }),
     );
+    await this.linkPerson(created);
+    return created;
+  }
+
+  /**
+   * Attach an identifiable contact (has a phone or an email) to its canonical
+   * `customers` person, creating that person if needed and stamping the
+   * contact's reverse `customerId`. **Anonymous web-widget sessions with no
+   * phone/email get NO person** — this is what keeps junk anonymous sessions
+   * out of the unified people list. Only runs while the contact isn't linked
+   * yet, so it's cheap and idempotent (skips on every later message). Fully
+   * best-effort: a person-upsert hiccup must never break message intake.
+   */
+  private async linkPerson(contact: CustomerContact): Promise<void> {
+    if (contact.customerId) return;
+    const phone = contact.phone?.trim() || null;
+    const email = contact.email?.trim() || null;
+    if (!phone && !email) return;
+    try {
+      // Lazy, non-strict lookup — CustomersService lives in a module we can't
+      // import here without forming a cycle (see the constructor note).
+      const customers = this.moduleRef.get(CustomersService, { strict: false });
+      const person = await customers.upsertPerson(contact.businessId, {
+        name: contact.displayName?.trim() || phone || email,
+        phone,
+        email,
+        // Mirror the contact's own relationship stage onto the person.
+        stage: contact.status,
+        source: 'contact',
+        customerContactId: contact.id,
+      });
+      // upsertPerson has already written the reverse link in the DB; reflect it
+      // on the in-memory entity we hand back so callers see a consistent row.
+      if (person) contact.customerId = person.id;
+    } catch {
+      // Swallow — the contact (and the inbound message) must still succeed.
+    }
   }
 
   findById(id: string): Promise<CustomerContact | null> {

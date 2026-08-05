@@ -99,6 +99,7 @@ export class AgentWorkerService {
       customerContactId: conversation.customerContactId,
       channel: conversation.channel,
       leads: this.leads,
+      customers: this.customers,
       conversations: this.conversations,
       appointments: this.appointments,
       waitlist: this.waitlist,

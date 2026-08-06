@@ -4,6 +4,9 @@ export type Channel = "web" | "whatsapp" | "instagram";
 export type ConversationStatus = "bot" | "human" | "closed";
 export type MessageRole = "customer" | "bot" | "agent" | "system" | "tool";
 export type ContactStatus = "lead" | "customer";
+/** Per-contact agent behaviour — active answers now, off never answers,
+ *  delayed gives the owner a window before the agent steps in. */
+export type ContactAgentMode = "active" | "off" | "delayed";
 
 export interface CustomerContact {
   id: string;
@@ -15,6 +18,10 @@ export interface CustomerContact {
   email: string | null;
   status: ContactStatus;
   notes: string | null;
+  /** How the agent treats this specific contact. */
+  agentMode: ContactAgentMode;
+  /** Wait window (minutes) for delayed mode; null otherwise. */
+  agentDelayMinutes: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -131,7 +138,12 @@ export const contactsApi = {
   update: (
     businessId: string,
     contactId: string,
-    patch: Partial<Pick<CustomerContact, "status" | "notes" | "displayName">>,
+    patch: Partial<
+      Pick<
+        CustomerContact,
+        "status" | "notes" | "displayName" | "agentMode" | "agentDelayMinutes"
+      >
+    >,
   ) =>
     api
       .patch<CustomerContact>(

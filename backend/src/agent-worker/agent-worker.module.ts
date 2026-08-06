@@ -10,6 +10,7 @@ import { AgentsModule } from '../agents/agents.module';
 import { BillingModule } from '../billing/billing.module';
 import { IntegrationsModule } from '../integrations/integrations.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { UsersModule } from '../users/users.module';
 import { AGENT_RUNS_QUEUE } from './agent-worker.constants';
 import { AgentWorkerService } from './agent-worker.service';
 import { AgentWorkerProcessor } from './agent-worker.processor';
@@ -27,6 +28,7 @@ import { AgentWorkerProcessor } from './agent-worker.processor';
     BillingModule,
     IntegrationsModule,
     NotificationsModule,
+    UsersModule,
   ],
   providers: [AgentWorkerService, AgentWorkerProcessor],
 })

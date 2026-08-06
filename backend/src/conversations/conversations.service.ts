@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { LessThan, Repository } from 'typeorm';
+import { LessThan, Not, Repository } from 'typeorm';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { Conversation } from './conversation.entity';
@@ -16,10 +16,15 @@ import { ConversationStatus } from '../common/enums/conversation-status.enum';
 import { ContactStatus } from '../common/enums/contact-status.enum';
 import { MessageRole } from '../common/enums/message-role.enum';
 import {
+  ContactAgentMode,
+  DEFAULT_CONTACT_AGENT_DELAY_MINUTES,
+} from '../common/enums/contact-agent-mode.enum';
+import {
   DEFAULT_WHATSAPP_AGENT,
   WhatsappAgentConfig,
   whatsappAgentActiveNow,
 } from '../common/whatsapp-agent-schedule';
+import { CustomerContactsService } from './customer-contacts.service';
 import {
   AGENT_RUNS_QUEUE,
   AgentRunJobData,
@@ -79,6 +84,7 @@ export class ConversationsService {
     @InjectQueue(AGENT_RUNS_QUEUE)
     private readonly agentRuns: Queue<AgentRunJobData>,
     private readonly inbox: InboxEventsService,
+    private readonly contacts: CustomerContactsService,
   ) {}
 
   /**
@@ -224,6 +230,35 @@ export class ConversationsService {
     message: Message,
   ): Promise<void> {
     if (!(await this.shouldAgentReply(conversation))) return;
+
+    // Per-contact behaviour (active / off / delayed) layers on top of the
+    // business schedule. Best-effort: if the contact can't be loaded, fall
+    // through to a normal immediate reply so a lookup hiccup never silences
+    // the agent.
+    let delayMs = 0;
+    let stepIn = false;
+    try {
+      const contact = await this.contacts.findByIdScoped(
+        conversation.businessId,
+        conversation.customerContactId,
+      );
+      if (contact.agentMode === ContactAgentMode.Off) return; // never answer
+      if (contact.agentMode === ContactAgentMode.Delayed) {
+        // "Owner first": give the owner a window to reply — UNLESS the agent is
+        // already the one handling this thread, in which case keep the
+        // conversation flowing instead of re-opening the window every turn.
+        const engaged = await this.agentIsEngaged(conversation.id);
+        if (!engaged) {
+          const minutes =
+            contact.agentDelayMinutes ?? DEFAULT_CONTACT_AGENT_DELAY_MINUTES;
+          delayMs = Math.max(0, minutes) * 60_000;
+          stepIn = delayMs > 0;
+        }
+      }
+    } catch {
+      // ignore — default to an immediate reply
+    }
+
     try {
       await this.agentRuns.add(
         'run',
@@ -231,6 +266,7 @@ export class ConversationsService {
           businessId: conversation.businessId,
           conversationId: conversation.id,
           latestMessageId: message.id,
+          ...(stepIn ? { stepIn: true } : {}),
         },
         {
           // Idempotent enqueue: one run per inbound message. If the same
@@ -238,6 +274,8 @@ export class ConversationsService {
           // wamid dedupe), BullMQ collapses both to a single job.
           // Hyphen, not colon — BullMQ forbids ':' in custom job ids.
           jobId: `run-${message.id}`,
+          // Delayed "owner-first" window, when set. 0 = fire immediately.
+          ...(delayMs > 0 ? { delay: delayMs } : {}),
           // Retry transient failures (LLM 429/5xx, network) with exponential
           // backoff: ~5s, 10s, 20s. A persistently failing run lands in failed.
           attempts: 3,
@@ -251,6 +289,21 @@ export class ConversationsService {
         `Failed to enqueue agent run for conversation ${conversation.id}: ${(err as Error).message}`,
       );
     }
+  }
+
+  /**
+   * True when the last non-customer message in the thread was the agent's — the
+   * agent is currently the one handling this conversation. Used by delayed
+   * ("owner-first") contacts: once the agent has stepped in and is chatting, we
+   * stop re-opening the owner window on every customer message and just keep
+   * the conversation flowing.
+   */
+  private async agentIsEngaged(conversationId: string): Promise<boolean> {
+    const last = await this.messages.findOne({
+      where: { conversationId, role: Not(MessageRole.Customer) },
+      order: { createdAt: 'DESC' },
+    });
+    return last?.role === MessageRole.Bot;
   }
 
   /**

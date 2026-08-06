@@ -272,6 +272,29 @@ export function buildBusyBlock(activity: string | null): string | null {
   );
 }
 
+/**
+ * Delayed "owner-first" step-in: the owner's wait window elapsed without a
+ * reply, so the agent gently steps in. It says the owner — by name, in the
+ * third person — isn't free right now and asks whether the customer would like
+ * the agent's help meanwhile or would rather wait. `ownerName` null → a natural
+ * generic phrasing.
+ */
+export function buildStepInBlock(ownerName: string | null): string {
+  const who = ownerName?.trim() ? ownerName.trim() : 'the business owner';
+  return (
+    '=== The owner has not answered — step in gently ===\n' +
+    `This customer messaged and ${who} has not replied within the time window ` +
+    'set aside for a personal answer. Send ONE short, warm, human message that:\n' +
+    `- gently notes that ${who} isn't free right now — say it in the THIRD ` +
+    `person (you are NOT ${who}; you are their assistant), and\n` +
+    `- asks whether the customer would like you to help them in the meantime, ` +
+    `or would rather wait for ${who}.\n` +
+    "Match the customer's language (Hebrew by default), keep it brief and " +
+    'genuine, never robotic. If they choose your help, assist normally from ' +
+    'there. Do not apologise excessively or over-explain.'
+  );
+}
+
 export function buildSystemPrompt(
   business: Business,
   personaBlock?: string | null,
@@ -279,6 +302,7 @@ export function buildSystemPrompt(
   contactBlock?: string | null,
   appointmentsBlock?: string | null,
   busyBlock?: string | null,
+  stepInBlock?: string | null,
 ): string[] {
   const dynamicParts = [`You are assisting customers of ${business.name}.`];
   // The business's own voice comes first — it colours everything below.
@@ -287,6 +311,9 @@ export function buildSystemPrompt(
   if (contactBlock) dynamicParts.push(contactBlock);
   if (appointmentsBlock) dynamicParts.push(appointmentsBlock);
   if (busyBlock) dynamicParts.push(busyBlock);
+  // The step-in instruction is the whole point of this run — put it last so
+  // it's the freshest thing in the agent's context.
+  if (stepInBlock) dynamicParts.push(stepInBlock);
   return [
     STATIC_SYSTEM_PROMPT,
     SYSTEM_PROMPT_DYNAMIC_BOUNDARY,

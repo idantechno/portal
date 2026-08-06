@@ -5,6 +5,10 @@ import { In, Repository } from 'typeorm';
 import { CustomerContact } from './customer-contact.entity';
 import { Channel } from '../common/enums/channel.enum';
 import { ContactStatus } from '../common/enums/contact-status.enum';
+import {
+  ContactAgentMode,
+  DEFAULT_CONTACT_AGENT_DELAY_MINUTES,
+} from '../common/enums/contact-agent-mode.enum';
 import { CustomersService } from '../customers/customers.service';
 
 export interface UpsertContactInput {
@@ -21,6 +25,8 @@ export interface UpdateContactProfileInput {
   status?: ContactStatus;
   notes?: string | null;
   displayName?: string | null;
+  agentMode?: ContactAgentMode;
+  agentDelayMinutes?: number | null;
 }
 
 @Injectable()
@@ -217,6 +223,21 @@ export class CustomerContactsService {
     if (input.notes !== undefined) contact.notes = input.notes;
     if (input.displayName !== undefined) {
       contact.displayName = input.displayName;
+    }
+    if (input.agentMode !== undefined) {
+      contact.agentMode = input.agentMode;
+      // Entering delayed mode without a window falls back to the default; any
+      // non-delayed mode clears the window so it never lingers.
+      if (input.agentMode === ContactAgentMode.Delayed) {
+        contact.agentDelayMinutes =
+          input.agentDelayMinutes ??
+          contact.agentDelayMinutes ??
+          DEFAULT_CONTACT_AGENT_DELAY_MINUTES;
+      } else {
+        contact.agentDelayMinutes = null;
+      }
+    } else if (input.agentDelayMinutes !== undefined) {
+      contact.agentDelayMinutes = input.agentDelayMinutes;
     }
     return this.contacts.save(contact);
   }

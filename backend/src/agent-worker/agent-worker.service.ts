@@ -23,6 +23,7 @@ import {
   buildAppointmentsBlock,
   buildBusyBlock,
   buildContactBlock,
+  buildStepInBlock,
   buildSystemPrompt,
   buildUserPrompt,
 } from './prompt';
@@ -37,6 +38,7 @@ import {
   ToolContext,
 } from './tools';
 import { NotificationsService } from '../notifications/notifications.service';
+import { UsersService } from '../users/users.service';
 
 const MCP_SERVER_NAME = 'portal';
 const HISTORY_LIMIT = 50;
@@ -62,6 +64,7 @@ export class AgentWorkerService {
     private readonly calendar: CalendarService,
     private readonly config: ConfigService,
     private readonly notifications: NotificationsService,
+    private readonly users: UsersService,
   ) {}
 
   async runAgent(data: AgentRunJobData): Promise<void> {
@@ -98,6 +101,20 @@ export class AgentWorkerService {
       conversation.id,
       { limit: HISTORY_LIMIT },
     );
+
+    // Delayed "owner-first" step-in: this run was scheduled after the owner's
+    // wait window. Only proceed if the owner still hasn't answered — if the
+    // last message is no longer the customer's (owner replied, or an earlier
+    // step-in already went out), drop it silently.
+    if (data.stepIn) {
+      const last = history[history.length - 1];
+      if (!last || last.role !== MessageRole.Customer) {
+        this.log.log(
+          `Skipping step-in for conversation ${conversation.id}: owner or agent already replied.`,
+        );
+        return;
+      }
+    }
 
     const toolCtx: ToolContext = {
       businessId: business.id,
@@ -243,6 +260,20 @@ export class AgentWorkerService {
       }
     }
 
+    // Step-in block — only on a delayed run where the owner missed their window.
+    // We look up the owner's name so the agent can refer to them personally.
+    let stepInBlock: string | null = null;
+    if (data.stepIn) {
+      let ownerName: string | null = null;
+      try {
+        ownerName =
+          (await this.users.findById(business.ownerUserId))?.name ?? null;
+      } catch {
+        ownerName = null;
+      }
+      stepInBlock = buildStepInBlock(ownerName);
+    }
+
     const { finalText } = await this.runner.run({
       // The customer-facing chat agent runs on its own (stronger) model so
       // Hebrew comes out clean — scoped here so only this agent's cost changes,
@@ -255,6 +286,7 @@ export class AgentWorkerService {
         contactBlock,
         appointmentsBlock,
         busyBlock,
+        stepInBlock,
       ),
       prompt: buildUserPrompt(history),
       cwd,

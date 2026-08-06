@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 import { Channel } from '../common/enums/channel.enum';
 import { ContactStatus } from '../common/enums/contact-status.enum';
+import { ContactAgentMode } from '../common/enums/contact-agent-mode.enum';
 
 /**
  * A unique end-user per (business, channel, external_id) — e.g. one WhatsApp
@@ -69,6 +70,32 @@ export class CustomerContact {
   @Index()
   @Column({ type: 'uuid', name: 'customer_id', nullable: true })
   customerId!: string | null;
+
+  /**
+   * How the agent treats THIS contact (active / off / delayed). Lets the owner
+   * silence the agent for a specific person, or keep a private window to answer
+   * first before the agent steps in. Stored as a plain varchar so widening the
+   * set never rewrites existing rows. See {@link ContactAgentMode}.
+   */
+  @Column({
+    type: 'varchar',
+    length: 16,
+    name: 'agent_mode',
+    default: ContactAgentMode.Active,
+  })
+  agentMode!: ContactAgentMode;
+
+  /**
+   * For `delayed` mode: how many minutes to give the owner to reply before the
+   * agent steps in. Null unless the contact is in delayed mode. Constrained to
+   * the UI's choices at the DTO.
+   */
+  @Column({
+    type: 'int',
+    name: 'agent_delay_minutes',
+    nullable: true,
+  })
+  agentDelayMinutes!: number | null;
 
   /** Free-text operator notes about this person (allergies, preferences, …). */
   @Column({ type: 'text', nullable: true })

@@ -89,6 +89,15 @@ export default function TasksSection({ businessId }: { businessId: string }) {
     mutationFn: (id: string) => tasksApi.remove(businessId, id),
     onSuccess: invalidate,
   });
+  // Flip a dated task's reminder on/off (fires at its due time; the reminders
+  // agent can fine-tune the exact time).
+  const toggleRemindMut = useMutation({
+    mutationFn: (task: Task) =>
+      tasksApi.update(businessId, task.id, {
+        remindEnabled: !task.remindEnabled,
+      }),
+    onSuccess: invalidate,
+  });
 
   function submit(e: FormEvent) {
     e.preventDefault();
@@ -191,6 +200,7 @@ export default function TasksSection({ businessId }: { businessId: string }) {
               key={task.id}
               task={task}
               onToggle={() => toggleMut.mutate(task)}
+              onToggleRemind={() => toggleRemindMut.mutate(task)}
               onRemove={() => removeMut.mutate(task.id)}
             />
           ))}
@@ -200,7 +210,10 @@ export default function TasksSection({ businessId }: { businessId: string }) {
       {done.length > 0 && (
         <section>
           <h2 className="text-sm font-semibold text-navy-400 mb-3">
-            הושלמו ({done.length})
+            הושלמו ({done.length}){" "}
+            <span className="font-normal text-navy-300">
+              — נמחקות אוטומטית אחרי 48 שעות
+            </span>
           </h2>
           <div className="space-y-2.5 opacity-60">
             {done.map((task) => (
@@ -208,6 +221,7 @@ export default function TasksSection({ businessId }: { businessId: string }) {
                 key={task.id}
                 task={task}
                 onToggle={() => toggleMut.mutate(task)}
+                onToggleRemind={() => toggleRemindMut.mutate(task)}
                 onRemove={() => removeMut.mutate(task.id)}
               />
             ))}
@@ -221,10 +235,12 @@ export default function TasksSection({ businessId }: { businessId: string }) {
 function TaskRow({
   task,
   onToggle,
+  onToggleRemind,
   onRemove,
 }: {
   task: Task;
   onToggle: () => void;
+  onToggleRemind: () => void;
   onRemove: () => void;
 }) {
   const done = task.status === "done";
@@ -250,20 +266,10 @@ function TaskRow({
         {task.description && (
           <div className="text-xs text-navy-400 mt-0.5">{task.description}</div>
         )}
-        {(task.dueAt || task.remindEnabled) && (
-          <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-navy-400">
-            {task.dueAt && (
-              <span className="inline-flex items-center gap-1">
-                <Icon name="clock" size={12} />
-                {formatDue(task.dueAt)}
-              </span>
-            )}
-            {task.remindEnabled && (
-              <span className="inline-flex items-center gap-1 text-brand-600">
-                <Icon name="bell" size={12} />
-                תזכורת
-              </span>
-            )}
+        {task.dueAt && (
+          <div className="mt-1 inline-flex items-center gap-1 text-[11px] text-navy-400">
+            <Icon name="clock" size={12} />
+            {formatDue(task.dueAt)}
           </div>
         )}
       </div>
@@ -274,6 +280,24 @@ function TaskRow({
         <Badge tone="neutral" className="shrink-0 hidden sm:inline-flex">
           {SOURCE_LABEL[task.source]}
         </Badge>
+      )}
+      {task.dueAt && !done && (
+        <button
+          onClick={onToggleRemind}
+          aria-label={task.remindEnabled ? "כבה תזכורת" : "הפעל תזכורת"}
+          title={
+            task.remindEnabled
+              ? "תזכורת פעילה — תישלח במועד"
+              : "הפעל תזכורת למועד"
+          }
+          className={`shrink-0 rounded-lg p-1.5 transition-colors ${
+            task.remindEnabled
+              ? "text-brand-600 hover:bg-brand-50"
+              : "text-navy-300 hover:bg-navy-50 hover:text-navy-600"
+          }`}
+        >
+          <Icon name="bell" size={16} />
+        </button>
       )}
       <button
         onClick={onRemove}

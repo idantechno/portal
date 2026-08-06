@@ -18,10 +18,11 @@ import type { BadgeTone } from "../../../components/ui";
 const KIND_BADGE: Record<ItemKind, { tone: BadgeTone; label: string }> = {
   google: { tone: "teal", label: "Google" },
   appointment: { tone: "danger", label: "פגישה" },
+  task: { tone: "brand", label: "משימה" },
   reminder: { tone: "brand", label: "תזכורת" },
 };
 
-type ItemKind = "reminder" | "google" | "appointment";
+type ItemKind = "task" | "reminder" | "google" | "appointment";
 interface CalItem {
   id: string;
   title: string;
@@ -133,7 +134,8 @@ export default function MonthSection({ businessId }: { businessId: string }) {
           id: `t-${t.id}`,
           title: t.title,
           date: new Date(t.dueAt),
-          kind: "reminder",
+          // A dated to-do reads as "משימה"; a pure nudge as "תזכורת".
+          kind: t.kind === "reminder" ? "reminder" : "task",
           taskId: t.id,
         });
       }

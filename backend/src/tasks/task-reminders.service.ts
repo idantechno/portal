@@ -82,6 +82,15 @@ export class TaskRemindersService implements OnModuleInit {
 
   /** Deliver a reminder for every due, not-yet-notified task. Returns the count. */
   async sweep(): Promise<number> {
+    // Housekeeping: clear completed tasks/reminders older than 48h so the
+    // "בוצעו" list self-empties. Best-effort — never blocks reminder delivery.
+    try {
+      const purged = await this.tasks.purgeCompleted();
+      if (purged > 0) this.log.log(`Purged ${purged} completed task(s).`);
+    } catch (err) {
+      this.log.warn(`Completed-task purge failed: ${(err as Error).message}`);
+    }
+
     const due = await this.tasks.findDueReminders();
     let sent = 0;
     for (const task of due) {

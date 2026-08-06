@@ -187,4 +187,22 @@ export class TasksService {
   async markNotified(id: string): Promise<void> {
     await this.tasks.update({ id }, { notifiedAt: new Date() });
   }
+
+  /**
+   * Hard-delete completed items whose `completedAt` is older than the cutoff
+   * (default 48h) — a done task/reminder lingers briefly in the "בוצעו" list,
+   * then disappears for good. Cross-tenant, cheap indexed delete; returns the
+   * number removed.
+   */
+  async purgeCompleted(olderThanHours = 48): Promise<number> {
+    const cutoff = new Date(Date.now() - olderThanHours * 3_600_000);
+    const res = await this.tasks
+      .createQueryBuilder()
+      .delete()
+      .where('status = :done', { done: 'done' })
+      .andWhere('completed_at IS NOT NULL')
+      .andWhere('completed_at < :cutoff', { cutoff })
+      .execute();
+    return res.affected ?? 0;
+  }
 }

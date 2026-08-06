@@ -146,6 +146,10 @@ export function businessThemeVars(
     "--brand-accent-contrast": readableText(accent),
     "--brand-sidebar": sidebar,
     "--brand-on-sidebar": readableText(sidebar),
+    // The translucent wash behind every card — the business's own secondary
+    // color so cards read as "theirs", not a fixed product color. Consumed by
+    // `.surface-card` in index.css (with a teal fallback for non-themed pages).
+    "--brand-surface": secondary,
   };
   return vars as CSSProperties;
 }

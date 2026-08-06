@@ -14,6 +14,7 @@ import { useAuthStore } from "../../store/auth";
 import { isPlatformStaff } from "../../lib/roles";
 import { NotificationBell } from "../../components/NotificationBell";
 import WelcomeWizard from "./WelcomeWizard";
+import SupportModal from "./SupportModal";
 import { Icon } from "../../components/icons";
 import type { IconName } from "../../components/icons";
 import { businessThemeVars } from "../../lib/theme";
@@ -51,6 +52,8 @@ export default function BusinessLayout() {
   // Drawer state for narrow viewports. On lg+ the sidebar is always visible and
   // this is ignored. Tapping any nav link closes it (handled on the <nav>).
   const [navOpen, setNavOpen] = useState(false);
+  // Help/support dialog — reachable from the sidebar footer by any member.
+  const [supportOpen, setSupportOpen] = useState(false);
 
   const biz = useQuery({
     queryKey: ["business", businessId],
@@ -231,6 +234,17 @@ export default function BusinessLayout() {
           <Icon name="wallet" size={17} className="ms-1.5 opacity-90" />
           המנוי שלי
         </NavLink>
+        <button
+          type="button"
+          onClick={() => {
+            setNavOpen(false);
+            setSupportOpen(true);
+          }}
+          className="mb-1 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-start text-white/60 transition-colors hover:bg-white/[0.08] hover:text-white"
+        >
+          <Icon name="chat" size={17} className="ms-1.5 opacity-90" />
+          עזרה ותמיכה
+        </button>
         <div className="flex items-center gap-3 px-3 py-1.5">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-white/70">
             <Icon name="user" size={17} />
@@ -261,6 +275,13 @@ export default function BusinessLayout() {
       {/* One-time owner welcome — a full-screen overlay above everything until done. */}
       {needsWelcome && biz.data && (
         <WelcomeWizard businessId={businessId} business={biz.data} />
+      )}
+
+      {supportOpen && (
+        <SupportModal
+          businessId={businessId}
+          onClose={() => setSupportOpen(false)}
+        />
       )}
 
       {/* Desktop: sidebar is a static grid column. */}

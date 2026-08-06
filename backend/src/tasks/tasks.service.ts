@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { CalendarService } from '../integrations/calendar.service';
 import { Task, TaskKind, TaskSource, TaskStatus } from './task.entity';
 
 export interface CreateTaskInput {
@@ -27,10 +28,57 @@ export interface CreateTaskInput {
 
 @Injectable()
 export class TasksService {
+  private readonly log = new Logger(TasksService.name);
+
   constructor(
     @InjectRepository(Task)
     private readonly tasks: Repository<Task>,
+    private readonly calendar: CalendarService,
   ) {}
+
+  /**
+   * Mirror a dated to-do onto the owner's Google Calendar (write side of the
+   * schedule orchestrator). A task belongs on the calendar when it's a `task`
+   * (not a reminder), has a due time, and isn't done — otherwise any existing
+   * mirror is removed. Best-effort: a calendar hiccup never breaks the task op.
+   */
+  private async syncCalendar(task: Task): Promise<void> {
+    try {
+      const shouldMirror =
+        task.kind === 'task' && !!task.dueAt && task.status !== 'done';
+      if (shouldMirror) {
+        if (!(await this.calendar.isConnected(task.businessId))) return;
+        const start = task.dueAt!.toISOString();
+        const end = new Date(task.dueAt!.getTime() + 30 * 60_000).toISOString();
+        if (task.calendarEventId) {
+          await this.calendar.updateEvent(task.businessId, task.calendarEventId, {
+            title: task.title,
+            start,
+            end,
+          });
+        } else {
+          const ev = await this.calendar.createEvent(task.businessId, {
+            title: task.title,
+            start,
+            end,
+          });
+          task.calendarEventId = ev.id;
+          await this.tasks.update({ id: task.id }, { calendarEventId: ev.id });
+        }
+      } else if (task.calendarEventId) {
+        const eventId = task.calendarEventId;
+        task.calendarEventId = null;
+        await this.tasks.update({ id: task.id }, { calendarEventId: null });
+        if (await this.calendar.isConnected(task.businessId)) {
+          await this.calendar.deleteEvent(task.businessId, eventId);
+        }
+      }
+    } catch (err) {
+      this.log.warn(
+        `[tasks] calendar sync failed for ${task.id}: ${(err as Error).message}`,
+      );
+    }
+  }
 
   /**
    * Tasks/reminders for a business, filtered. `kind` narrows to to-dos
@@ -75,7 +123,9 @@ export class TasksService {
       remindCustomerName: input.remindCustomerName ?? null,
       status: 'open',
     });
-    return this.tasks.save(task);
+    const saved = await this.tasks.save(task);
+    await this.syncCalendar(saved);
+    return saved;
   }
 
   async update(
@@ -118,12 +168,25 @@ export class TasksService {
       task.status = patch.status;
       task.completedAt = patch.status === 'done' ? new Date() : null;
     }
-    return this.tasks.save(task);
+    const saved = await this.tasks.save(task);
+    await this.syncCalendar(saved);
+    return saved;
   }
 
   async remove(businessId: string, id: string): Promise<void> {
-    const res = await this.tasks.delete({ id, businessId });
-    if (!res.affected) throw new NotFoundException('Task not found');
+    const task = await this.tasks.findOne({ where: { id, businessId } });
+    if (!task) throw new NotFoundException('Task not found');
+    // Pull its Google mirror before dropping the row. Best-effort.
+    if (task.calendarEventId && (await this.calendar.isConnected(businessId))) {
+      try {
+        await this.calendar.deleteEvent(businessId, task.calendarEventId);
+      } catch (err) {
+        this.log.warn(
+          `[tasks] calendar mirror delete failed for ${id}: ${(err as Error).message}`,
+        );
+      }
+    }
+    await this.tasks.delete({ id, businessId });
   }
 
   /**
@@ -202,6 +265,24 @@ export class TasksService {
       .andWhere('t.due_at IS NOT NULL')
       .andWhere('t.due_at >= :from AND t.due_at < :to', { from, to })
       .orderBy('t.due_at', 'ASC')
+      .getMany();
+  }
+
+  /**
+   * Open reminders (kind=reminder) whose fire time (remind_at, else due_at)
+   * falls inside [from, to). Nudges — surfaced on the daily agenda but not
+   * counted as busy time.
+   */
+  remindersInWindow(businessId: string, from: Date, to: Date): Promise<Task[]> {
+    return this.tasks
+      .createQueryBuilder('t')
+      .where('t.business_id = :businessId', { businessId })
+      .andWhere("t.kind = 'reminder'")
+      .andWhere("t.status != 'done'")
+      .andWhere('COALESCE(t.remind_at, t.due_at) IS NOT NULL')
+      .andWhere('COALESCE(t.remind_at, t.due_at) >= :from', { from })
+      .andWhere('COALESCE(t.remind_at, t.due_at) < :to', { to })
+      .orderBy('COALESCE(t.remind_at, t.due_at)', 'ASC')
       .getMany();
   }
 

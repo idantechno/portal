@@ -7,6 +7,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { UsersModule } from '../users/users.module';
 import { WhatsappModule } from '../whatsapp/whatsapp.module';
 import { TemplatesModule } from '../templates/templates.module';
+import { IntegrationsModule } from '../integrations/integrations.module';
 import { Task } from './task.entity';
 import { TasksService } from './tasks.service';
 import { TasksController } from './tasks.controller';
@@ -24,6 +25,7 @@ import { TaskRemindersProcessor } from './task-reminders.processor';
     UsersModule,
     WhatsappModule,
     TemplatesModule,
+    IntegrationsModule,
   ],
   controllers: [TasksController],
   providers: [TasksService, TaskRemindersService, TaskRemindersProcessor],

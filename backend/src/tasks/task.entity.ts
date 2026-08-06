@@ -123,6 +123,20 @@ export class Task {
   @Column({ type: 'uuid', name: 'created_by_user_id', nullable: true })
   createdByUserId!: string | null;
 
+  /**
+   * Google Calendar event id when this dated to-do is mirrored onto the owner's
+   * calendar (schedule orchestrator, write side). Null when not mirrored (no due
+   * date, done, a reminder, or the calendar isn't connected). Cleared when the
+   * mirror is removed.
+   */
+  @Column({
+    type: 'varchar',
+    length: 255,
+    name: 'calendar_event_id',
+    nullable: true,
+  })
+  calendarEventId!: string | null;
+
   @Index()
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;

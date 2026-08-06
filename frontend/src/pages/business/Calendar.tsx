@@ -5,10 +5,12 @@ import MonthSection from "./calendar/MonthSection";
 import AppointmentsSection from "./calendar/AppointmentsSection";
 import TasksSection from "./calendar/TasksSection";
 import RemindersSection from "./calendar/RemindersSection";
+import DayAgendaSection from "./calendar/DayAgendaSection";
 
-type View = "month" | "appointments" | "tasks" | "reminders";
+type View = "today" | "month" | "appointments" | "tasks" | "reminders";
 
 const TABS: { key: View; label: string; icon: IconName }[] = [
+  { key: "today", label: "היום", icon: "compass" },
   { key: "month", label: "חודש", icon: "calendar" },
   { key: "appointments", label: "פגישות ותורים", icon: "clock" },
   { key: "tasks", label: "משימות", icon: "tasks" },
@@ -16,10 +18,11 @@ const TABS: { key: View; label: string; icon: IconName }[] = [
 ];
 
 function readView(param: string | null): View {
+  if (param === "month") return "month";
   if (param === "appointments") return "appointments";
   if (param === "tasks") return "tasks";
   if (param === "reminders") return "reminders";
-  return "month";
+  return "today";
 }
 
 /**
@@ -39,7 +42,7 @@ export default function Calendar() {
 
   const select = (next: View) => {
     const params = new URLSearchParams(searchParams);
-    if (next === "month") params.delete("view");
+    if (next === "today") params.delete("view");
     else params.set("view", next);
     setSearchParams(params, { replace: true });
   };
@@ -70,6 +73,7 @@ export default function Calendar() {
         ))}
       </div>
 
+      {view === "today" && <DayAgendaSection businessId={businessId} />}
       {view === "month" && <MonthSection businessId={businessId} />}
       {view === "appointments" && (
         <AppointmentsSection businessId={businessId} />

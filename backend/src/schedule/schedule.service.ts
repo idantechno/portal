@@ -18,6 +18,18 @@ export interface BusyInterval {
   title: string;
 }
 
+export interface AgendaItem {
+  source: BusySource | 'reminder';
+  title: string;
+  start: string;
+  end: string | null;
+}
+
+export interface AgendaConflict {
+  a: string;
+  b: string;
+}
+
 /**
  * The "schedule brain": one unified view of when the owner is busy, merged from
  * every feature that takes time — booked appointments, due-dated to-do tasks,
@@ -116,6 +128,56 @@ export class ScheduleService {
     }
 
     return out.sort((a, b) => a.start.getTime() - b.start.getTime());
+  }
+
+  /**
+   * A unified agenda for [from, to): every busy block (appointments, dated
+   * tasks, calendar) plus reminders (nudges), sorted by time — and the pairs of
+   * busy blocks that overlap, so the UI can flag an over-booked day. Powers the
+   * daily review.
+   */
+  async agenda(
+    businessId: string,
+    from: Date,
+    to: Date,
+  ): Promise<{ items: AgendaItem[]; conflicts: AgendaConflict[] }> {
+    const busy = await this.busyIntervals(businessId, from, to);
+    const items: AgendaItem[] = busy.map((b) => ({
+      source: b.source,
+      title: b.title,
+      start: b.start.toISOString(),
+      end: b.end.toISOString(),
+    }));
+
+    // Reminders are nudges, not busy time — listed but never conflict.
+    try {
+      const reminders = await this.tasks.remindersInWindow(businessId, from, to);
+      for (const r of reminders) {
+        const at = r.remindAt ?? r.dueAt;
+        if (!at) continue;
+        items.push({
+          source: 'reminder',
+          title: r.title,
+          start: new Date(at).toISOString(),
+          end: null,
+        });
+      }
+    } catch (err) {
+      this.log.warn(`[schedule] reminders agenda failed: ${(err as Error).message}`);
+    }
+
+    items.sort((a, b) => a.start.localeCompare(b.start));
+
+    // Overlapping busy blocks = a clash worth surfacing.
+    const conflicts: AgendaConflict[] = [];
+    for (let i = 0; i < busy.length; i++) {
+      for (let j = i + 1; j < busy.length; j++) {
+        if (busy[i].start < busy[j].end && busy[i].end > busy[j].start) {
+          conflicts.push({ a: busy[i].title, b: busy[j].title });
+        }
+      }
+    }
+    return { items, conflicts };
   }
 
   /**

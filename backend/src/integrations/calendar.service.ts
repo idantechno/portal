@@ -201,4 +201,43 @@ export class CalendarService {
       allDay: false,
     };
   }
+
+  /** Patch an existing event's title/time. Best-effort — throws on failure. */
+  async updateEvent(
+    businessId: string,
+    eventId: string,
+    input: { title: string; start: string; end?: string },
+  ): Promise<void> {
+    const startDate = new Date(input.start);
+    const endDate = input.end
+      ? new Date(input.end)
+      : new Date(startDate.getTime() + 60 * 60 * 1000);
+    const res = await this.call(
+      businessId,
+      `${CAL_BASE}/${encodeURIComponent(eventId)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({
+          summary: input.title,
+          start: { dateTime: startDate.toISOString() },
+          end: { dateTime: endDate.toISOString() },
+        }),
+      },
+    );
+    if (!res.ok) {
+      throw new BadRequestException(`CALENDAR_UPDATE_FAILED_${res.status}`);
+    }
+  }
+
+  /** Delete an event. A 404/410 (already gone) is treated as success. */
+  async deleteEvent(businessId: string, eventId: string): Promise<void> {
+    const res = await this.call(
+      businessId,
+      `${CAL_BASE}/${encodeURIComponent(eventId)}`,
+      { method: 'DELETE' },
+    );
+    if (!res.ok && res.status !== 404 && res.status !== 410) {
+      throw new BadRequestException(`CALENDAR_DELETE_FAILED_${res.status}`);
+    }
+  }
 }

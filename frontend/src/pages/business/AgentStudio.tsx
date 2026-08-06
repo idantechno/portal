@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { agentsApi } from "../../api/agents";
 import { businessesApi } from "../../api/businesses";
@@ -6,7 +6,14 @@ import type { AgentListItem } from "../../api/types";
 import { agentRoute } from "../../lib/agentRoutes";
 import { useAuthStore } from "../../store/auth";
 import { isPlatformStaff } from "../../lib/roles";
-import { Card, EmptyState, PageHeader, Spinner, IconTile } from "../../components/ui";
+import {
+  Button,
+  Card,
+  EmptyState,
+  PageHeader,
+  Spinner,
+  IconTile,
+} from "../../components/ui";
 import { Icon, hasIcon } from "../../components/icons";
 
 // The single hub listing EVERY agent in the catalog. Entitled agents are active
@@ -48,6 +55,15 @@ export default function AgentStudio() {
       <PageHeader
         title="הסוכנים שלך"
         subtitle="כל הסוכנים של העסק במקום אחד — בחר סוכן כדי לפתוח את הדף שלו."
+        action={
+          isOperator ? (
+            <Link to={`/app/admin/businesses/${businessId}`}>
+              <Button variant="secondary" size="sm" icon="lock">
+                נהל הרשאות
+              </Button>
+            </Link>
+          ) : undefined
+        }
       />
 
       {agents.isLoading && (

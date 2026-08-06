@@ -57,3 +57,20 @@ export const PLAN_CAPABILITIES: Record<string, readonly PlanCapability[]> = {
 export function planCapabilities(code: string): readonly PlanCapability[] {
   return PLAN_CAPABILITIES[code] ?? [];
 }
+
+/**
+ * Human (Hebrew) labels for each capability — drives the read-only "יכולות
+ * המסלול" block in the admin permissions area so the operator can see, in plain
+ * language, exactly what the current plan unlocks.
+ */
+export const PLAN_CAPABILITY_LABELS: Record<PlanCapability, string> = {
+  chat: 'סוכן צ׳אט — מענה אוטומטי ללקוחות',
+  crm: 'CRM — ניהול רשומות לקוח',
+  calendar_manual: 'יומן ומשימות (הזנה ידנית)',
+  pro_agents: 'סוכני מסמכים, שיווק ואנליטיקה + אוטומציות',
+  google: 'חיבור Google (Gmail + יומן)',
+  agent_scheduling: 'הסוכן סוגר, מבטל ומזיז פגישות',
+  all_agents: 'כל צוות הסוכנים כולל תזכורות',
+  email_agent: 'סוכן מייל — זיהוי חשבוניות בתיבה',
+  priority_support: 'תמיכה מועדפת',
+};

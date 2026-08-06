@@ -147,9 +147,26 @@ export interface AdminBusiness {
   owner: MemberUser | null;
 }
 
+export interface PlanCapabilityView {
+  key: string;
+  label: string;
+}
+
+export interface AdminPlanView {
+  code: string;
+  status: string;
+  /** Hebrew plan name. */
+  name: string;
+  nameEn: string;
+  tagline: string;
+  priceCents: number;
+  capabilities: PlanCapabilityView[];
+}
+
 export interface AdminBusinessDetail {
   business: Business;
   members: BusinessMember[];
+  plan: AdminPlanView;
 }
 
 export interface AdminUser {
@@ -206,6 +223,10 @@ export interface AgentDefinition {
 
 export interface AgentAccessView extends AgentDefinition {
   enabled: boolean;
+  /** True when an explicit business_agents row exists (manual override). */
+  overridden: boolean;
+  /** What the plan alone would grant, ignoring any override row. */
+  planDefault: boolean;
 }
 
 /** A catalog entry plus whether this business is entitled to use it (hub list). */

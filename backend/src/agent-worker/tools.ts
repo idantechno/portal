@@ -5,6 +5,7 @@ import { LeadsService } from '../leads/leads.service';
 import { CustomersService } from '../customers/customers.service';
 import { AppointmentsService } from '../appointments/appointments.service';
 import { WaitlistService } from '../appointments/waitlist.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { ConversationStatus } from '../common/enums/conversation-status.enum';
 import { ContactStatus } from '../common/enums/contact-status.enum';
 import { MessageRole } from '../common/enums/message-role.enum';
@@ -21,6 +22,13 @@ export interface ToolContext {
   businessId: string;
   conversationId: string;
   customerContactId: string;
+  /**
+   * The matched CRM customer's id, when this contact is a registered customer.
+   * Null for leads / unknown senders. Set by the worker AFTER the CRM lookup
+   * resolves — the tool closures read it at call time, so `record_engagement`
+   * sees the right value even though the mcp server is built earlier.
+   */
+  customerId?: string | null;
   /** Channel the conversation arrived on — recorded as the lead's origin. */
   channel?: Channel;
   leads: LeadsService;
@@ -28,6 +36,7 @@ export interface ToolContext {
   conversations: ConversationsService;
   appointments: AppointmentsService;
   waitlist: WaitlistService;
+  notifications: NotificationsService;
 }
 
 /** Israel wall-clock rendering for confirmations the agent reads back. */
@@ -122,6 +131,70 @@ export function captureLeadTool(ctx: ToolContext) {
           },
         ],
       };
+    },
+  );
+}
+
+export function recordEngagementTool(ctx: ToolContext) {
+  return tool(
+    'record_engagement',
+    "Record or update what THIS customer is actually getting from the business — the agreed engagement: a one-off job (e.g. a video clip), a specific project, or a plan/subscription and where they are with it. Derive it ONLY from what was actually agreed or offered in THIS conversation — never guess or invent. What you write is saved as a DRAFT that the business owner reviews and confirms, so keep it short, factual and specific: what they're getting, and whether it's a one-off or ongoing. Call this the moment the agreement becomes clear, or when it changes. This is an internal note — never mention it to the customer.",
+    {
+      summary: z
+        .string()
+        .describe(
+          'Short factual summary of what this customer is getting — the agreed job/project/plan, in Hebrew. e.g. "קליפ אחד לרשתות — עבודה חד-פעמית, לא מנוי מערכת ולא שירות נוסף".',
+        ),
+    },
+    async (args) => {
+      if (!ctx.customerId) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: "There's no customer record for this person yet, so there's nothing to attach an engagement to. If they're becoming a customer, use capture_lead to save their details; otherwise just keep helping them.",
+            },
+          ],
+        };
+      }
+      try {
+        const { changed } = await ctx.customers.recordEngagementByAgent(
+          ctx.businessId,
+          ctx.customerId,
+          args.summary,
+        );
+        // Only nudge the owner on a real change — an identical re-record is a
+        // no-op and must not spam the bell.
+        if (changed) {
+          void ctx.notifications
+            .notify({
+              businessId: ctx.businessId,
+              type: 'system',
+              title: 'הסוכן עדכן מה סוכם עם לקוח',
+              body: `הסוכן רשם מה הלקוח מקבל: "${args.summary.trim()}". עבור ואשר שזה מדויק.`,
+              link: `/app/businesses/${ctx.businessId}/customers/${ctx.customerId}`,
+              channels: ['push'],
+            })
+            .catch(() => undefined);
+        }
+        return {
+          content: [
+            {
+              type: 'text',
+              text: 'Saved as a draft for the business owner to confirm. Do not tell the customer about this internal note — just carry on the conversation naturally.',
+            },
+          ],
+        };
+      } catch {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: "Couldn't save that right now — carry on with the customer normally.",
+            },
+          ],
+        };
+      }
     },
   );
 }

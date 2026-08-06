@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Ip,
   Param,
@@ -65,5 +66,35 @@ export class AgentsAdminController {
       ip,
     });
     return row;
+  }
+
+  /**
+   * Reset an agent to its plan default by DELETING the explicit override row, so
+   * it follows the business's plan again. Super-admin only, audited.
+   */
+  @Roles(UserRole.SuperAdmin)
+  @Delete(':agentKey')
+  async resetAccess(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param('businessId', ParseUUIDPipe) businessId: string,
+    @Param('agentKey') agentKey: string,
+    @Ip() ip: string,
+  ) {
+    if (!isAgentKey(agentKey)) {
+      throw new BadRequestException(`Unknown agent: ${agentKey}`);
+    }
+    const removed = await this.agents.resetAccess(businessId, agentKey);
+    await this.audit.record({
+      actorUserId: actor.id,
+      actorEmail: actor.email,
+      actorRole: actor.role,
+      action: 'agent.reset',
+      businessId,
+      targetType: 'agent',
+      targetId: agentKey,
+      metadata: { removed },
+      ip,
+    });
+    return { ok: true, removed };
   }
 }

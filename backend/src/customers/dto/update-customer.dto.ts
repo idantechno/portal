@@ -65,4 +65,16 @@ export class UpdateCustomerDto {
   @IsString()
   @MaxLength(255)
   nextActivityNote?: string | null;
+
+  /** What the customer is getting (agreed engagement). Editing it here also
+   *  confirms it — see the service's update() approval logic. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  engagementSummary?: string | null;
+
+  /** Owner's confirmation of the agent-written engagement summary. */
+  @IsOptional()
+  @IsBoolean()
+  engagementApproved?: boolean;
 }

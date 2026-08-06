@@ -31,9 +31,12 @@ import {
   captureLeadTool,
   escalateToHumanTool,
   joinWaitlistTool,
+  recordEngagementTool,
   rescheduleAppointmentTool,
   scheduleAppointmentTool,
+  ToolContext,
 } from './tools';
+import { NotificationsService } from '../notifications/notifications.service';
 
 const MCP_SERVER_NAME = 'portal';
 const HISTORY_LIMIT = 50;
@@ -58,6 +61,7 @@ export class AgentWorkerService {
     private readonly billing: BillingService,
     private readonly calendar: CalendarService,
     private readonly config: ConfigService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async runAgent(data: AgentRunJobData): Promise<void> {
@@ -95,16 +99,20 @@ export class AgentWorkerService {
       { limit: HISTORY_LIMIT },
     );
 
-    const toolCtx = {
+    const toolCtx: ToolContext = {
       businessId: business.id,
       conversationId: conversation.id,
       customerContactId: conversation.customerContactId,
+      // Filled once the CRM lookup below resolves — the tool closures read it
+      // at call time (during runner.run), so this back-fill is safe.
+      customerId: null,
       channel: conversation.channel,
       leads: this.leads,
       customers: this.customers,
       conversations: this.conversations,
       appointments: this.appointments,
       waitlist: this.waitlist,
+      notifications: this.notifications,
     };
 
     // Appointment/waitlist tools are a top-tier capability. Only businesses
@@ -123,6 +131,7 @@ export class AgentWorkerService {
       tools: [
         captureLeadTool(toolCtx),
         escalateToHumanTool(toolCtx),
+        recordEngagementTool(toolCtx),
         ...(canSchedule
           ? [
               scheduleAppointmentTool(toolCtx),
@@ -171,12 +180,24 @@ export class AgentWorkerService {
         );
       }
     }
+    // Now that we know whether this is a registered customer, let the
+    // record_engagement tool target the right CRM row (leads leave it null).
+    toolCtx.customerId = crmCustomer?.id ?? null;
+
     const contactBlock = buildContactBlock({
       contact,
       messageCount: stats.messageCount,
       firstMessageAt: stats.firstMessageAt,
       isRegisteredCustomer: !!crmCustomer,
       registeredName: crmCustomer?.name ?? null,
+      customer: crmCustomer
+        ? {
+            engagementSummary: crmCustomer.engagementSummary,
+            engagementApproved: crmCustomer.engagementApproved,
+            interest: crmCustomer.interest,
+            nextActivityNote: crmCustomer.nextActivityNote,
+          }
+        : null,
     });
 
     // Appointment awareness: the customer's own upcoming appointments (so the
@@ -241,6 +262,7 @@ export class AgentWorkerService {
       allowedMcpTools: [
         `mcp__${MCP_SERVER_NAME}__capture_lead`,
         `mcp__${MCP_SERVER_NAME}__escalate_to_human`,
+        `mcp__${MCP_SERVER_NAME}__record_engagement`,
         ...(canSchedule
           ? [
               `mcp__${MCP_SERVER_NAME}__schedule_appointment`,

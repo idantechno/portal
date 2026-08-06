@@ -110,6 +110,14 @@ export const adminApi = {
       .put(`/admin/businesses/${id}/agents/${agentKey}`, { enabled })
       .then((r) => r.data),
 
+  /** Delete the explicit override row so the agent follows the plan again. */
+  resetBusinessAgent: (id: string, agentKey: string) =>
+    api
+      .delete<{ ok: true; removed: boolean }>(
+        `/admin/businesses/${id}/agents/${agentKey}`,
+      )
+      .then((r) => r.data),
+
   listSupportRequests: (status: "open" | "resolved" = "open") =>
     api
       .get<AdminSupportRequest[]>("/admin/support-requests", {

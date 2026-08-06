@@ -19,6 +19,18 @@ export interface ContactPromptInput {
   isRegisteredCustomer?: boolean;
   /** Name from the matched CRM row, used when the contact has no display name. */
   registeredName?: string | null;
+  /**
+   * The matched CRM customer's engagement + light context, when this is a
+   * registered customer. Lets the agent know what they're actually getting (the
+   * agreed job/project/plan) so it serves the right thing — a one-off clip is
+   * not a system onboarding. Null for leads.
+   */
+  customer?: {
+    engagementSummary: string | null;
+    engagementApproved: boolean;
+    interest: string | null;
+    nextActivityNote: string | null;
+  } | null;
 }
 
 export interface AppointmentsPromptInput {
@@ -137,6 +149,34 @@ export function buildContactBlock(input: ContactPromptInput): string | null {
         'details (call `capture_lead`). Treat every message as a chance to ' +
         'move them closer to becoming a customer — attentive and genuine, ' +
         'never pushy.',
+    );
+  }
+
+  // What this specific customer is getting — the heart of "treat a customer
+  // like a customer": the agent must know the agreed job/project/plan so it
+  // serves the right thing and never offers a service outside the deal.
+  const cust = input.customer;
+  if (isCustomer && cust) {
+    const eng = cust.engagementSummary?.trim();
+    if (eng) {
+      lines.push(
+        cust.engagementApproved
+          ? `- What this customer is getting (CONFIRMED by the business — this is the source of truth): ${eng}. That is exactly what they bought — a one-off job, a specific project, or a plan. Do NOT offer, promise, or imply anything outside it unless the customer explicitly asks about something else.`
+          : `- What this customer is getting (your own working note, NOT yet confirmed by the business): ${eng}. Use it to stay consistent with earlier conversations, but don't present it to the customer as a firm commitment — the business still has to confirm it.`,
+      );
+    }
+    if (cust.interest && cust.interest.trim()) {
+      lines.push(
+        `- What they were originally interested in: ${cust.interest.trim()}.`,
+      );
+    }
+    if (cust.nextActivityNote && cust.nextActivityNote.trim()) {
+      lines.push(
+        `- The business's planned next step with them: ${cust.nextActivityNote.trim()}.`,
+      );
+    }
+    lines.push(
+      "- If this conversation makes clear (or changes) what this customer is actually getting — the agreed job, project, or plan — and it isn't already captured above, call `record_engagement` with a short, accurate summary based ONLY on what was really agreed here, so the business can confirm it. Never invent an engagement that wasn't discussed.",
     );
   }
 

@@ -299,6 +299,10 @@ function CustomerEditor({
         </div>
       </Card>
 
+      {/* What the customer is getting — filled by the chat agent from the
+          conversation, confirmed here by the owner. */}
+      <EngagementSection businessId={businessId} customer={customer} />
+
       {/* Intake data captured on the person (questionnaire answers, lead
           payload). Read-only — nothing here is lost from the old leads viewer. */}
       {customer.capturedData && (
@@ -326,6 +330,104 @@ function CustomerEditor({
         </>
       )}
     </div>
+  );
+}
+
+/**
+ * "What was agreed" — the engagement the chat agent records from the
+ * conversation. It arrives UNAPPROVED (a coral "ממתין לאישור" badge + a bell
+ * notification), the owner reviews/edits it, and saving confirms it. Only after
+ * confirmation does the agent treat it as fact.
+ */
+function EngagementSection({
+  businessId,
+  customer,
+}: {
+  businessId: string;
+  customer: Customer;
+}) {
+  const qc = useQueryClient();
+  const [text, setText] = useState(customer.engagementSummary ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  const hasSummary = Boolean((customer.engagementSummary ?? "").trim());
+  const pending = hasSummary && !customer.engagementApproved;
+  const dirty = text.trim() !== (customer.engagementSummary ?? "").trim();
+
+  const save = useMutation({
+    mutationFn: () =>
+      customersApi.update(businessId, customer.id, {
+        engagementSummary: text.trim() || null,
+        engagementApproved: true,
+      }),
+    onSuccess: () => {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 1500);
+      qc.invalidateQueries({ queryKey: ["customer", businessId, customer.id] });
+      qc.invalidateQueries({ queryKey: ["customers", businessId] });
+    },
+    onError: (e) => setError(apiErrorMessage(e, "השמירה נכשלה")),
+  });
+
+  return (
+    <Card className={`mb-6 p-5 ${pending ? "ring-1 ring-coral-300" : ""}`}>
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <div className="rounded-xl bg-brand-50 p-2 text-brand-600">
+          <Icon name="doc" size={18} />
+        </div>
+        <h2 className="font-display text-base">מה סוכם עם הלקוח</h2>
+        {pending ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-coral-50 px-2.5 py-0.5 text-xs font-medium text-coral-600 ring-1 ring-coral-200">
+            <Icon name="warning" size={13} />
+            ממתין לאישור
+          </span>
+        ) : customer.engagementApproved && hasSummary ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-teal-50 px-2.5 py-0.5 text-xs font-medium text-teal-700 ring-1 ring-teal-200">
+            <Icon name="check-circle" size={13} />
+            מאושר
+          </span>
+        ) : null}
+      </div>
+
+      <p className="mb-2.5 text-xs text-navy-400">
+        הסוכן ממלא כאן מה הלקוח מקבל (עבודה חד-פעמית, פרויקט או מסלול) לפי מה
+        שסוכם בשיחה. עבור, תקן אם צריך, ואשר — רק אחרי אישור הסוכן מתייחס לזה
+        כעובדה.
+      </p>
+
+      <Textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="למשל: קליפ אחד לרשתות — עבודה חד-פעמית, לא מנוי מערכת ולא שירות נוסף."
+        rows={3}
+      />
+
+      {error && (
+        <div className="mt-2">
+          <FormError message={error} />
+        </div>
+      )}
+
+      <div className="mt-3 flex items-center justify-end">
+        <Button
+          size="sm"
+          onClick={() => {
+            setError(null);
+            save.mutate();
+          }}
+          disabled={save.isPending || (!dirty && !pending)}
+        >
+          {save.isPending
+            ? "שומר…"
+            : saved
+              ? "נשמר"
+              : pending && !dirty
+                ? "אשר"
+                : "שמור ואשר"}
+        </Button>
+      </div>
+    </Card>
   );
 }
 

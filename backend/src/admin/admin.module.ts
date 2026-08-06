@@ -4,6 +4,7 @@ import { Business } from '../businesses/business.entity';
 import { BusinessMember } from '../businesses/business-member.entity';
 import { BusinessesModule } from '../businesses/businesses.module';
 import { AgentsModule } from '../agents/agents.module';
+import { BillingModule } from '../billing/billing.module';
 import { UsersModule } from '../users/users.module';
 import { AuditModule } from '../audit/audit.module';
 import { AdminService } from './admin.service';
@@ -14,6 +15,7 @@ import { AdminController } from './admin.controller';
     TypeOrmModule.forFeature([Business, BusinessMember]),
     BusinessesModule,
     AgentsModule,
+    BillingModule,
     UsersModule,
     AuditModule,
   ],

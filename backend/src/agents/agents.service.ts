@@ -13,7 +13,12 @@ import {
 } from './agent-catalog';
 
 export interface AgentAccessView extends AgentDefinition {
+  /** Effective access right now (row override if present, else plan default). */
   enabled: boolean;
+  /** True when an explicit `business_agents` row exists (manual override). */
+  overridden: boolean;
+  /** What the PLAN alone would grant, ignoring any override row. */
+  planDefault: boolean;
 }
 
 /**
@@ -79,16 +84,26 @@ export class AgentsService {
     return this.effectiveEnabled(agentKey, row ?? undefined, caps);
   }
 
-  /** Full catalog merged with this business's effective state (admin view). */
+  /**
+   * Full catalog merged with this business's effective state (admin view). Each
+   * entry also carries its SOURCE so the UI can label it "לפי מסלול" vs
+   * "ידני (override)": `overridden` = an explicit row exists; `planDefault` =
+   * what the plan alone would grant, ignoring that row.
+   */
   async accessForBusiness(businessId: string): Promise<AgentAccessView[]> {
     const [byKey, caps] = await Promise.all([
       this.rowsByKey(businessId),
       this.billing.getCapabilities(businessId),
     ]);
-    return AGENT_CATALOG.map((a) => ({
-      ...a,
-      enabled: this.effectiveEnabled(a.key, byKey.get(a.key), caps),
-    }));
+    return AGENT_CATALOG.map((a) => {
+      const row = byKey.get(a.key);
+      return {
+        ...a,
+        enabled: this.effectiveEnabled(a.key, row, caps),
+        overridden: row !== undefined,
+        planDefault: this.effectiveEnabled(a.key, undefined, caps),
+      };
+    });
   }
 
   /**
@@ -177,5 +192,15 @@ export class AgentsService {
       });
     }
     return this.agents.save(row);
+  }
+
+  /**
+   * Remove the explicit override row so the agent follows the PLAN again. No-op
+   * (returns false) if there was no override to begin with. This is the
+   * "reset to plan" escape hatch surfaced in the admin permissions area.
+   */
+  async resetAccess(businessId: string, agentKey: string): Promise<boolean> {
+    const res = await this.agents.delete({ businessId, agentKey });
+    return (res.affected ?? 0) > 0;
   }
 }

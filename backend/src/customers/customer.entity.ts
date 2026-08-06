@@ -154,6 +154,31 @@ export class Customer {
   @Column({ type: 'varchar', length: 512, name: 'logo_url', nullable: true })
   logoUrl!: string | null;
 
+  /**
+   * What this customer is actually getting from the business — the agreed
+   * engagement in plain words: a plan/subscription, a specific project, or a
+   * one-off job (e.g. "קליפ אחד לרשתות — עבודה חד-פעמית, לא מנוי מערכת"). The
+   * chat agent writes this from the conversation so it knows what the customer
+   * bought and never offers the wrong service; but the agent's note stays
+   * UNAPPROVED (`engagementApproved = false`) until the owner confirms it, so a
+   * guess is never mistaken for a business-blessed fact.
+   */
+  @Column({ type: 'text', name: 'engagement_summary', nullable: true })
+  engagementSummary!: string | null;
+
+  /** True once the owner has reviewed & confirmed `engagementSummary`. Any new
+   *  agent-written summary flips this back to false (needs re-confirmation). */
+  @Column({ type: 'boolean', name: 'engagement_approved', default: false })
+  engagementApproved!: boolean;
+
+  /** When the engagement summary was last written/changed (agent or owner). */
+  @Column({
+    type: 'timestamptz',
+    name: 'engagement_updated_at',
+    nullable: true,
+  })
+  engagementUpdatedAt!: Date | null;
+
   /** Next planned activity — drives the "פעילות קרובה הבאה" sort and the לו"ז tab. */
   @Column({ type: 'timestamptz', name: 'next_activity_at', nullable: true })
   nextActivityAt!: Date | null;

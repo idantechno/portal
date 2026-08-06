@@ -8,6 +8,9 @@ import { BusinessMember } from '../businesses/business-member.entity';
 import { BusinessesService } from '../businesses/businesses.service';
 import { AgentsService } from '../agents/agents.service';
 import { AGENT_CATALOG } from '../agents/agent-catalog';
+import { BillingService } from '../billing/billing.service';
+import { getPlan } from '../billing/billing-plans';
+import { PLAN_CAPABILITY_LABELS } from '../billing/plan-capabilities';
 import { UsersService } from '../users/users.service';
 import { UserRole } from '../common/enums/user-role.enum';
 import { AccountStatus } from '../common/enums/account-status.enum';
@@ -46,6 +49,7 @@ export class AdminService {
     private readonly users: UsersService,
     private readonly businessesService: BusinessesService,
     private readonly agents: AgentsService,
+    private readonly billing: BillingService,
   ) {}
 
   /**
@@ -199,6 +203,30 @@ export class AdminService {
         role: m.role,
         createdAt: m.createdAt,
         user: byId.has(m.userId) ? publicUser(byId.get(m.userId)!) : null,
+      })),
+      plan: await this.planView(businessId),
+    };
+  }
+
+  /**
+   * The business's current plan + the capabilities it unlocks, in plain Hebrew.
+   * Read-only — drives the "מסלול נוכחי" header and the "יכולות המסלול" block in
+   * the admin permissions area. Changing the plan stays wherever it lives today.
+   */
+  private async planView(businessId: string) {
+    const sub = await this.billing.getSubscription(businessId);
+    const caps = await this.billing.getCapabilities(businessId);
+    const plan = getPlan(sub.planCode);
+    return {
+      code: sub.planCode,
+      status: sub.status,
+      name: plan?.name ?? sub.planCode,
+      nameEn: plan?.nameEn ?? sub.planCode,
+      tagline: plan?.tagline ?? '',
+      priceCents: plan?.priceCents ?? 0,
+      capabilities: [...caps].map((key) => ({
+        key,
+        label: PLAN_CAPABILITY_LABELS[key] ?? key,
       })),
     };
   }

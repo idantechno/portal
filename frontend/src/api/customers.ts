@@ -37,6 +37,12 @@ export interface Customer {
   becameCustomerAt: string;
   nextActivityAt: string | null;
   nextActivityNote: string | null;
+  /** What this customer is getting (agreed job/project/plan). The chat agent
+   *  fills it from the conversation; stays unapproved until the owner confirms. */
+  engagementSummary: string | null;
+  /** True once the owner reviewed & confirmed the engagement summary. */
+  engagementApproved: boolean;
+  engagementUpdatedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -63,6 +69,8 @@ export interface UpdateCustomerInput {
   logoUrl?: string | null;
   nextActivityAt?: string | null;
   nextActivityNote?: string | null;
+  engagementSummary?: string | null;
+  engagementApproved?: boolean;
 }
 
 export const customersApi = {

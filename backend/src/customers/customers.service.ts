@@ -511,7 +511,43 @@ export class CustomersService {
         : null;
     if (dto.nextActivityNote !== undefined)
       customer.nextActivityNote = dto.nextActivityNote?.trim() || null;
+    if (dto.engagementSummary !== undefined) {
+      customer.engagementSummary = dto.engagementSummary?.trim() || null;
+      customer.engagementUpdatedAt = new Date();
+    }
+    // The owner touching the engagement IS the confirmation: an explicit flag
+    // wins, but saving an edited summary also approves it in one step.
+    if (dto.engagementApproved !== undefined) {
+      customer.engagementApproved = dto.engagementApproved;
+    } else if (dto.engagementSummary !== undefined) {
+      customer.engagementApproved = true;
+    }
     return this.customers.save(customer);
+  }
+
+  /**
+   * The chat agent records what a customer is actually getting (their agreed
+   * engagement) straight from the conversation. Always saved as a DRAFT —
+   * `engagementApproved` is forced false — so the owner still has to confirm it.
+   * Returns whether the text actually changed, so the caller only nudges the
+   * owner on a real update and never re-notifies for an identical re-record.
+   */
+  async recordEngagementByAgent(
+    businessId: string,
+    customerId: string,
+    summary: string,
+  ): Promise<{ customer: Customer; changed: boolean }> {
+    const customer = await this.findByIdScoped(businessId, customerId);
+    const next = summary.trim().slice(0, 2000);
+    const current = (customer.engagementSummary ?? '').trim();
+    if (!next || next === current) {
+      return { customer, changed: false };
+    }
+    customer.engagementSummary = next;
+    customer.engagementApproved = false;
+    customer.engagementUpdatedAt = new Date();
+    const saved = await this.customers.save(customer);
+    return { customer: saved, changed: true };
   }
 
   async remove(businessId: string, id: string): Promise<void> {

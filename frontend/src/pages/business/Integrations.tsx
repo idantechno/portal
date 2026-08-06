@@ -277,6 +277,24 @@ function GreenInvoiceCard({ businessId }: { businessId: string }) {
 
   const s = status.data;
 
+  // Until the status resolves we don't KNOW if the account is connected — show
+  // a spinner rather than flashing the "connect" form at an already-connected
+  // business. A failed status check is treated the same (don't imply "not
+  // connected" and invite a duplicate connect).
+  if (status.isLoading || status.isError) {
+    return (
+      <Card className="p-6 grid place-items-center">
+        {status.isError ? (
+          <div className="text-sm text-navy-400">
+            לא הצלחנו לבדוק את מצב החיבור כרגע. רענן את הדף לניסיון נוסף.
+          </div>
+        ) : (
+          <Spinner />
+        )}
+      </Card>
+    );
+  }
+
   if (s?.connected) {
     return (
       <Card className="p-4 flex items-center gap-4">

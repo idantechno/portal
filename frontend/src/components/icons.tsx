@@ -325,6 +325,17 @@ const paths: Record<string, React.ReactNode> = {
     </>
   ),
   menu: <path d="M4 7h16M4 12h16M4 17h16" />,
+  /* Drag handle — two columns of dots, the universal "grab to reorder" affordance. */
+  grip: (
+    <>
+      <circle cx="9" cy="6.6" r="1.05" {...DOT} />
+      <circle cx="15" cy="6.6" r="1.05" {...DOT} />
+      <circle cx="9" cy="12" r="1.05" {...DOT} />
+      <circle cx="15" cy="12" r="1.05" {...DOT} />
+      <circle cx="9" cy="17.4" r="1.05" {...DOT} />
+      <circle cx="15" cy="17.4" r="1.05" {...DOT} />
+    </>
+  ),
   close: <path d="M6.4 6.4 17.6 17.6M17.6 6.4 6.4 17.6" />,
   plus: <path d="M12 4.8v14.4M4.8 12h14.4" />,
   minus: <path d="M4.8 12h14.4" />,

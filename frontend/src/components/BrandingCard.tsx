@@ -20,24 +20,6 @@ interface Props {
 /** Roles the top-3 ranked colors fill (the rest are extra palette colors). */
 const ROLE = ["ראשי", "משני", "הדגשה"];
 
-/** A small CSS-drawn up/down caret for the reorder buttons. */
-function Caret({ dir }: { dir: "up" | "down" }) {
-  return (
-    <span
-      style={{
-        display: "inline-block",
-        width: 0,
-        height: 0,
-        borderLeft: "4px solid transparent",
-        borderRight: "4px solid transparent",
-        ...(dir === "up"
-          ? { borderBottom: "5px solid currentColor" }
-          : { borderTop: "5px solid currentColor" }),
-      }}
-    />
-  );
-}
-
 export default function BrandingCard({ businessId, business }: Props) {
   const qc = useQueryClient();
   const b = business.branding ?? {};
@@ -48,14 +30,11 @@ export default function BrandingCard({ businessId, business }: Props) {
           (c): c is string => Boolean(c),
         );
   const [palette, setPalette] = useState<string[]>(
-    seedPalette.length
-      ? seedPalette
-      : [
-          DEFAULT_BRANDING.primaryColor,
-          DEFAULT_BRANDING.secondaryColor,
-          DEFAULT_BRANDING.accentColor,
-        ],
+    seedPalette.length ? seedPalette : [...DEFAULT_BRANDING.palette],
   );
+  // Drag-to-reorder state (native HTML5 DnD, swap semantics).
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [overIndex, setOverIndex] = useState<number | null>(null);
   const [logo, setLogo] = useState<string | undefined>(b.logoUrl);
   const [logoBg, setLogoBg] = useState<string>(b.logoBgColor ?? "#ffffff");
   const [slogan, setSlogan] = useState(b.slogan ?? "");
@@ -75,10 +54,11 @@ export default function BrandingCard({ businessId, business }: Props) {
     setPalette((p) => (p.length >= 5 ? p : [...p, "#64748b"]));
   const removeColor = (i: number) =>
     setPalette((p) => (p.length <= 1 ? p : p.filter((_, j) => j !== i)));
-  const move = (i: number, d: -1 | 1) =>
+  // Swap two positions — the color that sat at `j` moves to `i` and vice versa.
+  // This is both the drag-drop behaviour and the keyboard (arrow) reorder.
+  const swap = (i: number, j: number) =>
     setPalette((p) => {
-      const j = i + d;
-      if (j < 0 || j >= p.length) return p;
+      if (i === j || i < 0 || j < 0 || i >= p.length || j >= p.length) return p;
       const next = [...p];
       [next[i], next[j]] = [next[j], next[i]];
       return next;
@@ -175,8 +155,50 @@ export default function BrandingCard({ businessId, business }: Props) {
           <div className="space-y-2">
             <Label>צבעי המותג — לפי סדר העדפה</Label>
             {palette.map((c, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <span className="w-16 shrink-0 text-xs text-navy-400">
+              <div
+                key={i}
+                onDragEnter={(e) => {
+                  e.preventDefault();
+                  if (dragIndex !== null) setOverIndex(i);
+                }}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (dragIndex !== null) swap(dragIndex, i);
+                  setDragIndex(null);
+                  setOverIndex(null);
+                }}
+                className={`flex items-center gap-2 rounded-lg transition ${
+                  dragIndex === i ? "opacity-40" : ""
+                } ${
+                  overIndex === i && dragIndex !== null && dragIndex !== i
+                    ? "ring-2 ring-brand-300"
+                    : ""
+                }`}
+              >
+                <button
+                  type="button"
+                  draggable
+                  onDragStart={() => setDragIndex(i)}
+                  onDragEnd={() => {
+                    setDragIndex(null);
+                    setOverIndex(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "ArrowUp") {
+                      e.preventDefault();
+                      swap(i, i - 1);
+                    } else if (e.key === "ArrowDown") {
+                      e.preventDefault();
+                      swap(i, i + 1);
+                    }
+                  }}
+                  aria-label={`גרור לשינוי הסדר, צבע ${i + 1}. חצים מעלה ומטה מזיזים`}
+                  className="grid h-9 w-6 shrink-0 cursor-grab place-items-center rounded text-navy-300 hover:bg-navy-50 hover:text-navy-500 active:cursor-grabbing"
+                >
+                  <Icon name="grip" size={16} />
+                </button>
+                <span className="w-14 shrink-0 text-xs text-navy-400">
                   {i + 1}. {ROLE[i] ?? "נוסף"}
                 </span>
                 <input
@@ -192,26 +214,6 @@ export default function BrandingCard({ businessId, business }: Props) {
                   dir="ltr"
                   className="font-mono text-sm flex-1"
                 />
-                <div className="flex flex-col gap-0.5">
-                  <button
-                    type="button"
-                    onClick={() => move(i, -1)}
-                    disabled={i === 0}
-                    aria-label="הזז מעלה"
-                    className="grid h-4 w-5 place-items-center rounded text-navy-400 hover:bg-navy-50 disabled:opacity-25"
-                  >
-                    <Caret dir="up" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => move(i, 1)}
-                    disabled={i === palette.length - 1}
-                    aria-label="הזז מטה"
-                    className="grid h-4 w-5 place-items-center rounded text-navy-400 hover:bg-navy-50 disabled:opacity-25"
-                  >
-                    <Caret dir="down" />
-                  </button>
-                </div>
                 <button
                   type="button"
                   onClick={() => removeColor(i)}
@@ -235,7 +237,8 @@ export default function BrandingCard({ businessId, business }: Props) {
             )}
             <p className="text-xs text-navy-400">
               הצבע הראשון הוא הראשי; שלושת הראשונים בדירוג משמשים לממשק
-              ולמסמכים. עד 5 צבעים.
+              ולמסמכים. גרור מהידית כדי לשנות את הסדר — הצבע שהיה במקום היעד
+              מתחלף עם הגרור. עד 5 צבעים.
             </p>
           </div>
 
@@ -352,60 +355,151 @@ export default function BrandingCard({ businessId, business }: Props) {
           </div>
         </div>
 
-        {/* Live preview */}
+        {/* Live preview — a full mini-mockup so every color role is visible. */}
         <div>
           <Label>תצוגה מקדימה</Label>
           <div
             style={previewVars}
             className="rounded-2xl overflow-hidden border border-navy-100"
           >
-            <div
-              className="p-4 text-white"
-              style={{ backgroundColor: "var(--brand-sidebar)" }}
-            >
-              <div className="flex items-center gap-2.5 mb-3">
-                {logo ? (
-                  <img
-                    src={logo}
-                    alt=""
-                    className="h-8 w-8 rounded-lg object-contain bg-white/90 p-0.5"
-                  />
-                ) : (
-                  <div className="h-8 w-8 rounded-lg bg-white/15" />
-                )}
-                <div className="min-w-0">
-                  <div className="text-sm font-semibold truncate">
-                    {business.name}
-                  </div>
-                  {slogan && (
-                    <div className="text-[10px] text-white/50 truncate">
-                      {slogan}
-                    </div>
+            <div className="grid grid-cols-[7rem_1fr]">
+              {/* Sidebar — primary → derived sidebar shade */}
+              <div
+                className="p-3 text-white"
+                style={{ backgroundColor: "var(--brand-sidebar)" }}
+              >
+                <div className="flex items-center gap-2 mb-3">
+                  {logo ? (
+                    <img
+                      src={logo}
+                      alt=""
+                      className="h-7 w-7 rounded-lg object-contain bg-white/90 p-0.5"
+                    />
+                  ) : (
+                    <div className="h-7 w-7 rounded-lg bg-white/15" />
                   )}
+                  <div className="min-w-0">
+                    <div className="text-[11px] font-semibold truncate">
+                      {business.name}
+                    </div>
+                    {slogan && (
+                      <div className="text-[9px] text-white/50 truncate">
+                        {slogan}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <div
+                    className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-[11px] font-medium"
+                    style={{
+                      backgroundColor: "var(--brand-accent)",
+                      color: "var(--brand-accent-contrast)",
+                    }}
+                  >
+                    <Icon name="home" size={14} />
+                    בית
+                  </div>
+                  <div className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-[11px] text-white/70">
+                    <Icon name="chat" size={14} />
+                    שיחות
+                  </div>
+                  <div className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-[11px] text-white/70">
+                    <Icon name="agents" size={14} />
+                    סוכנים
+                  </div>
                 </div>
               </div>
-              <div className="space-y-1">
-                <div
-                  className="flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-sm font-medium"
+
+              {/* Content area — sits on the app's cream canvas */}
+              <div className="app-canvas p-3 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-display text-sm text-navy-900">כותרת מסך</h3>
+                  <span
+                    className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ring-1"
+                    style={{
+                      backgroundColor:
+                        "color-mix(in srgb, var(--brand-accent) 14%, transparent)",
+                      color: "var(--brand-accent)",
+                      borderColor:
+                        "color-mix(in srgb, var(--brand-accent) 30%, transparent)",
+                    }}
+                  >
+                    תגית
+                  </span>
+                </div>
+
+                {/* Real card wash — driven by --brand-surface (= secondary) */}
+                <div className="surface-card rounded-xl border p-2.5">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="grid h-7 w-7 shrink-0 place-items-center rounded-lg"
+                      style={{
+                        backgroundColor:
+                          "color-mix(in srgb, var(--brand-accent) 16%, transparent)",
+                        color: "var(--brand-accent)",
+                      }}
+                    >
+                      <Icon name="agents" size={15} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[11px] font-medium text-navy-900 truncate">
+                        כרטיס בממשק
+                      </div>
+                      <div className="text-[10px] text-navy-400 truncate">
+                        רקע הכרטיס נצבע בצבע המשני
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-[10px] leading-relaxed text-navy-500">
+                  טקסט גוף לדוגמה, כדי לראות איך הצבעים יושבים על הקנבס הקרמי של
+                  המערכת.
+                </p>
+
+                {/* Primary button — accent + accent-contrast */}
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  aria-hidden="true"
+                  className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-medium"
                   style={{
                     backgroundColor: "var(--brand-accent)",
                     color: "var(--brand-accent-contrast)",
                   }}
                 >
-                  <Icon name="home" size={16} />
-                  בית
-                </div>
-                <div className="flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-sm text-white/70">
-                  <Icon name="chat" size={16} />
-                  שיחות
-                </div>
-                <div className="flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-sm text-white/70">
-                  <Icon name="agents" size={16} />
-                  סוכנים
-                </div>
+                  <Icon name="plus" size={13} />
+                  כפתור ראשי
+                </button>
               </div>
             </div>
           </div>
+
+          {/* Legend — maps each color to the role it plays */}
+          <ul className="mt-3 space-y-1 text-[11px] text-navy-500">
+            <li className="flex items-center gap-2">
+              <span
+                className="h-3 w-3 shrink-0 rounded-sm border border-navy-100"
+                style={{ backgroundColor: primary }}
+              />
+              ראשי → סיידבר וכותרות
+            </li>
+            <li className="flex items-center gap-2">
+              <span
+                className="h-3 w-3 shrink-0 rounded-sm border border-navy-100"
+                style={{ backgroundColor: secondary }}
+              />
+              משני → רקע הכרטיסים
+            </li>
+            <li className="flex items-center gap-2">
+              <span
+                className="h-3 w-3 shrink-0 rounded-sm border border-navy-100"
+                style={{ backgroundColor: accent }}
+              />
+              הדגשה → כפתורים, תגיות ומצב פעיל
+            </li>
+          </ul>
         </div>
       </div>
 

@@ -9,12 +9,19 @@ import type { BusinessBranding } from "../api/types";
  */
 
 // ---- Portal Studio defaults (also the seed values in the branding editor). ----
+// Portal's own 5-color brand palette, in preference order. A brand-new business
+// starts pre-loaded with these exact colors (the operator tweaks them per
+// business later). The top three feed primary/secondary/accent.
 export const DEFAULT_BRANDING: Required<
-  Pick<BusinessBranding, "primaryColor" | "secondaryColor" | "accentColor">
+  Pick<
+    BusinessBranding,
+    "primaryColor" | "secondaryColor" | "accentColor" | "palette"
+  >
 > = {
-  primaryColor: "#011427",
-  secondaryColor: "#6091B0",
-  accentColor: "#DC5D46",
+  primaryColor: "#04244b",
+  secondaryColor: "#dc5d46",
+  accentColor: "#6091b0",
+  palette: ["#04244b", "#dc5d46", "#6091b0", "#357d78", "#f0e1d5"],
 };
 
 interface Rgb {

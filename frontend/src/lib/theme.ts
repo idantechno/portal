@@ -146,10 +146,13 @@ export function businessThemeVars(
     "--brand-accent-contrast": readableText(accent),
     "--brand-sidebar": sidebar,
     "--brand-on-sidebar": readableText(sidebar),
-    // The translucent wash behind every card — the business's own secondary
-    // color so cards read as "theirs", not a fixed product color. Consumed by
-    // `.surface-card` in index.css (with a teal fallback for non-themed pages).
-    "--brand-surface": secondary,
+    // The translucent wash behind every card — a CALM color from the business's
+    // own palette so cards read as "theirs" without fighting the vivid accent.
+    // Prefer the 4th palette slot (the "extra" calm tone, e.g. Portal's teal),
+    // then the accent, then secondary. Consumed by `.surface-card` in index.css
+    // (which also carries a teal fallback for non-themed public pages).
+    "--brand-surface":
+      normalizeHex(branding?.palette?.[3]) ?? accent ?? secondary,
   };
   return vars as CSSProperties;
 }

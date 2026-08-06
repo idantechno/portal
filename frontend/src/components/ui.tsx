@@ -287,14 +287,27 @@ export type BadgeTone =
   | "danger"
   | "teal";
 
+// Semantic tones keep their fixed meaning (success=green, danger=red, …). The
+// generic BRAND tone instead follows the business's 4th palette color via the
+// `--brand-tag` CSS var (translucent fill + readable text), so brand tag chips
+// recolor per business. Its class is empty because the color comes from
+// `brandTagStyle` below.
 const badgeToneClass: Record<BadgeTone, string> = {
   neutral: "bg-navy-50 text-navy-600 ring-navy-100",
-  brand: "bg-brand-50 text-brand-700 ring-brand-100",
+  brand: "",
   success: "bg-basil-100 text-basil-700 ring-basil-400/30",
   warning: "bg-peach-100 text-wood-700 ring-peach-300/50",
   danger: "bg-coral-50 text-coral-700 ring-coral-200",
   teal: "bg-teal-50 text-teal-700 ring-teal-200",
 };
+
+// Inline style for the BRAND tone — a translucent fill of --brand-tag with the
+// solid color as text and a matching ring, mirroring the badge chip look.
+const brandTagStyle: React.CSSProperties = {
+  backgroundColor: "color-mix(in srgb, var(--brand-tag) 14%, transparent)",
+  color: "var(--brand-tag)",
+  "--tw-ring-color": "color-mix(in srgb, var(--brand-tag) 30%, transparent)",
+} as React.CSSProperties;
 
 export function Badge({
   tone = "neutral",
@@ -314,6 +327,7 @@ export function Badge({
         badgeToneClass[tone],
         className,
       )}
+      style={tone === "brand" ? brandTagStyle : undefined}
     >
       {icon && <Icon name={icon} size={13} />}
       {children}

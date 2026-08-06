@@ -51,7 +51,7 @@ export default function Filing() {
     enabled: Boolean(businessId),
   });
   const entitled = (key: string) =>
-    (agents.data ?? []).some((a) => a.key === key);
+    (agents.data ?? []).some((a) => a.key === key && a.entitled);
   const hasQuotes = entitled("quote");
   const hasDesigns = entitled("designer");
 

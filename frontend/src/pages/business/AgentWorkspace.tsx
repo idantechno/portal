@@ -87,8 +87,10 @@ export default function AgentWorkspace() {
   }
 
   const def = (agents.data ?? []).find((a) => a.key === agentKey);
-  if (!def) {
-    // Not entitled or unknown key — send back to the hub.
+  // The list now carries EVERY agent with an `entitled` flag, so gate on it:
+  // clients may only open agents they're entitled to; operators reach any.
+  if (!def || (!def.entitled && !isOperator)) {
+    // Unknown key or a locked "premium" agent — send back to the hub.
     return (
       <Navigate to={`/app/businesses/${businessId}/agents`} replace />
     );

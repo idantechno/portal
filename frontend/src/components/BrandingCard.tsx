@@ -47,6 +47,8 @@ export default function BrandingCard({ businessId, business }: Props) {
   const primary = normalizeHex(palette[0]) ?? DEFAULT_BRANDING.primaryColor;
   const secondary = normalizeHex(palette[1]) ?? primary;
   const accent = normalizeHex(palette[2]) ?? secondary;
+  // The 4th color owns tags/badges; falls back to accent (matches theme.ts).
+  const tag = normalizeHex(palette[3]) ?? accent;
 
   const setColor = (i: number, v: string) =>
     setPalette((p) => p.map((c, j) => (j === i ? v : c)));
@@ -140,6 +142,7 @@ export default function BrandingCard({ businessId, business }: Props) {
     primaryColor: primary,
     secondaryColor: secondary,
     accentColor: accent,
+    palette,
   });
 
   return (
@@ -419,10 +422,10 @@ export default function BrandingCard({ businessId, business }: Props) {
                     className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ring-1"
                     style={{
                       backgroundColor:
-                        "color-mix(in srgb, var(--brand-accent) 14%, transparent)",
-                      color: "var(--brand-accent)",
+                        "color-mix(in srgb, var(--brand-tag) 14%, transparent)",
+                      color: "var(--brand-tag)",
                       borderColor:
-                        "color-mix(in srgb, var(--brand-accent) 30%, transparent)",
+                        "color-mix(in srgb, var(--brand-tag) 30%, transparent)",
                     }}
                   >
                     תגית
@@ -497,7 +500,14 @@ export default function BrandingCard({ businessId, business }: Props) {
                 className="h-3 w-3 shrink-0 rounded-sm border border-navy-100"
                 style={{ backgroundColor: accent }}
               />
-              הדגשה → כפתורים, תגיות ומצב פעיל
+              הדגשה → כפתורים ומצב פעיל
+            </li>
+            <li className="flex items-center gap-2">
+              <span
+                className="h-3 w-3 shrink-0 rounded-sm border border-navy-100"
+                style={{ backgroundColor: tag }}
+              />
+              נוסף → תגיות
             </li>
           </ul>
         </div>

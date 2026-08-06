@@ -208,6 +208,11 @@ export interface AgentAccessView extends AgentDefinition {
   enabled: boolean;
 }
 
+/** A catalog entry plus whether this business is entitled to use it (hub list). */
+export interface AgentListItem extends AgentDefinition {
+  entitled: boolean;
+}
+
 export interface CreateClientResult {
   business: Business;
   owner: { id: string; email: string; name: string };

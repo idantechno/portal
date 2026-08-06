@@ -301,7 +301,7 @@ export default function BusinessLayout() {
         </div>
       )}
 
-      <main className="overflow-auto min-h-0 flex flex-col">
+      <main className="overflow-hidden min-h-0 flex flex-col">
         <div className="h-14 px-4 sm:px-6 flex items-center gap-3 border-b border-navy-100 bg-white/70 backdrop-blur sticky top-0 z-20">
           {/* Hamburger — mobile only. */}
           <button
@@ -350,7 +350,7 @@ export default function BusinessLayout() {
             </Link>
           </div>
         )}
-        <div className="app-canvas flex-1">
+        <div className="app-canvas flex-1 min-h-0 overflow-y-auto">
           <Outlet />
         </div>
       </main>

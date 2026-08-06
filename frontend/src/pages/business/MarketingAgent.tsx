@@ -2,6 +2,9 @@ import { useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { agentsApi } from "../../api/agents";
+import { businessesApi } from "../../api/businesses";
+import { useAuthStore } from "../../store/auth";
+import { isPlatformStaff } from "../../lib/roles";
 import { briefsApi, type Brief } from "../../api/briefs";
 import { strategiesApi, type Strategy } from "../../api/strategies";
 import { plansApi, type Plan } from "../../api/plans";
@@ -42,6 +45,17 @@ export default function MarketingAgent({ businessId }: { businessId: string }) {
     enabled: Boolean(businessId),
   });
 
+  // Operator = platform staff, or a staff member who entered this business —
+  // they may open any agent even when the business isn't entitled to it.
+  const user = useAuthStore((s) => s.user);
+  const biz = useQuery({
+    queryKey: ["business", businessId],
+    queryFn: () => businessesApi.get(businessId),
+    enabled: Boolean(businessId),
+  });
+  const isOperator =
+    isPlatformStaff(user?.role) || (biz.data?.viaPlatformStaff ?? false);
+
   if (agents.isLoading) {
     return (
       <div className="grid h-full place-items-center">
@@ -49,8 +63,10 @@ export default function MarketingAgent({ businessId }: { businessId: string }) {
       </div>
     );
   }
-  const entitled = (agents.data ?? []).some((a) => a.key === "marketing");
-  if (!entitled) {
+  const entitled = (agents.data ?? []).some(
+    (a) => a.key === "marketing" && a.entitled,
+  );
+  if (!entitled && !isOperator) {
     return <Navigate to={`/app/businesses/${businessId}/agents`} replace />;
   }
 

@@ -17,6 +17,16 @@ export interface AgentAccessView extends AgentDefinition {
 }
 
 /**
+ * A catalog entry annotated with whether THIS business is entitled to use it.
+ * Drives the agents hub, which lists every agent (entitled ones active, the
+ * rest as locked "premium" cards). `entitled` is purely presentational — the
+ * route guards still enforce real access.
+ */
+export interface AgentListView extends AgentDefinition {
+  entitled: boolean;
+}
+
+/**
  * Per-business agent entitlements. Access is derived from the business's PLAN
  * (see `AGENT_REQUIRED_CAPABILITY`): each agent is on by default when the plan
  * unlocks its required capability. An explicit `business_agents` row overrides
@@ -78,6 +88,25 @@ export class AgentsService {
     return AGENT_CATALOG.map((a) => ({
       ...a,
       enabled: this.effectiveEnabled(a.key, byKey.get(a.key), caps),
+    }));
+  }
+
+  /**
+   * The FULL catalog for the agents hub, each entry annotated with whether this
+   * business is entitled to use it. Unlike `entitledForBusiness`, this returns
+   * non-entitled agents too, so the hub can show them as locked "premium" cards.
+   * This changes only what is LISTED — `hasAccess` / the route guards still
+   * decide what is USABLE. `operatorOnly` agents remain in the payload (the
+   * frontend hides them from non-operators, exactly as before).
+   */
+  async listForBusiness(businessId: string): Promise<AgentListView[]> {
+    const [byKey, caps] = await Promise.all([
+      this.rowsByKey(businessId),
+      this.billing.getCapabilities(businessId),
+    ]);
+    return AGENT_CATALOG.map((a) => ({
+      ...a,
+      entitled: this.effectiveEnabled(a.key, byKey.get(a.key), caps),
     }));
   }
 

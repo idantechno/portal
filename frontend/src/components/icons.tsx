@@ -417,6 +417,17 @@ const paths: Record<string, React.ReactNode> = {
       <path d="M9.2 12.1 11.3 14.2 15 10" />
     </>
   ),
+  // Premium mark — a jewelled crown, used to flag locked/upsell agents. The
+  // three peaks carry solid-dot jewels (the one fill-none exception).
+  crown: (
+    <>
+      <path d="M4.3 17.6 3.6 8 8.4 11.5 12 5.6 15.6 11.5 20.4 8 19.7 17.6Z" />
+      <path d="M4.3 17.6h15.4" />
+      <circle cx="3.6" cy="8" r="0.95" {...DOT} />
+      <circle cx="12" cy="5.6" r="0.95" {...DOT} />
+      <circle cx="20.4" cy="8" r="0.95" {...DOT} />
+    </>
+  ),
 };
 
 export type IconName = keyof typeof paths;

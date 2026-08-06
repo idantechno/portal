@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { createSdkMcpServer } from '@anthropic-ai/claude-agent-sdk';
 import { ConversationsService } from '../conversations/conversations.service';
 import { CustomerContactsService } from '../conversations/customer-contacts.service';
@@ -56,6 +57,7 @@ export class AgentWorkerService {
     private readonly agents: AgentsService,
     private readonly billing: BillingService,
     private readonly calendar: CalendarService,
+    private readonly config: ConfigService,
   ) {}
 
   async runAgent(data: AgentRunJobData): Promise<void> {
@@ -221,6 +223,10 @@ export class AgentWorkerService {
     }
 
     const { finalText } = await this.runner.run({
+      // The customer-facing chat agent runs on its own (stronger) model so
+      // Hebrew comes out clean — scoped here so only this agent's cost changes,
+      // not every other agent that shares AGENT_MODEL.
+      model: this.config.get<string>('CHAT_AGENT_MODEL', 'claude-sonnet-5'),
       systemPrompt: buildSystemPrompt(
         business,
         personaBlock,

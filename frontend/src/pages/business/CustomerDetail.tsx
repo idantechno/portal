@@ -50,7 +50,7 @@ export default function CustomerDetail() {
     enabled: Boolean(businessId),
   });
   const marketingEntitled = (agents.data ?? []).some(
-    (a) => a.key === "marketing",
+    (a) => a.key === "marketing" && a.entitled,
   );
 
   if (customer.isLoading || !customer.data) {

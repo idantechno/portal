@@ -2,6 +2,9 @@ import { useMemo, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { agentsApi } from "../../api/agents";
+import { businessesApi } from "../../api/businesses";
+import { useAuthStore } from "../../store/auth";
+import { isPlatformStaff } from "../../lib/roles";
 import { quotesApi } from "../../api/quotes";
 import { customersApi } from "../../api/customers";
 import { apiErrorMessage } from "../../api/client";
@@ -34,6 +37,15 @@ export default function QuoteAgent({ businessId }: { businessId: string }) {
     queryFn: () => agentsApi.forBusiness(businessId),
     enabled: Boolean(businessId),
   });
+  // Operator = platform staff / entered via staff — may open any agent.
+  const user = useAuthStore((s) => s.user);
+  const biz = useQuery({
+    queryKey: ["business", businessId],
+    queryFn: () => businessesApi.get(businessId),
+    enabled: Boolean(businessId),
+  });
+  const isOperator =
+    isPlatformStaff(user?.role) || (biz.data?.viaPlatformStaff ?? false);
   const customers = useQuery({
     queryKey: ["customers", businessId, "recent"],
     queryFn: () => customersApi.list(businessId, { sort: "recent" }),
@@ -71,8 +83,10 @@ export default function QuoteAgent({ businessId }: { businessId: string }) {
       </div>
     );
   }
-  const entitled = (agents.data ?? []).some((a) => a.key === "quote");
-  if (!entitled) {
+  const entitled = (agents.data ?? []).some(
+    (a) => a.key === "quote" && a.entitled,
+  );
+  if (!entitled && !isOperator) {
     return <Navigate to={`/app/businesses/${businessId}/agents`} replace />;
   }
 

@@ -9,8 +9,10 @@ import { BusinessScopeGuard } from '../businesses/guards/business-scope.guard';
 import { AgentsService } from './agents.service';
 
 /**
- * Business-facing: the agents this business is actually entitled to use. Drives
- * the dynamic "tools" list in the dashboard. Any member may read it.
+ * Business-facing: the full agent catalog for this business's hub, each entry
+ * flagged `entitled` (true = usable now, false = locked "premium"). Listing is
+ * not authorization — the route guards still enforce real access. Any member
+ * may read it.
  */
 @UseGuards(BusinessScopeGuard)
 @Controller('businesses/:businessId/agents')
@@ -19,6 +21,6 @@ export class AgentsController {
 
   @Get()
   list(@Param('businessId', ParseUUIDPipe) businessId: string) {
-    return this.agents.entitledForBusiness(businessId);
+    return this.agents.listForBusiness(businessId);
   }
 }

@@ -144,6 +144,10 @@ export function businessThemeVars(
   const secondary =
     normalizeHex(branding?.secondaryColor) ?? DEFAULT_BRANDING.secondaryColor;
   const accent = normalizeHex(branding?.accentColor) ?? DEFAULT_BRANDING.accentColor;
+  // The 4th ranked palette color owns TAGS/BADGES (and the premium marker).
+  // Falls back to the accent when the business has no 4th color, so tag chips
+  // still render in-brand instead of losing their color.
+  const tag = normalizeHex(branding?.palette?.[3]) ?? accent;
   const sidebar = sidebarBase(primary);
 
   const vars: Record<string, string> = {
@@ -151,6 +155,8 @@ export function businessThemeVars(
     "--brand-secondary": secondary,
     "--brand-accent": accent,
     "--brand-accent-contrast": readableText(accent),
+    // The 4th palette color — drives tags/badges (and the premium marker).
+    "--brand-tag": tag,
     "--brand-sidebar": sidebar,
     "--brand-on-sidebar": readableText(sidebar),
     // The translucent wash behind every card — the business's SECONDARY color,

@@ -20,6 +20,7 @@ import { TasksService } from '../tasks/tasks.service';
 import { CustomerContactsService } from '../conversations/customer-contacts.service';
 import { CustomersService } from '../customers/customers.service';
 import { TemplatesService } from '../templates/templates.service';
+import { ScheduleService } from '../schedule/schedule.service';
 import { ContactStatus } from '../common/enums/contact-status.enum';
 import { computeRemindAt } from '../common/time/reminder-window';
 
@@ -37,6 +38,9 @@ export interface BookAppointmentInput {
   phone?: string | null;
   notes?: string | null;
   source?: 'agent' | 'manual';
+  /** Skip the conflict guard — used by reschedule, which already checked and
+   *  whose old slot still exists (so it would otherwise clash with itself). */
+  skipConflictCheck?: boolean;
 }
 
 /** Formats an instant as Israel wall-clock time for owner-facing text. */
@@ -77,11 +81,17 @@ export class AppointmentsService {
     private readonly contacts: CustomerContactsService,
     private readonly customers: CustomersService,
     private readonly templates: TemplatesService,
+    private readonly schedule: ScheduleService,
   ) {}
 
   /**
    * True if a scheduled appointment already overlaps [start, end). Used to stop
    * the agent double-booking a slot — cancelled/completed ones don't block.
+   */
+  /**
+   * Delegates to the schedule brain so a booking is checked against the WHOLE
+   * timeline — other appointments, due-dated tasks, and the owner's Google
+   * Calendar — not just other appointments.
    */
   async hasConflict(
     businessId: string,
@@ -89,12 +99,7 @@ export class AppointmentsService {
     endAt: Date,
     excludeId?: string,
   ): Promise<boolean> {
-    const rows = await this.appointments.find({
-      where: { businessId, status: AppointmentStatus.Scheduled },
-    });
-    return rows.some(
-      (a) => a.id !== excludeId && a.startAt < endAt && a.endAt > startAt,
-    );
+    return this.schedule.hasConflict(businessId, startAt, endAt, excludeId);
   }
 
   /**
@@ -103,6 +108,15 @@ export class AppointmentsService {
    * rings the owner (in-app now; WhatsApp once a template is wired).
    */
   async book(input: BookAppointmentInput): Promise<Appointment> {
+    // Guard every booking path against double-booking the owner's timeline.
+    // Reschedule opts out (it checked already, and its old slot still stands).
+    if (
+      !input.skipConflictCheck &&
+      (await this.hasConflict(input.businessId, input.startAt, input.endAt))
+    ) {
+      throw new BadRequestException('SLOT_TAKEN');
+    }
+
     const appointment = this.appointments.create({
       businessId: input.businessId,
       customerContactId: input.customerContactId ?? null,
@@ -494,6 +508,9 @@ export class AppointmentsService {
       phone: old.phone,
       notes: old.notes,
       source: 'agent',
+      // Already conflict-checked above; the old slot still exists until we
+      // cancel it below, so re-checking here would clash with itself.
+      skipConflictCheck: true,
     });
     await this.cancel(businessId, old.id);
     return moved;

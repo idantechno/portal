@@ -51,6 +51,7 @@ import { CampaignsModule } from './campaigns/campaigns.module';
 import { QuotesModule } from './quotes/quotes.module';
 import { ObjectivesModule } from './objectives/objectives.module';
 import { AppointmentsModule } from './appointments/appointments.module';
+import { ScheduleModule } from './schedule/schedule.module';
 import { DataPrivacyModule } from './data-privacy/data-privacy.module';
 import { AiUpdatesModule } from './ai-updates/ai-updates.module';
 import { MailAgentModule } from './mail-agent/mail-agent.module';
@@ -160,6 +161,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
     QuotesModule,
     ObjectivesModule,
     AppointmentsModule,
+    ScheduleModule,
     WebsiteFactsModule,
     DataPrivacyModule,
     AiUpdatesModule,

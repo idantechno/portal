@@ -189,6 +189,23 @@ export class TasksService {
   }
 
   /**
+   * Open TO-DO tasks (kind=task) with a due time inside [from, to). These are
+   * real commitments on the owner's timeline, so the schedule brain counts them
+   * as busy. Reminders (kind=reminder) are nudges, not busy time — excluded.
+   */
+  datedInWindow(businessId: string, from: Date, to: Date): Promise<Task[]> {
+    return this.tasks
+      .createQueryBuilder('t')
+      .where('t.business_id = :businessId', { businessId })
+      .andWhere("t.kind = 'task'")
+      .andWhere("t.status != 'done'")
+      .andWhere('t.due_at IS NOT NULL')
+      .andWhere('t.due_at >= :from AND t.due_at < :to', { from, to })
+      .orderBy('t.due_at', 'ASC')
+      .getMany();
+  }
+
+  /**
    * Hard-delete completed items whose `completedAt` is older than the cutoff
    * (default 48h) — a done task/reminder lingers briefly in the "בוצעו" list,
    * then disappears for good. Cross-tenant, cheap indexed delete; returns the

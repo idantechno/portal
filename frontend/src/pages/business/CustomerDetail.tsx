@@ -208,28 +208,31 @@ function CustomerEditor({
             />
           </div>
 
-          {/* Brand assets — made outside the system; a manual confirmation. */}
-          <div className="rounded-xl border border-navy-100 p-3">
-            <div className="mb-2 text-xs font-semibold text-navy-500">
-              נכסי מותג (נוצרים מחוץ למערכת)
+          {/* Brand assets are a marketing/branding concern — hidden for a
+              business that doesn't have the marketing agent. */}
+          {marketingEntitled && (
+            <div className="rounded-xl border border-navy-100 p-3">
+              <div className="mb-2 text-xs font-semibold text-navy-500">
+                נכסי מותג (נוצרים מחוץ למערכת)
+              </div>
+              <div className="space-y-2.5">
+                <BrandAssetRow
+                  label="דף מותג"
+                  ready={brandPageReady}
+                  onToggle={() => setBrandPageReady((v) => !v)}
+                  url={brandPageUrl}
+                  onUrl={setBrandPageUrl}
+                />
+                <BrandAssetRow
+                  label="לוגו"
+                  ready={logoReady}
+                  onToggle={() => setLogoReady((v) => !v)}
+                  url={logoUrl}
+                  onUrl={setLogoUrl}
+                />
+              </div>
             </div>
-            <div className="space-y-2.5">
-              <BrandAssetRow
-                label="דף מותג"
-                ready={brandPageReady}
-                onToggle={() => setBrandPageReady((v) => !v)}
-                url={brandPageUrl}
-                onUrl={setBrandPageUrl}
-              />
-              <BrandAssetRow
-                label="לוגו"
-                ready={logoReady}
-                onToggle={() => setLogoReady((v) => !v)}
-                url={logoUrl}
-                onUrl={setLogoUrl}
-              />
-            </div>
-          </div>
+          )}
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
@@ -309,8 +312,11 @@ function CustomerEditor({
         <CapturedDataSection data={customer.capturedData} />
       )}
 
-      {/* Website brief the client submitted through /website-brief */}
-      <WebsiteIntakeSection businessId={businessId} customerId={customerId} />
+      {/* Website brief the client submitted — marketing/website work, so it
+          follows the same marketing gate. */}
+      {marketingEntitled && (
+        <WebsiteIntakeSection businessId={businessId} customerId={customerId} />
+      )}
 
       {/* Marketing work — only if this business has the marketing agent */}
       {marketingEntitled && (

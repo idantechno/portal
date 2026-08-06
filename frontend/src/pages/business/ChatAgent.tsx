@@ -317,9 +317,6 @@ function TemplatesSection() {
                 </span>
               </div>
               <div className="mt-0.5 text-xs text-navy-400">{t.desc}</div>
-              <div className="mt-1 font-mono text-[11px] text-navy-300">
-                {t.name}
-              </div>
             </div>
           </div>
         ))}

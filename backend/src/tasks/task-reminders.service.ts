@@ -91,7 +91,7 @@ export class TaskRemindersService implements OnModuleInit {
           type: 'task',
           title: `תזכורת: ${task.title}`,
           body: task.description ?? 'הגיע מועד התזכורת.',
-          link: `/app/businesses/${task.businessId}/tasks`,
+          link: `/app/businesses/${task.businessId}/calendar?view=reminders`,
           // In-app is always recorded; email + push add the external nudge.
           channels: ['email', 'push'],
         });

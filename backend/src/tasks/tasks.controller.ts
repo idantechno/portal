@@ -16,7 +16,7 @@ import { AuthenticatedUser } from '../auth/auth.types';
 import { RequireCapabilityGuard } from '../billing/guards/require-capability.guard';
 import { RequireCapability } from '../billing/decorators/require-capability.decorator';
 import { TasksService } from './tasks.service';
-import { TaskStatus } from './task.entity';
+import { TaskKind, TaskStatus } from './task.entity';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 
@@ -27,12 +27,20 @@ export class TasksController {
 
   // Reads stay open so dashboard/overview widgets don't 403 on lower tiers;
   // creating/editing tasks is the gated capability.
+  // `kind=task` → the משימות list; `reminders=true` → the תזכורות list
+  // (everything reminder-enabled, tasks and standalone reminders alike).
   @Get()
   list(
     @Param('businessId', ParseUUIDPipe) businessId: string,
     @Query('status') status?: TaskStatus,
+    @Query('kind') kind?: TaskKind,
+    @Query('reminders') reminders?: string,
   ) {
-    return this.tasks.list(businessId, status);
+    return this.tasks.list(businessId, {
+      status,
+      kind,
+      remindersOnly: reminders === 'true',
+    });
   }
 
   @Post()
@@ -48,6 +56,9 @@ export class TasksController {
       description: dto.description,
       priority: dto.priority,
       dueAt: dto.dueAt,
+      kind: dto.kind,
+      remindEnabled: dto.remindEnabled,
+      remindAt: dto.remindAt,
       relatedType: dto.relatedType,
       relatedId: dto.relatedId,
       source: 'manual',

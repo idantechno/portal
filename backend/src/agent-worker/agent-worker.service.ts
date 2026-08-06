@@ -30,6 +30,7 @@ import {
 import {
   cancelAppointmentTool,
   captureLeadTool,
+  createReminderTool,
   escalateToHumanTool,
   joinWaitlistTool,
   recordEngagementTool,
@@ -39,6 +40,7 @@ import {
 } from './tools';
 import { NotificationsService } from '../notifications/notifications.service';
 import { UsersService } from '../users/users.service';
+import { TasksService } from '../tasks/tasks.service';
 
 const MCP_SERVER_NAME = 'portal';
 const HISTORY_LIMIT = 50;
@@ -65,6 +67,7 @@ export class AgentWorkerService {
     private readonly config: ConfigService,
     private readonly notifications: NotificationsService,
     private readonly users: UsersService,
+    private readonly tasks: TasksService,
   ) {}
 
   async runAgent(data: AgentRunJobData): Promise<void> {
@@ -130,6 +133,7 @@ export class AgentWorkerService {
       appointments: this.appointments,
       waitlist: this.waitlist,
       notifications: this.notifications,
+      tasks: this.tasks,
     };
 
     // Appointment/waitlist tools are a top-tier capability. Only businesses
@@ -149,6 +153,7 @@ export class AgentWorkerService {
         captureLeadTool(toolCtx),
         escalateToHumanTool(toolCtx),
         recordEngagementTool(toolCtx),
+        createReminderTool(toolCtx),
         ...(canSchedule
           ? [
               scheduleAppointmentTool(toolCtx),
@@ -295,6 +300,7 @@ export class AgentWorkerService {
         `mcp__${MCP_SERVER_NAME}__capture_lead`,
         `mcp__${MCP_SERVER_NAME}__escalate_to_human`,
         `mcp__${MCP_SERVER_NAME}__record_engagement`,
+        `mcp__${MCP_SERVER_NAME}__create_reminder`,
         ...(canSchedule
           ? [
               `mcp__${MCP_SERVER_NAME}__schedule_appointment`,

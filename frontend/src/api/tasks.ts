@@ -2,6 +2,8 @@ import { api } from "./client";
 
 export type TaskStatus = "open" | "in_progress" | "done";
 export type TaskPriority = "low" | "medium" | "high";
+/** A to-do the owner tracks ("משימות") vs a pure nudge ("תזכורות"). */
+export type TaskKind = "task" | "reminder";
 
 export interface Task {
   id: string;
@@ -10,6 +12,8 @@ export interface Task {
   description: string | null;
   status: TaskStatus;
   priority: TaskPriority;
+  /** Task (to-do) or reminder (nudge). */
+  kind: TaskKind;
   source: "manual" | "automation" | "agent";
   dueAt: string | null;
   completedAt: string | null;
@@ -30,13 +34,28 @@ export interface CreateTaskBody {
   description?: string;
   priority?: TaskPriority;
   dueAt?: string;
+  /** 'reminder' for a standalone reminder in the תזכורות tab; else a task. */
+  kind?: TaskKind;
+  remindEnabled?: boolean;
+  remindAt?: string;
 }
 
 export const tasksApi = {
-  list: (businessId: string, status?: TaskStatus) =>
+  /**
+   * `kind:'task'` → the משימות list; `reminders:true` → the תזכורות list
+   * (everything reminder-enabled). Omit both for every row (e.g. month grid).
+   */
+  list: (
+    businessId: string,
+    opts: { status?: TaskStatus; kind?: TaskKind; reminders?: boolean } = {},
+  ) =>
     api
       .get<Task[]>(`/businesses/${businessId}/tasks`, {
-        params: status ? { status } : undefined,
+        params: {
+          ...(opts.status ? { status: opts.status } : {}),
+          ...(opts.kind ? { kind: opts.kind } : {}),
+          ...(opts.reminders ? { reminders: true } : {}),
+        },
       })
       .then((r) => r.data),
   create: (businessId: string, body: CreateTaskBody) =>

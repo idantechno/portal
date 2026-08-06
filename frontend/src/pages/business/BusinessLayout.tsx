@@ -26,6 +26,12 @@ interface NavItem {
   show: boolean;
   /** Absolute link (outside the business layout) instead of relative. */
   absolute?: boolean;
+  /**
+   * Custom active check. Needed when several items share a pathname but differ
+   * by query (e.g. calendar tabs): NavLink only matches on pathname, so an item
+   * that should light up for one `?view=` supplies its own predicate.
+   */
+  match?: (loc: { pathname: string; search: string }) => boolean;
 }
 interface NavGroup {
   title: string;
@@ -96,6 +102,18 @@ export default function BusinessLayout() {
           label: "יומן",
           icon: "calendar",
           show: hasCap("calendar_manual"),
+        },
+        {
+          // Tasks live inside the calendar (the "משימות" tab). Kept as its own
+          // nav row so the feature stays discoverable — it lights up only on the
+          // tasks view, while "יומן" stays lit across the calendar.
+          to: "calendar?view=tasks",
+          label: "משימות",
+          icon: "tasks",
+          show: hasCap("calendar_manual"),
+          match: (loc) =>
+            loc.pathname.endsWith("/calendar") &&
+            new URLSearchParams(loc.search).get("view") === "tasks",
         },
         { to: "agents", label: "הסוכנים שלי", icon: "agents", show: true },
         { to: "filing", label: "מסמכים", icon: "doc", show: true },
@@ -211,7 +229,11 @@ export default function BusinessLayout() {
                     <NavLink
                       key={it.to}
                       to={it.to}
-                      className={linkClass}
+                      className={
+                        it.match
+                          ? () => linkClass({ isActive: it.match!(location) })
+                          : linkClass
+                      }
                       end={!it.absolute}
                     >
                       <Icon name={it.icon} size={19} className="opacity-90" />

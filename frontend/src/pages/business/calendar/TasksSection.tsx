@@ -31,26 +31,50 @@ const SOURCE_LABEL: Record<Task["source"], string> = {
   agent: "סוכן",
 };
 
+/** dd/mm HH:mm in Israel-locale wall-clock for a due/reminder time. */
+function formatDue(iso: string): string {
+  return new Date(iso).toLocaleString("he-IL", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export default function TasksSection({ businessId }: { businessId: string }) {
   const qc = useQueryClient();
   const [title, setTitle] = useState("");
   const [priority, setPriority] = useState<TaskPriority>("medium");
+  const [dueLocal, setDueLocal] = useState("");
+  const [remind, setRemind] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
 
   const tasks = useQuery({
-    queryKey: ["tasks", businessId],
-    queryFn: () => tasksApi.list(businessId),
+    // Only real to-dos here (kind=task); pure reminders live in the תזכורות tab.
+    queryKey: ["tasks", businessId, "task"],
+    queryFn: () => tasksApi.list(businessId, { kind: "task" }),
     enabled: Boolean(businessId),
   });
 
+  // Prefix-invalidate so the תזכורות tab, month grid and home refresh too — a
+  // task with a reminder shows in more than one place.
   const invalidate = () =>
     qc.invalidateQueries({ queryKey: ["tasks", businessId] });
 
   const createMut = useMutation({
-    mutationFn: () => tasksApi.create(businessId, { title, priority }),
+    mutationFn: () =>
+      tasksApi.create(businessId, {
+        title,
+        priority,
+        dueAt: dueLocal ? new Date(dueLocal).toISOString() : undefined,
+        // A reminder needs a time to fire — only arm it when a due date is set.
+        remindEnabled: remind && Boolean(dueLocal),
+      }),
     onSuccess: () => {
       setTitle("");
       setPriority("medium");
+      setDueLocal("");
+      setRemind(false);
       invalidate();
     },
   });
@@ -82,25 +106,61 @@ export default function TasksSection({ businessId }: { businessId: string }) {
       </p>
 
       <Card className="p-4 mb-6">
-        <form onSubmit={submit} className="flex flex-col sm:flex-row gap-3">
-          <Input
-            ref={titleRef}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="משימה חדשה..."
-            className="flex-1"
-          />
-          <Select
-            value={priority}
-            onChange={(e) => setPriority(e.target.value as TaskPriority)}
-          >
-            <option value="high">עדיפות גבוהה</option>
-            <option value="medium">עדיפות בינונית</option>
-            <option value="low">עדיפות נמוכה</option>
-          </Select>
-          <Button type="submit" disabled={createMut.isPending}>
-            {createMut.isPending ? <Spinner /> : "הוסף"}
-          </Button>
+        <form onSubmit={submit} className="space-y-3">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Input
+              ref={titleRef}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="משימה חדשה..."
+              className="flex-1"
+            />
+            <Select
+              value={priority}
+              onChange={(e) => setPriority(e.target.value as TaskPriority)}
+            >
+              <option value="high">עדיפות גבוהה</option>
+              <option value="medium">עדיפות בינונית</option>
+              <option value="low">עדיפות נמוכה</option>
+            </Select>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <label className="flex flex-1 items-center gap-2 text-sm text-navy-500">
+              <span className="shrink-0">מועד:</span>
+              <Input
+                type="datetime-local"
+                value={dueLocal}
+                onChange={(e) => setDueLocal(e.target.value)}
+                dir="ltr"
+                className="flex-1"
+              />
+            </label>
+            <label
+              className={`flex items-center gap-1.5 text-sm ${
+                dueLocal ? "text-navy-700" : "text-navy-300"
+              }`}
+              title={
+                dueLocal ? "" : "כדי להפעיל תזכורת קבע קודם מועד"
+              }
+            >
+              <input
+                type="checkbox"
+                checked={remind && Boolean(dueLocal)}
+                disabled={!dueLocal}
+                onChange={(e) => setRemind(e.target.checked)}
+                className="h-4 w-4 rounded border-navy-300"
+              />
+              <Icon name="bell" size={15} />
+              הפעל תזכורת
+            </label>
+            <Button
+              type="submit"
+              disabled={createMut.isPending}
+              className="sm:ms-auto"
+            >
+              {createMut.isPending ? <Spinner /> : "הוסף"}
+            </Button>
+          </div>
         </form>
       </Card>
 
@@ -113,7 +173,7 @@ export default function TasksSection({ businessId }: { businessId: string }) {
         <Card>
           <EmptyState
             icon="tasks"
-            title="אין תזכורות עדיין"
+            title="אין משימות עדיין"
             text="הוסף את המשימה הראשונה של העסק — ידנית, או תן לסוכן ליצור אותה."
             action={
               <Button icon="plus" onClick={() => titleRef.current?.focus()}>
@@ -189,6 +249,22 @@ function TaskRow({
         </div>
         {task.description && (
           <div className="text-xs text-navy-400 mt-0.5">{task.description}</div>
+        )}
+        {(task.dueAt || task.remindEnabled) && (
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-navy-400">
+            {task.dueAt && (
+              <span className="inline-flex items-center gap-1">
+                <Icon name="clock" size={12} />
+                {formatDue(task.dueAt)}
+              </span>
+            )}
+            {task.remindEnabled && (
+              <span className="inline-flex items-center gap-1 text-brand-600">
+                <Icon name="bell" size={12} />
+                תזכורת
+              </span>
+            )}
+          </div>
         )}
       </div>
       <Badge tone={PRIORITY_TONE[task.priority]} className="shrink-0">

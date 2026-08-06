@@ -248,7 +248,7 @@ export default function App() {
           />
           <Route
             path="tasks"
-            element={<Navigate to="../calendar?view=reminders" replace />}
+            element={<Navigate to="../calendar?view=tasks" replace />}
           />
           <Route path="agents" element={<AgentStudio />} />
           <Route path="agents/:agentKey" element={<AgentWorkspace />} />

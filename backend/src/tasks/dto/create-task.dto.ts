@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsIn,
   IsISO8601,
   IsOptional,
@@ -7,7 +8,7 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
-import type { TaskPriority } from '../task.entity';
+import type { TaskKind, TaskPriority } from '../task.entity';
 
 export class CreateTaskDto {
   @IsString()
@@ -27,6 +28,23 @@ export class CreateTaskDto {
   @IsOptional()
   @IsISO8601()
   dueAt?: string;
+
+  /** 'reminder' when the owner adds a standalone reminder in the תזכורות tab;
+   *  defaults to 'task' (a to-do). */
+  @IsOptional()
+  @IsIn(['task', 'reminder'])
+  kind?: TaskKind;
+
+  /** Opt this into the reminders sweep (the 🔔 on a task, or always-on for a
+   *  standalone reminder). */
+  @IsOptional()
+  @IsBoolean()
+  remindEnabled?: boolean;
+
+  /** When to fire the reminder, ISO. Null/absent → fire at dueAt. */
+  @IsOptional()
+  @IsISO8601()
+  remindAt?: string;
 
   @IsOptional()
   @IsString()

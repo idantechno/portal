@@ -98,6 +98,7 @@ export function createReminderTool(ctx: ToolContext) {
         dueAt,
         remindAt,
         remindEnabled: true,
+        kind: 'reminder',
         source: 'agent',
         createdByUserId: ctx.userId ?? null,
         relatedType: args.related_type ?? null,

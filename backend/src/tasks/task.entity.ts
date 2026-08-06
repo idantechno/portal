@@ -11,6 +11,17 @@ export type TaskStatus = 'open' | 'in_progress' | 'done';
 export type TaskPriority = 'low' | 'medium' | 'high';
 /** Where the task came from — manual, an automation rule, or an agent. */
 export type TaskSource = 'manual' | 'automation' | 'agent';
+/**
+ * What this row IS. Tasks and reminders share one table; `kind` is what splits
+ * the two calendar tabs:
+ *  - `task`     — a to-do the owner tracks (the "משימות" list). It may ALSO opt
+ *                 into a reminder (`remindEnabled`), in which case it appears in
+ *                 the reminders tab too.
+ *  - `reminder` — a pure time-nudge that is NOT a to-do (the "תזכורות" list):
+ *                 the reminders agent, an appointment, or another agent (e.g.
+ *                 the chat agent) created it. Always `remindEnabled`.
+ */
+export type TaskKind = 'task' | 'reminder';
 
 /**
  * A unit of work in the business cockpit. Tasks can be created by a person, by
@@ -31,6 +42,11 @@ export class Task {
 
   @Column({ type: 'text', nullable: true })
   description!: string | null;
+
+  /** Task (a to-do) vs reminder (a pure nudge). See {@link TaskKind}. */
+  @Index()
+  @Column({ type: 'varchar', length: 16, default: 'task' })
+  kind!: TaskKind;
 
   @Index()
   @Column({ type: 'varchar', length: 16, default: 'open' })

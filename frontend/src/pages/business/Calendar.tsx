@@ -1,22 +1,24 @@
-import { useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { PageHeader } from "../../components/ui";
 import { Icon, type IconName } from "../../components/icons";
 import MonthSection from "./calendar/MonthSection";
 import AppointmentsSection from "./calendar/AppointmentsSection";
 import TasksSection from "./calendar/TasksSection";
+import RemindersSection from "./calendar/RemindersSection";
 
-type View = "month" | "appointments" | "reminders";
+type View = "month" | "appointments" | "tasks" | "reminders";
 
 const TABS: { key: View; label: string; icon: IconName }[] = [
   { key: "month", label: "חודש", icon: "calendar" },
   { key: "appointments", label: "פגישות ותורים", icon: "clock" },
-  { key: "reminders", label: "תזכורות", icon: "tasks" },
+  { key: "tasks", label: "משימות", icon: "tasks" },
+  { key: "reminders", label: "תזכורות", icon: "bell" },
 ];
 
 function readView(param: string | null): View {
   if (param === "appointments") return "appointments";
-  if (param === "reminders" || param === "tasks") return "reminders";
+  if (param === "tasks") return "tasks";
+  if (param === "reminders") return "reminders";
   return "month";
 }
 
@@ -30,13 +32,12 @@ function readView(param: string | null): View {
 export default function Calendar() {
   const { businessId = "" } = useParams<{ businessId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [view, setView] = useState<View>(() =>
-    readView(searchParams.get("view")),
-  );
+  // The URL is the single source of truth for the active view, so navigating
+  // here from the sidebar (e.g. "משימות" → ?view=reminders) switches the tab
+  // even when the Calendar is already mounted.
+  const view = readView(searchParams.get("view"));
 
   const select = (next: View) => {
-    setView(next);
-    // Keep the URL in sync so a refresh / share lands on the same view.
     const params = new URLSearchParams(searchParams);
     if (next === "month") params.delete("view");
     else params.set("view", next);
@@ -47,7 +48,7 @@ export default function Calendar() {
     <div className="px-4 sm:px-6 py-6 sm:py-8 max-w-4xl mx-auto">
       <PageHeader
         title="יומן"
-        subtitle="כל מה שמתוכנן במקום אחד — חודש, פגישות ותורים, ותזכורות."
+        subtitle="כל מה שמתוכנן במקום אחד — חודש, פגישות ותורים, משימות ותזכורות."
       />
 
       {/* Tabs — matches the internal-tab pattern used across the agents. */}
@@ -73,7 +74,8 @@ export default function Calendar() {
       {view === "appointments" && (
         <AppointmentsSection businessId={businessId} />
       )}
-      {view === "reminders" && <TasksSection businessId={businessId} />}
+      {view === "tasks" && <TasksSection businessId={businessId} />}
+      {view === "reminders" && <RemindersSection businessId={businessId} />}
     </div>
   );
 }

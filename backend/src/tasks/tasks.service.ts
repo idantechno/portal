@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Task, TaskSource, TaskStatus } from './task.entity';
+import { Task, TaskKind, TaskSource, TaskStatus } from './task.entity';
 
 export interface CreateTaskInput {
   businessId: string;
@@ -10,6 +10,8 @@ export interface CreateTaskInput {
   priority?: Task['priority'];
   dueAt?: string | Date | null;
   source?: TaskSource;
+  /** To-do vs pure nudge. Defaults to 'task'. */
+  kind?: TaskKind;
   createdByUserId?: string | null;
   relatedType?: string | null;
   relatedId?: string | null;
@@ -30,9 +32,26 @@ export class TasksService {
     private readonly tasks: Repository<Task>,
   ) {}
 
-  list(businessId: string, status?: TaskStatus): Promise<Task[]> {
+  /**
+   * Tasks/reminders for a business, filtered. `kind` narrows to to-dos
+   * (משימות) or nudges; `remindersOnly` returns everything reminder-enabled
+   * (the תזכורות tab — task-reminders AND standalone reminders).
+   */
+  list(
+    businessId: string,
+    opts: {
+      status?: TaskStatus;
+      kind?: TaskKind;
+      remindersOnly?: boolean;
+    } = {},
+  ): Promise<Task[]> {
     return this.tasks.find({
-      where: { businessId, ...(status ? { status } : {}) },
+      where: {
+        businessId,
+        ...(opts.status ? { status: opts.status } : {}),
+        ...(opts.kind ? { kind: opts.kind } : {}),
+        ...(opts.remindersOnly ? { remindEnabled: true } : {}),
+      },
       // Open work first, then by soonest due date, then newest.
       order: { status: 'ASC', dueAt: 'ASC', createdAt: 'DESC' },
     });
@@ -45,6 +64,7 @@ export class TasksService {
       description: input.description ?? null,
       priority: input.priority ?? 'medium',
       source: input.source ?? 'manual',
+      kind: input.kind ?? 'task',
       dueAt: input.dueAt ? new Date(input.dueAt) : null,
       createdByUserId: input.createdByUserId ?? null,
       relatedType: input.relatedType ?? null,

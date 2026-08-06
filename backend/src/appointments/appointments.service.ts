@@ -197,6 +197,7 @@ export class AppointmentsService {
         dueAt: appointment.startAt,
         remindAt,
         remindEnabled: true,
+        kind: 'reminder',
         remindCustomerPhone: appointment.phone,
         remindCustomerName: appointment.customerName,
         source: 'agent',

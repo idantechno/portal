@@ -6,6 +6,7 @@ import { CustomersService } from '../customers/customers.service';
 import { AppointmentsService } from '../appointments/appointments.service';
 import { WaitlistService } from '../appointments/waitlist.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { TasksService } from '../tasks/tasks.service';
 import { ConversationStatus } from '../common/enums/conversation-status.enum';
 import { ContactStatus } from '../common/enums/contact-status.enum';
 import { MessageRole } from '../common/enums/message-role.enum';
@@ -37,6 +38,7 @@ export interface ToolContext {
   appointments: AppointmentsService;
   waitlist: WaitlistService;
   notifications: NotificationsService;
+  tasks: TasksService;
 }
 
 /** Israel wall-clock rendering for confirmations the agent reads back. */
@@ -131,6 +133,67 @@ export function captureLeadTool(ctx: ToolContext) {
           },
         ],
       };
+    },
+  );
+}
+
+export function createReminderTool(ctx: ToolContext) {
+  return tool(
+    'create_reminder',
+    "Create a reminder for the BUSINESS OWNER to follow up on something from THIS conversation — e.g. you promised the customer the owner would call back, the owner needs to prepare or send something, or a request needs the owner's action later. The owner gets nudged (in-app + WhatsApp) at the time you set — it flows into the business's תזכורות. Use sparingly, only for a real follow-up. This is internal: never tell the customer you created a reminder.",
+    {
+      title: z
+        .string()
+        .min(1)
+        .describe(
+          'What the owner should be reminded to do, phrased in Hebrew (e.g. "לחזור לדנה לגבי הצעת המחיר לחתונה").',
+        ),
+      remind_at: z
+        .string()
+        .describe(
+          'When to nudge the owner — ISO Israel local time, no timezone (e.g. "2026-08-07T09:00"). Resolve relative times ("מחר בבוקר", "בעוד שעתיים") yourself.',
+        ),
+    },
+    async (args) => {
+      const at = parseIsraelDate(args.remind_at);
+      if (!at) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: 'The reminder time was unclear — skip it and just keep helping the customer.',
+            },
+          ],
+        };
+      }
+      try {
+        await ctx.tasks.create({
+          businessId: ctx.businessId,
+          title: args.title,
+          dueAt: at,
+          remindAt: at,
+          remindEnabled: true,
+          kind: 'reminder',
+          source: 'agent',
+        });
+        return {
+          content: [
+            {
+              type: 'text',
+              text: "Reminder set for the owner. Don't mention it to the customer — just carry on naturally.",
+            },
+          ],
+        };
+      } catch {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: "Couldn't set the reminder right now — carry on with the customer.",
+            },
+          ],
+        };
+      }
     },
   );
 }

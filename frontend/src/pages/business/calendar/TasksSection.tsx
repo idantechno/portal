@@ -25,10 +25,18 @@ const PRIORITY_TONE: Record<TaskPriority, BadgeTone> = {
   medium: "brand",
   low: "neutral",
 };
+const PRIORITY_RANK: Record<TaskPriority, number> = { high: 0, medium: 1, low: 2 };
 const SOURCE_LABEL: Record<Task["source"], string> = {
   manual: "ידני",
   automation: "אוטומציה",
   agent: "סוכן",
+};
+
+type SortKey = "added" | "due" | "priority";
+const SORT_LABEL: Record<SortKey, string> = {
+  added: "תאריך הוספה",
+  due: "מועד ביצוע",
+  priority: "דחיפות",
 };
 
 /** dd/mm HH:mm in Israel-locale wall-clock for a due/reminder time. */
@@ -41,12 +49,43 @@ function formatDue(iso: string): string {
   });
 }
 
+/** ISO → the local "YYYY-MM-DDTHH:mm" a datetime-local input expects. */
+function toLocalInput(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
+    d.getHours(),
+  )}:${pad(d.getMinutes())}`;
+}
+
+function sortTasks(list: Task[], key: SortKey): Task[] {
+  const out = [...list];
+  if (key === "priority") {
+    out.sort((a, b) => PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority]);
+  } else if (key === "due") {
+    // Soonest due first; tasks without a due date sink to the bottom.
+    out.sort((a, b) => {
+      const av = a.dueAt ? new Date(a.dueAt).getTime() : Infinity;
+      const bv = b.dueAt ? new Date(b.dueAt).getTime() : Infinity;
+      return av - bv;
+    });
+  } else {
+    // Newest added first.
+    out.sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+  }
+  return out;
+}
+
 export default function TasksSection({ businessId }: { businessId: string }) {
   const qc = useQueryClient();
   const [title, setTitle] = useState("");
   const [priority, setPriority] = useState<TaskPriority>("medium");
   const [dueLocal, setDueLocal] = useState("");
   const [remind, setRemind] = useState(false);
+  const [sort, setSort] = useState<SortKey>("added");
   const titleRef = useRef<HTMLInputElement>(null);
 
   const tasks = useQuery({
@@ -89,13 +128,18 @@ export default function TasksSection({ businessId }: { businessId: string }) {
     mutationFn: (id: string) => tasksApi.remove(businessId, id),
     onSuccess: invalidate,
   });
-  // Flip a dated task's reminder on/off (fires at its due time; the reminders
-  // agent can fine-tune the exact time).
-  const toggleRemindMut = useMutation({
-    mutationFn: (task: Task) =>
-      tasksApi.update(businessId, task.id, {
-        remindEnabled: !task.remindEnabled,
+  // Set/update a reminder on an existing task (any time, even after creation).
+  const setReminderMut = useMutation({
+    mutationFn: (v: { id: string; remindAt: string }) =>
+      tasksApi.update(businessId, v.id, {
+        remindEnabled: true,
+        remindAt: v.remindAt,
       }),
+    onSuccess: invalidate,
+  });
+  const clearReminderMut = useMutation({
+    mutationFn: (id: string) =>
+      tasksApi.update(businessId, id, { remindEnabled: false }),
     onSuccess: invalidate,
   });
 
@@ -105,13 +149,16 @@ export default function TasksSection({ businessId }: { businessId: string }) {
   }
 
   const items = tasks.data ?? [];
-  const open = items.filter((t) => t.status !== "done");
+  const open = sortTasks(
+    items.filter((t) => t.status !== "done"),
+    sort,
+  );
   const done = items.filter((t) => t.status === "done");
 
   return (
     <div>
       <p className="mb-4 text-sm text-navy-500">
-        המשימות הפתוחות של העסק — ידניות, מאוטומציות ומסוכנים.
+        המשימות הפתוחות של העסק — ידניות, מאוטומציות ומסוכנים. מועד הוא רשות.
       </p>
 
       <Card className="p-4 mb-6">
@@ -135,7 +182,7 @@ export default function TasksSection({ businessId }: { businessId: string }) {
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <label className="flex flex-1 items-center gap-2 text-sm text-navy-500">
-              <span className="shrink-0">מועד:</span>
+              <span className="shrink-0">מועד (רשות):</span>
               <Input
                 type="datetime-local"
                 value={dueLocal}
@@ -148,9 +195,7 @@ export default function TasksSection({ businessId }: { businessId: string }) {
               className={`flex items-center gap-1.5 text-sm ${
                 dueLocal ? "text-navy-700" : "text-navy-300"
               }`}
-              title={
-                dueLocal ? "" : "כדי להפעיל תזכורת קבע קודם מועד"
-              }
+              title={dueLocal ? "" : "כדי להפעיל תזכורת קבע קודם מועד"}
             >
               <input
                 type="checkbox"
@@ -194,17 +239,36 @@ export default function TasksSection({ businessId }: { businessId: string }) {
       )}
 
       {open.length > 0 && (
-        <div className="space-y-2.5 mb-8">
-          {open.map((task) => (
-            <TaskRow
-              key={task.id}
-              task={task}
-              onToggle={() => toggleMut.mutate(task)}
-              onToggleRemind={() => toggleRemindMut.mutate(task)}
-              onRemove={() => removeMut.mutate(task.id)}
-            />
-          ))}
-        </div>
+        <>
+          <div className="mb-3 flex items-center justify-end gap-2">
+            <span className="text-xs text-navy-400">מיין לפי:</span>
+            <Select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as SortKey)}
+              className="w-auto"
+            >
+              {(Object.keys(SORT_LABEL) as SortKey[]).map((k) => (
+                <option key={k} value={k}>
+                  {SORT_LABEL[k]}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div className="space-y-2.5 mb-8">
+            {open.map((task) => (
+              <TaskRow
+                key={task.id}
+                task={task}
+                onToggle={() => toggleMut.mutate(task)}
+                onSaveReminder={(remindAt) =>
+                  setReminderMut.mutate({ id: task.id, remindAt })
+                }
+                onClearReminder={() => clearReminderMut.mutate(task.id)}
+                onRemove={() => removeMut.mutate(task.id)}
+              />
+            ))}
+          </div>
+        </>
       )}
 
       {done.length > 0 && (
@@ -221,7 +285,10 @@ export default function TasksSection({ businessId }: { businessId: string }) {
                 key={task.id}
                 task={task}
                 onToggle={() => toggleMut.mutate(task)}
-                onToggleRemind={() => toggleRemindMut.mutate(task)}
+                onSaveReminder={(remindAt) =>
+                  setReminderMut.mutate({ id: task.id, remindAt })
+                }
+                onClearReminder={() => clearReminderMut.mutate(task.id)}
                 onRemove={() => removeMut.mutate(task.id)}
               />
             ))}
@@ -235,77 +302,140 @@ export default function TasksSection({ businessId }: { businessId: string }) {
 function TaskRow({
   task,
   onToggle,
-  onToggleRemind,
+  onSaveReminder,
+  onClearReminder,
   onRemove,
 }: {
   task: Task;
   onToggle: () => void;
-  onToggleRemind: () => void;
+  onSaveReminder: (remindAtISO: string) => void;
+  onClearReminder: () => void;
   onRemove: () => void;
 }) {
   const done = task.status === "done";
+  const [editing, setEditing] = useState(false);
+  const [when, setWhen] = useState(() =>
+    task.remindAt
+      ? toLocalInput(task.remindAt)
+      : task.dueAt
+        ? toLocalInput(task.dueAt)
+        : "",
+  );
+
   return (
-    <Card className="p-3.5 flex items-center gap-3">
-      <button
-        onClick={onToggle}
-        aria-label={done ? "סמן כפתוח" : "סמן כהושלם"}
-        className={`h-5 w-5 rounded-md border flex items-center justify-center shrink-0 transition-colors ${
-          done
-            ? "bg-teal-400 border-teal-400 text-white"
-            : "border-navy-300 hover:border-brand-400"
-        }`}
-      >
-        {done && <Icon name="check" size={13} />}
-      </button>
-      <div className="flex-1 min-w-0">
-        <div
-          className={`text-sm font-medium text-navy-900 ${done ? "line-through" : ""}`}
-        >
-          {task.title}
-        </div>
-        {task.description && (
-          <div className="text-xs text-navy-400 mt-0.5">{task.description}</div>
-        )}
-        {task.dueAt && (
-          <div className="mt-1 inline-flex items-center gap-1 text-[11px] text-navy-400">
-            <Icon name="clock" size={12} />
-            {formatDue(task.dueAt)}
-          </div>
-        )}
-      </div>
-      <Badge tone={PRIORITY_TONE[task.priority]} className="shrink-0">
-        {PRIORITY_LABEL[task.priority]}
-      </Badge>
-      {task.source !== "manual" && (
-        <Badge tone="neutral" className="shrink-0 hidden sm:inline-flex">
-          {SOURCE_LABEL[task.source]}
-        </Badge>
-      )}
-      {task.dueAt && !done && (
+    <Card className="p-3.5">
+      <div className="flex items-center gap-3">
         <button
-          onClick={onToggleRemind}
-          aria-label={task.remindEnabled ? "כבה תזכורת" : "הפעל תזכורת"}
-          title={
-            task.remindEnabled
-              ? "תזכורת פעילה — תישלח במועד"
-              : "הפעל תזכורת למועד"
-          }
-          className={`shrink-0 rounded-lg p-1.5 transition-colors ${
-            task.remindEnabled
-              ? "text-brand-600 hover:bg-brand-50"
-              : "text-navy-300 hover:bg-navy-50 hover:text-navy-600"
+          onClick={onToggle}
+          aria-label={done ? "סמן כפתוח" : "סמן כהושלם"}
+          className={`h-5 w-5 rounded-md border flex items-center justify-center shrink-0 transition-colors ${
+            done
+              ? "bg-teal-400 border-teal-400 text-white"
+              : "border-navy-300 hover:border-brand-400"
           }`}
         >
-          <Icon name="bell" size={16} />
+          {done && <Icon name="check" size={13} />}
         </button>
+        <div className="flex-1 min-w-0">
+          <div
+            className={`text-sm font-medium text-navy-900 ${done ? "line-through" : ""}`}
+          >
+            {task.title}
+          </div>
+          {task.description && (
+            <div className="text-xs text-navy-400 mt-0.5">
+              {task.description}
+            </div>
+          )}
+          {(task.dueAt || task.remindEnabled) && (
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px]">
+              {task.dueAt && (
+                <span className="inline-flex items-center gap-1 text-navy-400">
+                  <Icon name="clock" size={12} />
+                  {formatDue(task.dueAt)}
+                </span>
+              )}
+              {task.remindEnabled && (
+                <span className="inline-flex items-center gap-1 text-brand-600">
+                  <Icon name="bell" size={12} />
+                  {task.remindAt
+                    ? formatDue(task.remindAt)
+                    : task.dueAt
+                      ? formatDue(task.dueAt)
+                      : "תזכורת"}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+        <Badge tone={PRIORITY_TONE[task.priority]} className="shrink-0">
+          {PRIORITY_LABEL[task.priority]}
+        </Badge>
+        {task.source !== "manual" && (
+          <Badge tone="neutral" className="shrink-0 hidden sm:inline-flex">
+            {SOURCE_LABEL[task.source]}
+          </Badge>
+        )}
+        {!done && (
+          <button
+            onClick={() => setEditing((v) => !v)}
+            aria-label="תזכורת"
+            title={task.remindEnabled ? "ערוך תזכורת" : "הוסף תזכורת"}
+            className={`shrink-0 rounded-lg p-1.5 transition-colors ${
+              task.remindEnabled
+                ? "text-brand-600 hover:bg-brand-50"
+                : "text-navy-300 hover:bg-navy-50 hover:text-navy-600"
+            }`}
+          >
+            <Icon name="bell" size={16} />
+          </button>
+        )}
+        <button
+          onClick={onRemove}
+          className="text-navy-300 hover:text-coral-500 shrink-0"
+          aria-label="מחק"
+        >
+          <Icon name="trash" size={17} />
+        </button>
+      </div>
+
+      {editing && !done && (
+        <div className="mt-3 flex flex-col gap-2 border-t border-navy-100 pt-3 sm:flex-row sm:items-center">
+          <label className="flex flex-1 items-center gap-2 text-sm text-navy-500">
+            <span className="shrink-0">תזכיר לי ב:</span>
+            <Input
+              type="datetime-local"
+              value={when}
+              onChange={(e) => setWhen(e.target.value)}
+              dir="ltr"
+              className="flex-1"
+            />
+          </label>
+          <Button
+            size="sm"
+            disabled={!when}
+            onClick={() => {
+              if (!when) return;
+              onSaveReminder(new Date(when).toISOString());
+              setEditing(false);
+            }}
+          >
+            {task.remindEnabled ? "עדכן תזכורת" : "הפעל תזכורת"}
+          </Button>
+          {task.remindEnabled && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                onClearReminder();
+                setEditing(false);
+              }}
+            >
+              כבה
+            </Button>
+          )}
+        </div>
       )}
-      <button
-        onClick={onRemove}
-        className="text-navy-300 hover:text-coral-500 shrink-0"
-        aria-label="מחק"
-      >
-        <Icon name="trash" size={17} />
-      </button>
     </Card>
   );
 }

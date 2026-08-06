@@ -7,6 +7,7 @@ import { isPlatformStaff } from "../../lib/roles";
 import { Spinner } from "../../components/ui";
 import GenericAgentWorkspace from "./GenericAgentWorkspace";
 import MainAgent from "./MainAgent";
+import ChatAgent from "./ChatAgent";
 import DocumentsAgent from "./DocumentsAgent";
 import DesignerAgent from "./DesignerAgent";
 import IdeasAgent from "./IdeasAgent";
@@ -24,6 +25,7 @@ const BESPOKE: Record<
   (props: { businessId: string }) => React.ReactElement
 > = {
   main: MainAgent,
+  chat: ChatAgent,
   documents: DocumentsAgent,
   designer: DesignerAgent,
   ideas: IdeasAgent,
@@ -55,11 +57,6 @@ export default function AgentWorkspace() {
   });
   const isOperator =
     isPlatformStaff(user?.role) || (biz.data?.viaPlatformStaff ?? false);
-
-  // The WhatsApp/widget bot's "page" is the live inbox.
-  if (agentKey === "chat") {
-    return <Navigate to={`/app/businesses/${businessId}/inbox`} replace />;
-  }
 
   // "orchestrator" was folded into the Main agent — keep old links/bookmarks alive.
   if (agentKey === "orchestrator") {

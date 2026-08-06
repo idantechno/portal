@@ -19,6 +19,7 @@ import { WaitlistService } from './waitlist.service';
 import { TasksService } from '../tasks/tasks.service';
 import { CustomerContactsService } from '../conversations/customer-contacts.service';
 import { CustomersService } from '../customers/customers.service';
+import { TemplatesService } from '../templates/templates.service';
 import { ContactStatus } from '../common/enums/contact-status.enum';
 import { computeRemindAt } from '../common/time/reminder-window';
 
@@ -75,6 +76,7 @@ export class AppointmentsService {
     private readonly tasks: TasksService,
     private readonly contacts: CustomerContactsService,
     private readonly customers: CustomersService,
+    private readonly templates: TemplatesService,
   ) {}
 
   /**
@@ -271,7 +273,12 @@ export class AppointmentsService {
     // Best-effort throughout — never let an alert failure break the booking.
     try {
       const ownerPhone = business?.ownerPhone?.trim();
-      if (ownerPhone) {
+      // Respect the per-business template grant — revoking it silences the alert.
+      const canSendBooked = await this.templates.hasAccess(
+        appointment.businessId,
+        'appointment_booked',
+      );
+      if (ownerPhone && canSendBooked) {
         const eventLine = sanitizeTemplateParam(
           `${appointment.title} — ${when}`,
         );

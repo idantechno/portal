@@ -15,6 +15,7 @@ import { UsersModule } from '../users/users.module';
 import { WhatsappModule } from '../whatsapp/whatsapp.module';
 import { ConversationsModule } from '../conversations/conversations.module';
 import { TasksModule } from '../tasks/tasks.module';
+import { TemplatesModule } from '../templates/templates.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { TasksModule } from '../tasks/tasks.module';
     WhatsappModule,
     ConversationsModule,
     TasksModule,
+    TemplatesModule,
   ],
   controllers: [AppointmentsController, WaitlistController],
   providers: [AppointmentsService, WaitlistService],

@@ -6,6 +6,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { BusinessesService } from '../businesses/businesses.service';
 import { UsersService } from '../users/users.service';
 import { WhatsappConnectionsService } from '../whatsapp/whatsapp-connections.service';
+import { TemplatesService } from '../templates/templates.service';
 import { Task } from './task.entity';
 import { TASK_REMINDERS_QUEUE } from './task-reminders.constants';
 
@@ -61,6 +62,7 @@ export class TaskRemindersService implements OnModuleInit {
     private readonly businesses: BusinessesService,
     private readonly users: UsersService,
     private readonly whatsapp: WhatsappConnectionsService,
+    private readonly templates: TemplatesService,
     @InjectQueue(TASK_REMINDERS_QUEUE) private readonly queue: Queue,
   ) {}
 
@@ -125,6 +127,12 @@ export class TaskRemindersService implements OnModuleInit {
    * remind time. Best-effort per recipient — never throws.
    */
   private async deliverWhatsapp(task: Task): Promise<void> {
+    // The reminder template can be revoked per business — respect the grant.
+    if (
+      !(await this.templates.hasAccess(task.businessId, REMINDER_TEMPLATE.name))
+    ) {
+      return;
+    }
     const business = await this.businesses.findById(task.businessId);
     if (!business) return;
     const businessName = param(business.name, 'העסק');

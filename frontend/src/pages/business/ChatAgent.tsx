@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { businessesApi } from "../../api/businesses";
 import { contactsApi } from "../../api/conversations";
+import { templatesApi } from "../../api/templates";
 import type {
   ContactAgentMode,
   ContactListItem,
@@ -127,7 +128,7 @@ export default function ChatAgent({ businessId }: { businessId: string }) {
       <PerContactSection businessId={businessId} />
 
       {/* Templates */}
-      <TemplatesSection />
+      <TemplatesSection businessId={businessId} />
 
       {showSchedule && (
         <AgentScheduleSettings onClose={() => setShowSchedule(false)} />
@@ -273,20 +274,15 @@ function ContactModeRow({
   );
 }
 
-const TEMPLATES: { name: string; title: string; desc: string }[] = [
-  {
-    name: "reminder",
-    title: "תזכורת",
-    desc: "נשלחת אוטומטית אליך (ולפעמים ללקוח) כשמגיע מועד של תזכורת או פגישה.",
-  },
-  {
-    name: "appointment_booked",
-    title: "אישור קביעת פגישה",
-    desc: "נשלחת כשנקבעת פגישה — מאשרת את היום והשעה.",
-  },
-];
+function TemplatesSection({ businessId }: { businessId: string }) {
+  const templates = useQuery({
+    queryKey: ["templates", businessId],
+    queryFn: () => templatesApi.forBusiness(businessId),
+    enabled: Boolean(businessId),
+  });
+  // Only the templates this business was granted (base + any special ones).
+  const granted = (templates.data ?? []).filter((t) => t.entitled);
 
-function TemplatesSection() {
   return (
     <Card className="p-5">
       <div className="mb-3 flex items-center gap-2">
@@ -297,8 +293,19 @@ function TemplatesSection() {
         הודעות מוכנות ומאושרות של וואטסאפ שהסוכן שולח אוטומטית. הן פעילות כל עוד
         חיבור הוואטסאפ פעיל.
       </p>
+
+      {templates.isLoading && (
+        <div className="flex justify-center py-6">
+          <Spinner />
+        </div>
+      )}
+      {!templates.isLoading && granted.length === 0 && (
+        <p className="py-4 text-center text-sm text-navy-400">
+          אין טמפלייטים פעילים כרגע.
+        </p>
+      )}
       <div className="space-y-2.5">
-        {TEMPLATES.map((t) => (
+        {granted.map((t) => (
           <div
             key={t.name}
             className="flex items-start gap-3 rounded-xl border border-navy-100 p-3.5"
@@ -316,7 +323,7 @@ function TemplatesSection() {
                   פעילה
                 </span>
               </div>
-              <div className="mt-0.5 text-xs text-navy-400">{t.desc}</div>
+              <div className="mt-0.5 text-xs text-navy-400">{t.description}</div>
             </div>
           </div>
         ))}

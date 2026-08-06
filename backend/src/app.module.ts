@@ -25,6 +25,7 @@ import { DocumentsModule } from './documents/documents.module';
 import { AuditModule } from './audit/audit.module';
 import { AdminModule } from './admin/admin.module';
 import { AgentsModule } from './agents/agents.module';
+import { TemplatesModule } from './templates/templates.module';
 import { TasksModule } from './tasks/tasks.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { AutomationsModule } from './automations/automations.module';
@@ -133,6 +134,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
     AuditModule,
     AdminModule,
     AgentsModule,
+    TemplatesModule,
     TasksModule,
     NotificationsModule,
     AutomationsModule,

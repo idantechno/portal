@@ -5,6 +5,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { adminApi } from "../../api/admin";
 import type { AgentAccessView, AdminPlanView } from "../../api/types";
+import type { TemplateAccessView } from "../../api/templates";
 import { useAuthStore } from "../../store/auth";
 import { isSuperAdmin } from "../../lib/roles";
 import { Badge, Button, Card, Spinner } from "../../components/ui";
@@ -99,6 +100,26 @@ export default function AdminBusinessDetail() {
   const resetAgent = useMutation({
     mutationFn: (key: string) => adminApi.resetBusinessAgent(businessId, key),
     onSuccess: invalidateAgents,
+  });
+
+  const templates = useQuery({
+    queryKey: ["admin", "business", businessId, "templates"],
+    queryFn: () => adminApi.businessTemplates(businessId),
+    enabled: Boolean(businessId),
+  });
+  const invalidateTemplates = () =>
+    qc.invalidateQueries({
+      queryKey: ["admin", "business", businessId, "templates"],
+    });
+  const setTemplate = useMutation({
+    mutationFn: ({ name, enabled }: { name: string; enabled: boolean }) =>
+      adminApi.setBusinessTemplate(businessId, name, enabled),
+    onSuccess: invalidateTemplates,
+  });
+  const resetTemplate = useMutation({
+    mutationFn: (name: string) =>
+      adminApi.resetBusinessTemplate(businessId, name),
+    onSuccess: invalidateTemplates,
   });
 
   const enter = useMutation({
@@ -235,6 +256,66 @@ export default function AdminBusinessDetail() {
                     disabled={!canModerate || setAgent.isPending}
                     onChange={() =>
                       setAgent.mutate({ key: a.key, enabled: !a.enabled })
+                    }
+                  />
+                </div>
+              ))}
+            </div>
+          </PermissionSection>
+
+          {/* Block 1b — WhatsApp templates (base for all + special per client) */}
+          <PermissionSection
+            icon="doc"
+            title="טמפלייטים"
+            hint="תבניות וואטסאפ שהעסק רשאי לשלוח. הבסיסיות דלוקות לכולם; מיוחדות מעניקים פר-עסק."
+          >
+            {templates.isLoading && <Spinner />}
+            <div className="space-y-2">
+              {(templates.data ?? []).map((tpl: TemplateAccessView) => (
+                <div
+                  key={tpl.name}
+                  className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-neutral-200 p-4"
+                >
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-600">
+                    <ServerIcon name="whatsapp" size={19} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{tpl.title}</span>
+                      <Badge tone={tpl.overridden ? "brand" : "neutral"}>
+                        {tpl.overridden ? "ידני" : "ברירת מחדל"}
+                      </Badge>
+                    </div>
+                    <div className="text-sm text-neutral-500">
+                      {tpl.description}
+                    </div>
+                  </div>
+                  {tpl.overridden && canModerate && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      icon="refresh"
+                      disabled={resetTemplate.isPending}
+                      onClick={() => resetTemplate.mutate(tpl.name)}
+                    >
+                      {t("admin.resetToPlan")}
+                    </Button>
+                  )}
+                  <span
+                    className={`text-xs font-medium ${
+                      tpl.enabled ? "text-brand-700" : "text-neutral-400"
+                    }`}
+                  >
+                    {tpl.enabled ? t("admin.on") : t("admin.off")}
+                  </span>
+                  <Toggle
+                    enabled={tpl.enabled}
+                    disabled={!canModerate || setTemplate.isPending}
+                    onChange={() =>
+                      setTemplate.mutate({
+                        name: tpl.name,
+                        enabled: !tpl.enabled,
+                      })
                     }
                   />
                 </div>

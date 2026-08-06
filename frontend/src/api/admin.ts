@@ -1,4 +1,5 @@
 import { api } from "./client";
+import type { TemplateAccessView } from "./templates";
 import type {
   AccountStatus,
   AdminBusiness,
@@ -115,6 +116,24 @@ export const adminApi = {
     api
       .delete<{ ok: true; removed: boolean }>(
         `/admin/businesses/${id}/agents/${agentKey}`,
+      )
+      .then((r) => r.data),
+
+  businessTemplates: (id: string) =>
+    api
+      .get<TemplateAccessView[]>(`/admin/businesses/${id}/templates`)
+      .then((r) => r.data),
+
+  setBusinessTemplate: (id: string, name: string, enabled: boolean) =>
+    api
+      .put(`/admin/businesses/${id}/templates/${name}`, { enabled })
+      .then((r) => r.data),
+
+  /** Delete the override so the template follows the catalog default again. */
+  resetBusinessTemplate: (id: string, name: string) =>
+    api
+      .delete<{ ok: true; removed: boolean }>(
+        `/admin/businesses/${id}/templates/${name}`,
       )
       .then((r) => r.data),
 

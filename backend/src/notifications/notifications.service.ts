@@ -35,6 +35,22 @@ export interface PushSubscriptionInput {
   userAgent?: string | null;
 }
 
+/** The owner's channel choices, as edited on the notifications settings screen. */
+export interface NotificationPreferencesInput {
+  email: boolean;
+  emailTo?: string | null;
+  whatsapp: boolean;
+  whatsappTo?: string | null;
+}
+
+/** Resolved channels for delivery — targets already filled from defaults. */
+export interface EffectivePreferences {
+  email: boolean;
+  emailTo: string | null;
+  whatsapp: boolean;
+  whatsappTo: string | null;
+}
+
 /**
  * Notifications hub. `notify()` always records an in-app notification (the bell)
  * and optionally fans out to external channels:
@@ -136,6 +152,67 @@ export class NotificationsService implements OnModuleInit {
     await this.pushSubs.delete({ endpoint });
   }
 
+  /** The owner's default email — the account address we fall back to. */
+  private async ownerEmail(businessId: string): Promise<string | null> {
+    const business = await this.businesses.findById(businessId);
+    if (!business) return null;
+    return (await this.users.findById(business.ownerUserId))?.email ?? null;
+  }
+
+  /**
+   * Preferences for the settings screen: the stored choices PLUS the default
+   * targets (owner email / phone) so the UI can show them as placeholders.
+   */
+  async getPreferences(businessId: string): Promise<{
+    email: boolean;
+    emailTo: string | null;
+    whatsapp: boolean;
+    whatsappTo: string | null;
+    ownerEmail: string | null;
+    ownerPhone: string | null;
+  }> {
+    const business = await this.businesses.findById(businessId);
+    const prefs = business?.notificationPreferences ?? {};
+    return {
+      email: prefs.email ?? true,
+      emailTo: prefs.emailTo ?? null,
+      whatsapp: prefs.whatsapp ?? true,
+      whatsappTo: prefs.whatsappTo ?? null,
+      ownerEmail: await this.ownerEmail(businessId),
+      ownerPhone: business?.ownerPhone ?? null,
+    };
+  }
+
+  async updatePreferences(
+    businessId: string,
+    input: NotificationPreferencesInput,
+  ): Promise<void> {
+    await this.businesses.setNotificationPreferences(businessId, {
+      email: input.email,
+      emailTo: input.emailTo?.trim() || null,
+      whatsapp: input.whatsapp,
+      whatsappTo: input.whatsappTo?.trim() || null,
+    });
+  }
+
+  /**
+   * Delivery-ready channels: enabled flags plus targets resolved from the
+   * owner's defaults when no override is set. The one place delivery paths (here
+   * and the reminders WhatsApp send) read to honour the owner's choices.
+   */
+  async effectivePreferences(
+    businessId: string,
+  ): Promise<EffectivePreferences> {
+    const business = await this.businesses.findById(businessId);
+    const prefs = business?.notificationPreferences ?? {};
+    return {
+      email: prefs.email ?? true,
+      emailTo: prefs.emailTo?.trim() || (await this.ownerEmail(businessId)),
+      whatsapp: prefs.whatsapp ?? true,
+      whatsappTo: prefs.whatsappTo?.trim() || business?.ownerPhone || null,
+    };
+  }
+
   // Never throws — logs and returns. See class docstring.
   private async deliverExternal(
     channel: DeliveryChannel,
@@ -161,14 +238,16 @@ export class NotificationsService implements OnModuleInit {
   private async deliverEmail(input: NotifyInput): Promise<void> {
     const business = await this.businesses.findById(input.businessId);
     if (!business) return;
-    // Target the specific user if the notification is user-scoped, else the owner.
+    const prefs = await this.effectivePreferences(input.businessId);
+    // Respect the owner's choice — email notifications turned off.
+    if (!prefs.email) return;
+    // A user-scoped notification goes to that user; a business-wide one follows
+    // the owner's configured target (override address, else the account email).
     let email: string | null = null;
     if (input.userId) {
       email = (await this.users.findById(input.userId))?.email ?? null;
     }
-    if (!email) {
-      email = (await this.users.findById(business.ownerUserId))?.email ?? null;
-    }
+    if (!email) email = prefs.emailTo;
     if (!email) return;
     const appUrl = this.config.get<string>(
       'APP_URL',
@@ -198,10 +277,15 @@ export class NotificationsService implements OnModuleInit {
         : { businessId: input.businessId },
     });
     if (subs.length === 0) return;
+    // Carry the current unread count so the SW can paint the app-icon badge
+    // (the red circle) even while the app is closed. Business-wide, matching
+    // the in-app bell badge.
+    const badge = await this.unreadCount(input.businessId);
     const payload = JSON.stringify({
       title: input.title,
       body: input.body ?? '',
       link: input.link ?? '/',
+      badge,
     });
     await Promise.all(
       subs.map((sub) =>

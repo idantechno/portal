@@ -1,6 +1,7 @@
 import { api } from "./client";
 import type {
   Business,
+  BusinessAvailability,
   BusinessBranding,
   BusinessMember,
   BusinessOnboarding,
@@ -25,6 +26,9 @@ export const businessesApi = {
       onboarding?: BusinessOnboarding;
       whatsappAgent?: WhatsappAgentConfig;
       ownerPhone?: string;
+      accountantEmail?: string;
+      accountantPhone?: string;
+      availability?: BusinessAvailability;
     },
   ) => api.patch<Business>(`/businesses/${id}`, input).then((r) => r.data),
 

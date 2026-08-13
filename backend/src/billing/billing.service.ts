@@ -11,6 +11,7 @@ import { Invoice, InvoiceLineItem } from './invoice.entity';
 import { BillingPlan, getPlan, PLAN_CATALOG } from './billing-plans';
 import { PlanCapability, planCapabilities } from './plan-capabilities';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
+import { GreenInvoiceService } from '../green-invoice/green-invoice.service';
 
 /**
  * GROW hosted payment-page links, keyed by plan code. Public URLs (not secrets)
@@ -39,6 +40,7 @@ export class BillingService {
     @InjectRepository(Invoice)
     private readonly invoices: Repository<Invoice>,
     private readonly config: ConfigService,
+    private readonly greenInvoice: GreenInvoiceService,
   ) {}
 
   plans() {
@@ -244,9 +246,36 @@ export class BillingService {
     throw new Error('INVOICE_NUMBER_ALLOCATION_FAILED');
   }
 
+  /**
+   * Mark an invoice paid. A receipt is legally due when money is received, so
+   * this is where we issue the REAL legal document in Green Invoice (a קבלה for
+   * an עוסק פטור, a חשבונית מס/קבלה for an עוסק מורשה) — not at creation time.
+   *
+   * If Green Invoice is connected we issue FIRST and only mark paid on success,
+   * so the invoice is never left claiming "paid" with no document behind it. If
+   * issuance fails the error surfaces and nothing changes — the owner retries.
+   * If there's no connection the invoice is just internal bookkeeping, as before.
+   */
   async markInvoicePaid(businessId: string, id: string): Promise<Invoice> {
     const invoice = await this.invoices.findOne({ where: { id, businessId } });
     if (!invoice) throw new NotFoundException('Invoice not found');
+    if (invoice.status === 'paid') return invoice;
+
+    const gi = await this.greenInvoice.status(businessId);
+    if (gi.connected && !invoice.externalDocId) {
+      const doc = await this.greenInvoice.issueInvoice(businessId, {
+        customerName: invoice.customerName?.trim() || 'לקוח',
+        items: invoice.lineItems.map((l) => ({
+          description: l.description,
+          quantity: l.quantity,
+          price: l.unitPriceCents / 100,
+        })),
+      });
+      invoice.externalDocId = doc.id || null;
+      invoice.externalDocNumber = doc.number ?? null;
+      if (doc.url) invoice.pdfUrl = doc.url;
+    }
+
     invoice.status = 'paid';
     invoice.paidAt = new Date();
     return this.invoices.save(invoice);

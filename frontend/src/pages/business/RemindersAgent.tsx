@@ -12,6 +12,10 @@ import {
 } from "../../lib/reminderBuckets";
 import { Button, Card, FormError, Spinner } from "../../components/ui";
 import { Icon } from "../../components/icons";
+import { handleComposerKeyDown } from "../../lib/chatInput";
+import { agentChatApi } from "../../api/agentChat";
+
+const AGENT_KEY = "reminders";
 
 interface UIMessage extends ChatTurn {
   createdAt: number;
@@ -49,12 +53,16 @@ export default function RemindersAgent({ businessId }: { businessId: string }) {
 
   const chat = useMutation({
     mutationFn: (history: ChatTurn[]) => remindersApi.chat(businessId, history),
-    onSuccess: (result) => {
+    onSuccess: (result, history) => {
       setMessages((prev) => [
         ...prev,
         { role: "assistant", content: result.reply, createdAt: Date.now() },
       ]);
       if (result.changed) void tasks.refetch();
+      void agentChatApi.append(businessId, AGENT_KEY, [
+        { role: "user", content: history[history.length - 1]?.content ?? "" },
+        { role: "assistant", content: result.reply },
+      ]);
     },
     onError: (err) => setError(apiErrorMessage(err, "אירעה שגיאה. נסה שוב.")),
   });
@@ -70,6 +78,27 @@ export default function RemindersAgent({ businessId }: { businessId: string }) {
       tasksApi.update(businessId, id, { remindEnabled: on }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks", businessId] }),
   });
+
+  useEffect(() => {
+    let alive = true;
+    void agentChatApi
+      .history(businessId, AGENT_KEY)
+      .then((rows) => {
+        if (alive && rows.length > 0) {
+          setMessages(
+            rows.map((r) => ({
+              role: r.role,
+              content: r.content,
+              createdAt: new Date(r.createdAt).getTime(),
+            })),
+          );
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [businessId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -116,6 +145,7 @@ export default function RemindersAgent({ businessId }: { businessId: string }) {
             onClick={() => {
               setMessages([]);
               setError(null);
+              void agentChatApi.clear(businessId, AGENT_KEY);
             }}
           >
             שיחה חדשה
@@ -157,16 +187,11 @@ export default function RemindersAgent({ businessId }: { businessId: string }) {
             <textarea
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  onSend(e);
-                }
-              }}
+              onKeyDown={(e) => handleComposerKeyDown(e, () => onSend(e))}
               disabled={chat.isPending}
               rows={2}
               placeholder="לדוגמה: 'תזכיר לי להתקשר לדנה מחר ב-10' או 'מה יש לי היום?'"
-              className="flex-1 min-w-0 block rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm focus:bg-white focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none resize-none"
+              className="flex-1 min-w-0 block rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-2 text-base sm:text-sm focus:bg-white focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none resize-none"
             />
             <Button
               type="submit"

@@ -10,6 +10,7 @@ import { CryptoService } from '../common/crypto/crypto.service';
 import {
   GreenInvoiceConnection,
   GreenInvoiceEnv,
+  TaxStatus,
 } from './green-invoice-connection.entity';
 import { ConnectGreenInvoiceDto } from './dto/connect-green-invoice.dto';
 import { IssueInvoiceDto } from './dto/issue-invoice.dto';
@@ -23,9 +24,16 @@ interface StoredCreds {
 export interface GreenInvoiceStatusView {
   connected: boolean;
   environment: GreenInvoiceEnv;
+  taxStatus: TaxStatus;
   accountName: string | null;
   connectedAt: Date | null;
 }
+
+/** Green Invoice document type per the issuing business's VAT registration. */
+const DOC_TYPE: Record<TaxStatus, number> = {
+  exempt: 400, // קבלה (receipt) — עוסק פטור
+  licensed: 320, // חשבונית מס/קבלה (tax invoice + receipt) — עוסק מורשה
+};
 
 /**
  * Integration with חשבונית ירוקה (Green Invoice). Per-business API credentials
@@ -56,6 +64,7 @@ export class GreenInvoiceService {
     return {
       connected: row?.status === 'connected',
       environment: row?.environment ?? 'sandbox',
+      taxStatus: row?.taxStatus ?? 'exempt',
       accountName: row?.accountName ?? null,
       connectedAt: row?.connectedAt ?? null,
     };
@@ -76,6 +85,7 @@ export class GreenInvoiceService {
       JSON.stringify({ id: dto.apiKeyId, secret: dto.apiSecret }),
     );
     row.environment = env;
+    row.taxStatus = dto.taxStatus ?? 'exempt';
     row.status = 'connected';
     row.connectedAt = new Date();
     await this.connections.save(row);
@@ -105,9 +115,17 @@ export class GreenInvoiceService {
     ) as StoredCreds;
     const token = await this.fetchToken(row.environment, creds);
 
+    // Document type follows the issuing business's VAT registration.
+    const type = DOC_TYPE[row.taxStatus];
+    const total = dto.items.reduce((sum, i) => sum + i.quantity * i.price, 0);
+    // Green Invoice requires a payment array for receipt-type documents
+    // (320/400/405) — a document without it is rejected. We issue only when the
+    // invoice is marked paid, so the money is in; we don't capture HOW it was
+    // paid, so default to bank transfer (4). The date must not be in the future.
+    const today = new Date().toISOString().slice(0, 10);
+
     const body = {
-      // 320 = חשבונית מס/קבלה (tax invoice + receipt). Parameterize later.
-      type: 320,
+      type,
       lang: 'he',
       currency: 'ILS',
       vatType: 0,
@@ -123,6 +141,14 @@ export class GreenInvoiceService {
         currency: 'ILS',
         vatType: 0,
       })),
+      payment: [
+        {
+          type: 4, // 4 = העברה בנקאית (bank transfer)
+          date: today,
+          price: total,
+          currency: 'ILS',
+        },
+      ],
     };
 
     const res = await fetch(`${this.baseUrl(row.environment)}/documents`, {
@@ -157,7 +183,13 @@ export class GreenInvoiceService {
     const res = await fetch(`${this.baseUrl(env)}/account/token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: creds.id, secret: creds.secret }),
+      body: JSON.stringify({
+        id: creds.id,
+        secret: creds.secret,
+        // Required since the June 2026 Morning API infra update; old token
+        // bodies get blocked. See greeninvoice.co.il/help-center/api-updates-26
+        grant_type: 'client_credentials',
+      }),
     });
     if (!res.ok) {
       throw new BadRequestException('GREEN_INVOICE_AUTH_FAILED');

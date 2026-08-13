@@ -16,6 +16,8 @@ export interface Task {
   kind: TaskKind;
   source: "manual" | "automation" | "agent";
   dueAt: string | null;
+  /** How long a dated task takes, minutes. Null → a flat 30-min block. */
+  durationMinutes: number | null;
   completedAt: string | null;
   /** When this task's reminder is enabled, the reminders agent nudges the owner. */
   remindEnabled: boolean;
@@ -34,10 +36,15 @@ export interface CreateTaskBody {
   description?: string;
   priority?: TaskPriority;
   dueAt?: string;
+  /** How long a dated task takes, in minutes (default 30). */
+  durationMinutes?: number;
   /** 'reminder' for a standalone reminder in the תזכורות tab; else a task. */
   kind?: TaskKind;
   remindEnabled?: boolean;
   remindAt?: string;
+  /** Optional customer to also remind (their WhatsApp number + name). */
+  remindCustomerPhone?: string | null;
+  remindCustomerName?: string | null;
 }
 
 export const tasksApi = {

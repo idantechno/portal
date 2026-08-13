@@ -5,9 +5,16 @@ import { Appointment } from '../appointments/appointment.entity';
 import { AppointmentStatus } from '../common/enums/appointment-status.enum';
 import { TasksService } from '../tasks/tasks.service';
 import { CalendarService } from '../integrations/calendar.service';
-
-/** How long a due-dated task is treated as occupying the owner's time. */
-const TASK_BUSY_MINUTES = 30;
+import { BusinessesService } from '../businesses/businesses.service';
+import {
+  DEFAULT_TASK_DURATION_MINUTES,
+  MAX_TASK_DURATION_MINUTES,
+} from '../tasks/task.entity';
+import {
+  availabilityBufferMinutes,
+  checkAvailability,
+  type AvailabilityCheck,
+} from '../common/business-availability';
 
 export type BusySource = 'appointment' | 'task' | 'calendar';
 
@@ -28,6 +35,13 @@ export interface AgendaItem {
 export interface AgendaConflict {
   a: string;
   b: string;
+}
+
+export interface FreeSlot {
+  /** ISO start of an open slot. */
+  start: string;
+  /** ISO end of an open slot. */
+  end: string;
 }
 
 /**
@@ -51,7 +65,79 @@ export class ScheduleService {
     private readonly appointments: Repository<Appointment>,
     private readonly tasks: TasksService,
     private readonly calendar: CalendarService,
+    private readonly businesses: BusinessesService,
   ) {}
+
+  /**
+   * Is [startAt, endAt) inside the business's declared open hours? A business
+   * that hasn't set hours (or disabled them) is treated as always open. Used to
+   * stop the agent booking outside working hours; the owner's manual bookings
+   * bypass this.
+   */
+  async isWithinAvailability(
+    businessId: string,
+    startAt: Date,
+    endAt: Date,
+  ): Promise<AvailabilityCheck> {
+    const business = await this.businesses.findById(businessId);
+    return checkAvailability(business?.availability, startAt, endAt);
+  }
+
+  /**
+   * Concrete open appointment slots in [from, to) of the given length —
+   * honouring the business's open hours, inter-appointment buffer, and the
+   * whole busy timeline (appointments, dated tasks, Google events). Slots land
+   * on :00/:30 boundaries so offers read cleanly.
+   *
+   * Only meaningful once the business has declared hours: with no hours we'd be
+   * offering slots around the clock, so `hoursConfigured` is false and the agent
+   * asks the customer for a preferred time instead.
+   */
+  async freeSlots(
+    businessId: string,
+    from: Date,
+    to: Date,
+    durationMinutes: number,
+    limit = 6,
+  ): Promise<{ slots: FreeSlot[]; hoursConfigured: boolean }> {
+    const business = await this.businesses.findById(businessId);
+    const config = business?.availability ?? null;
+    if (!config?.enabled) return { slots: [], hoursConfigured: false };
+
+    const durMs = Math.max(15, durationMinutes) * 60_000;
+    const bufferMs = availabilityBufferMinutes(config) * 60_000;
+
+    // Pull the busy timeline once, then test every candidate in memory.
+    const busy = await this.busyIntervals(businessId, from, to);
+
+    const GRID_MS = 30 * 60_000; // offer on :00/:30 boundaries
+    const now = Date.now();
+    // First 30-min grid point at/after max(from, now). Israel's UTC offset is a
+    // whole number of hours, so a UTC grid aligns to local :00/:30.
+    let t = Math.ceil(Math.max(from.getTime(), now) / GRID_MS) * GRID_MS;
+    const end = to.getTime();
+    const MAX_STEPS = 2000; // bounded scan regardless of how wide the window is
+
+    const slots: FreeSlot[] = [];
+    for (
+      let i = 0;
+      i < MAX_STEPS && t + durMs <= end && slots.length < limit;
+      i++, t += GRID_MS
+    ) {
+      const s = new Date(t);
+      const e = new Date(t + durMs);
+      if (!checkAvailability(config, s, e).ok) continue;
+      // Reject a candidate that lands within the buffer of any busy block.
+      const clash = busy.some(
+        (b) =>
+          b.start.getTime() - bufferMs < e.getTime() &&
+          b.end.getTime() + bufferMs > s.getTime(),
+      );
+      if (clash) continue;
+      slots.push({ start: s.toISOString(), end: e.toISOString() });
+    }
+    return { slots, hoursConfigured: true };
+  }
 
   /**
    * All busy blocks overlapping [from, to). `excludeAppointmentId` drops that
@@ -91,15 +177,20 @@ export class ScheduleService {
       for (const t of tasks) {
         if (!t.dueAt) continue;
         const start = new Date(t.dueAt);
+        // Each task occupies its own configured length (default 30 min), so a
+        // 2-hour task blocks two hours — not a flat half-hour.
+        const durationMin = t.durationMinutes ?? DEFAULT_TASK_DURATION_MINUTES;
         out.push({
           start,
-          end: new Date(start.getTime() + TASK_BUSY_MINUTES * 60_000),
+          end: new Date(start.getTime() + durationMin * 60_000),
           source: 'task',
           title: t.title,
         });
       }
     } catch (err) {
-      this.log.warn(`[schedule] task busy lookup failed: ${(err as Error).message}`);
+      this.log.warn(
+        `[schedule] task busy lookup failed: ${(err as Error).message}`,
+      );
     }
 
     // Google Calendar (timed events only), skipping our own appointment mirrors.
@@ -149,22 +240,9 @@ export class ScheduleService {
       end: b.end.toISOString(),
     }));
 
-    // Reminders are nudges, not busy time — listed but never conflict.
-    try {
-      const reminders = await this.tasks.remindersInWindow(businessId, from, to);
-      for (const r of reminders) {
-        const at = r.remindAt ?? r.dueAt;
-        if (!at) continue;
-        items.push({
-          source: 'reminder',
-          title: r.title,
-          start: new Date(at).toISOString(),
-          end: null,
-        });
-      }
-    } catch (err) {
-      this.log.warn(`[schedule] reminders agenda failed: ${(err as Error).message}`);
-    }
+    // Reminders are deliberately NOT part of the schedule/agenda. They are pure
+    // nudges (don't forget X / ping a customer), not time on the owner's day, so
+    // they live only in the תזכורות list — never in the יומן/לו״ז view.
 
     items.sort((a, b) => a.start.localeCompare(b.start));
 
@@ -190,15 +268,26 @@ export class ScheduleService {
     endAt: Date,
     excludeAppointmentId?: string,
   ): Promise<boolean> {
-    // Widen the window backwards by a task block so a task starting just before
-    // the slot is still considered.
-    const from = new Date(startAt.getTime() - TASK_BUSY_MINUTES * 60_000);
+    // Enforce the business's inter-appointment buffer by treating the requested
+    // slot as if it were `buffer` minutes wider on each side — so two bookings
+    // can't sit back-to-back when the owner wants breathing room between them.
+    const business = await this.businesses.findById(businessId);
+    const bufferMs = availabilityBufferMinutes(business?.availability) * 60_000;
+    const guardedStart = new Date(startAt.getTime() - bufferMs);
+    const guardedEnd = new Date(endAt.getTime() + bufferMs);
+
+    // Widen the query window backwards by the longest a task can run, so a long
+    // task starting well before the (buffered) slot is still fetched and its
+    // overlap counted.
+    const from = new Date(
+      guardedStart.getTime() - MAX_TASK_DURATION_MINUTES * 60_000,
+    );
     const busy = await this.busyIntervals(
       businessId,
       from,
-      endAt,
+      guardedEnd,
       excludeAppointmentId,
     );
-    return busy.some((b) => b.start < endAt && b.end > startAt);
+    return busy.some((b) => b.start < guardedEnd && b.end > guardedStart);
   }
 }

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BusinessesModule } from '../businesses/businesses.module';
+import { GreenInvoiceModule } from '../green-invoice/green-invoice.module';
 import { Subscription } from './subscription.entity';
 import { Invoice } from './invoice.entity';
 import { User } from '../users/user.entity';
@@ -16,6 +17,7 @@ import { RequireCapabilityGuard } from './guards/require-capability.guard';
   imports: [
     TypeOrmModule.forFeature([Subscription, Invoice, User, Business]),
     BusinessesModule,
+    GreenInvoiceModule,
   ],
   controllers: [BillingController, MorningWebhookController],
   providers: [

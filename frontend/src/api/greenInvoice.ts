@@ -1,8 +1,11 @@
 import { api } from "./client";
 
+export type TaxStatus = "exempt" | "licensed";
+
 export interface GreenInvoiceStatus {
   connected: boolean;
   environment: "sandbox" | "production";
+  taxStatus: TaxStatus;
   accountName: string | null;
   connectedAt: string | null;
 }
@@ -21,7 +24,12 @@ export const greenInvoiceApi = {
       .then((r) => r.data),
   connect: (
     businessId: string,
-    body: { apiKeyId: string; apiSecret: string; environment: "sandbox" | "production" },
+    body: {
+      apiKeyId: string;
+      apiSecret: string;
+      environment: "sandbox" | "production";
+      taxStatus: TaxStatus;
+    },
   ) =>
     api
       .post<GreenInvoiceStatus>(

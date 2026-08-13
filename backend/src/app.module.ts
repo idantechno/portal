@@ -19,6 +19,7 @@ import { LeadsModule } from './leads/leads.module';
 import { AgentWorkerModule } from './agent-worker/agent-worker.module';
 import { CryptoModule } from './common/crypto/crypto.module';
 import { WhatsappModule } from './whatsapp/whatsapp.module';
+import { OwnerConciergeModule } from './owner-concierge/owner-concierge.module';
 import { InboxModule } from './inbox/inbox.module';
 import { WidgetModule } from './widget/widget.module';
 import { DocumentsModule } from './documents/documents.module';
@@ -27,6 +28,9 @@ import { AdminModule } from './admin/admin.module';
 import { AgentsModule } from './agents/agents.module';
 import { TemplatesModule } from './templates/templates.module';
 import { TasksModule } from './tasks/tasks.module';
+import { AgentChatModule } from './agent-chat/agent-chat.module';
+import { CrmModule } from './crm/crm.module';
+import { AccountantModule } from './accountant/accountant.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { AutomationsModule } from './automations/automations.module';
 import { BillingModule } from './billing/billing.module';
@@ -130,6 +134,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
     CryptoModule,
     InboxModule,
     WhatsappModule,
+    OwnerConciergeModule,
     WidgetModule,
     DocumentsModule,
     AuditModule,
@@ -137,6 +142,9 @@ import { RolesGuard } from './auth/guards/roles.guard';
     AgentsModule,
     TemplatesModule,
     TasksModule,
+    AgentChatModule,
+    CrmModule,
+    AccountantModule,
     NotificationsModule,
     AutomationsModule,
     BillingModule,

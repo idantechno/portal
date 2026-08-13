@@ -21,7 +21,8 @@ export type CustomerSource =
   | 'contact'
   | 'agent'
   | 'questionnaire'
-  | 'intake';
+  | 'intake'
+  | 'quote';
 
 /**
  * The central customer/account record — a business (or person) the operator

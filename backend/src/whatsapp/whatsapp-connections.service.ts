@@ -360,6 +360,50 @@ export class WhatsappConnectionsService {
   }
 
   /**
+   * Downloads an inbound media object (image/document the owner sent) by its
+   * WhatsApp media id. Two steps, mirroring the Cloud API: GET /{media-id} returns
+   * a short-lived URL + mime type, then that URL is fetched with the same
+   * D360-API-KEY to pull the bytes. Returns null if WhatsApp isn't connected;
+   * throws on a fetch failure for the caller to swallow.
+   */
+  async downloadMedia(
+    businessId: string,
+    mediaId: string,
+  ): Promise<{ buffer: Buffer; mimeType: string } | null> {
+    const conn = await this.findByBusinessId(businessId);
+    if (!conn || conn.status !== 'active') return null;
+    const apiKey = this.decryptAccessToken(conn);
+    const base = (
+      this.cfg.get<string>('DIALOG360_API_BASE') ??
+      'https://waba-v2.360dialog.io'
+    ).replace(/\/$/, '');
+
+    const metaRes = await fetch(`${base}/${mediaId}`, {
+      headers: { 'D360-API-KEY': apiKey },
+    });
+    if (!metaRes.ok) {
+      throw new Error(`media meta fetch failed (HTTP ${metaRes.status})`);
+    }
+    const meta = (await metaRes.json()) as {
+      url?: string;
+      mime_type?: string;
+    };
+    if (!meta.url) throw new Error('media meta missing url');
+
+    const binRes = await fetch(meta.url, {
+      headers: { 'D360-API-KEY': apiKey },
+    });
+    if (!binRes.ok) {
+      throw new Error(`media download failed (HTTP ${binRes.status})`);
+    }
+    const buffer = Buffer.from(await binRes.arrayBuffer());
+    return {
+      buffer,
+      mimeType: meta.mime_type ?? 'application/octet-stream',
+    };
+  }
+
+  /**
    * Sends a pre-approved WhatsApp *template* message. Unlike {@link sendText},
    * a template is accepted by WhatsApp even outside the 24-hour customer service
    * window — this is what lets us reliably ring a business owner's private

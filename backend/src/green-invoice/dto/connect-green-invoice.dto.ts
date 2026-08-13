@@ -5,7 +5,10 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
-import type { GreenInvoiceEnv } from '../green-invoice-connection.entity';
+import type {
+  GreenInvoiceEnv,
+  TaxStatus,
+} from '../green-invoice-connection.entity';
 
 export class ConnectGreenInvoiceDto {
   /** Green Invoice API key "id". */
@@ -23,4 +26,9 @@ export class ConnectGreenInvoiceDto {
   @IsOptional()
   @IsIn(['sandbox', 'production'])
   environment?: GreenInvoiceEnv;
+
+  /** Issuing business's VAT registration; drives the document type. */
+  @IsOptional()
+  @IsIn(['exempt', 'licensed'])
+  taxStatus?: TaxStatus;
 }

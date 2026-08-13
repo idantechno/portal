@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FilesystemService } from '../context-files/filesystem.service';
 import { CustomersService } from '../customers/customers.service';
+import { ContactStatus } from '../common/enums/contact-status.enum';
 import {
   Quote,
   QuoteChannel,
@@ -24,6 +25,16 @@ export interface CreateQuoteInput {
   budgetSummary?: string;
   total?: string | null;
   notes?: string | null;
+}
+
+/** Quote fields plus the recipient identity to find-or-create a person from. */
+export interface CreateQuoteForRecipientInput extends Omit<
+  CreateQuoteInput,
+  'customerId'
+> {
+  recipientName: string;
+  recipientPhone?: string | null;
+  recipientEmail?: string | null;
 }
 
 export interface UpdateQuoteInput {
@@ -72,6 +83,29 @@ export class QuotesService {
     );
     await this.mirror(quote);
     return quote;
+  }
+
+  /**
+   * Create a quote for a recipient given by name + phone/email instead of an
+   * existing customer id. Finds-or-creates the canonical person (deduped by
+   * phone/email) as a `lead`-stage customer — so quoting a bare number captures
+   * it in the CRM — then attaches the quote to that person. An existing customer
+   * is reused as-is (never demoted to a lead).
+   */
+  async createForRecipient(
+    input: CreateQuoteForRecipientInput,
+  ): Promise<Quote> {
+    const person = await this.customers.upsertPerson(input.businessId, {
+      name: input.recipientName,
+      phone: input.recipientPhone ?? null,
+      email: input.recipientEmail ?? null,
+      stage: ContactStatus.Lead,
+      source: 'quote',
+      interest: input.title,
+      forceCreate: true,
+    });
+    // forceCreate guarantees a row; the ! is safe.
+    return this.create({ ...input, customerId: person!.id });
   }
 
   list(businessId: string, customerId?: string): Promise<Quote[]> {

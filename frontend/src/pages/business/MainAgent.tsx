@@ -9,7 +9,11 @@ import {
 } from "../../api/main";
 import { agentRoute } from "../../lib/agentRoutes";
 import { Button, Card, FormError, Spinner } from "../../components/ui";
+import { handleComposerKeyDown } from "../../lib/chatInput";
+import { agentChatApi } from "../../api/agentChat";
 import { Icon } from "../../components/icons";
+
+const AGENT_KEY = "main";
 
 interface UIMessage extends ChatTurn {
   createdAt: number;
@@ -25,7 +29,7 @@ export default function MainAgent({ businessId }: { businessId: string }) {
 
   const chat = useMutation({
     mutationFn: (history: ChatTurn[]) => mainApi.chat(businessId, history),
-    onSuccess: (result) => {
+    onSuccess: (result, history) => {
       setMessages((prev) => [
         ...prev,
         {
@@ -36,9 +40,36 @@ export default function MainAgent({ businessId }: { businessId: string }) {
           ticketCreated: result.ticketCreated,
         },
       ]);
+      // Persist the user turn + reply together (30-day history).
+      void agentChatApi.append(businessId, AGENT_KEY, [
+        { role: "user", content: history[history.length - 1]?.content ?? "" },
+        { role: "assistant", content: result.reply },
+      ]);
     },
     onError: (err) => setError(apiErrorMessage(err, "אירעה שגיאה. נסה שוב.")),
   });
+
+  // Load the saved conversation when the agent opens.
+  useEffect(() => {
+    let alive = true;
+    void agentChatApi
+      .history(businessId, AGENT_KEY)
+      .then((rows) => {
+        if (alive && rows.length > 0) {
+          setMessages(
+            rows.map((r) => ({
+              role: r.role,
+              content: r.content,
+              createdAt: new Date(r.createdAt).getTime(),
+            })),
+          );
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [businessId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -75,6 +106,7 @@ export default function MainAgent({ businessId }: { businessId: string }) {
           onClick={() => {
             setMessages([]);
             setError(null);
+            void agentChatApi.clear(businessId, AGENT_KEY);
           }}
         >
           שיחה חדשה
@@ -103,16 +135,11 @@ export default function MainAgent({ businessId }: { businessId: string }) {
           <textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                onSend(e);
-              }
-            }}
+            onKeyDown={(e) => handleComposerKeyDown(e, () => onSend(e))}
             disabled={chat.isPending}
             rows={2}
             placeholder="לדוגמה: 'אני רוצה להוציא תפריט מעוצב חדש' או 'משהו לא עובד לי בווידג׳ט'."
-            className="flex-1 min-w-0 block rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm focus:bg-white focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none resize-none"
+            className="flex-1 min-w-0 block rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-2 text-base sm:text-sm focus:bg-white focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none resize-none"
           />
           <Button type="submit" disabled={!draft.trim() || chat.isPending} size="md" className="shrink-0">
             שלח

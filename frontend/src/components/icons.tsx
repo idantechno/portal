@@ -249,6 +249,13 @@ const paths: Record<string, React.ReactNode> = {
       <circle cx="12" cy="7.9" r="1.05" {...DOT} />
     </>
   ),
+  help: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M9.7 9.6a2.4 2.4 0 1 1 3.3 2.6c-.8.5-1.1 1-1.1 1.9" />
+      <circle cx="11.9" cy="16.4" r="1.05" {...DOT} />
+    </>
+  ),
   warning: (
     <>
       <path d="M12.9 4.9a1.1 1.1 0 0 0-1.8 0L3.3 18.8a1.1 1.1 0 0 0 .9 1.7h15.6a1.1 1.1 0 0 0 .9-1.7Z" />

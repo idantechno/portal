@@ -21,6 +21,23 @@ export interface AppNotification {
   createdAt: string;
 }
 
+export interface NotificationPreferences {
+  email: boolean;
+  emailTo: string | null;
+  whatsapp: boolean;
+  whatsappTo: string | null;
+  /** Default targets shown as placeholders when no override is set. */
+  ownerEmail: string | null;
+  ownerPhone: string | null;
+}
+
+export interface NotificationPreferencesUpdate {
+  email: boolean;
+  emailTo?: string;
+  whatsapp: boolean;
+  whatsappTo?: string;
+}
+
 export const notificationsApi = {
   list: (businessId: string, unreadOnly = false) =>
     api
@@ -60,5 +77,18 @@ export const notificationsApi = {
       .post(`/businesses/${businessId}/notifications/push/unsubscribe`, {
         endpoint,
       })
+      .then((r) => r.data),
+  preferences: (businessId: string) =>
+    api
+      .get<NotificationPreferences>(
+        `/businesses/${businessId}/notifications/preferences`,
+      )
+      .then((r) => r.data),
+  updatePreferences: (
+    businessId: string,
+    prefs: NotificationPreferencesUpdate,
+  ) =>
+    api
+      .put(`/businesses/${businessId}/notifications/preferences`, prefs)
       .then((r) => r.data),
 };

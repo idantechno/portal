@@ -12,6 +12,13 @@ interface StoredTokens {
   [k: string]: unknown;
 }
 
+/** A file to attach to an outgoing Gmail message. */
+export interface GmailOutAttachment {
+  filename: string;
+  mimeType: string;
+  content: Buffer;
+}
+
 /** An attachment part of a Gmail message. */
 export interface GmailAttachment {
   attachmentId: string;
@@ -68,7 +75,13 @@ export class GmailService {
 
   async sendEmail(
     businessId: string,
-    input: { to: string; subject: string; body: string },
+    input: {
+      to: string;
+      subject: string;
+      body: string;
+      /** Optional file attachments (e.g. an accountant document package). */
+      attachments?: GmailOutAttachment[];
+    },
   ): Promise<{ ok: true; from: string }> {
     const row = await this.integrations.findOne({
       where: { businessId, provider: 'gmail' },
@@ -81,7 +94,13 @@ export class GmailService {
       this.crypto.decrypt(row.encryptedTokens),
     ) as StoredTokens;
     const from = row.accountEmail ?? 'me';
-    const raw = this.buildRawMessage(from, input.to, input.subject, input.body);
+    const raw = this.buildRawMessage(
+      from,
+      input.to,
+      input.subject,
+      input.body,
+      input.attachments,
+    );
 
     let res = await this.gmailSend(tokens.access_token, raw);
 
@@ -257,18 +276,55 @@ export class GmailService {
     to: string,
     subject: string,
     body: string,
+    attachments?: GmailOutAttachment[],
   ): string {
     const encodedSubject = `=?UTF-8?B?${Buffer.from(subject, 'utf8').toString('base64')}?=`;
-    const message = [
-      `From: ${from}`,
-      `To: ${to}`,
-      `Subject: ${encodedSubject}`,
-      'MIME-Version: 1.0',
-      'Content-Type: text/plain; charset="UTF-8"',
-      'Content-Transfer-Encoding: base64',
-      '',
-      Buffer.from(body, 'utf8').toString('base64'),
-    ].join('\r\n');
+    let message: string;
+
+    if (attachments && attachments.length > 0) {
+      // multipart/mixed: a text part followed by one base64 part per file.
+      const boundary = `portal_${Buffer.from(subject + to)
+        .toString('hex')
+        .slice(0, 24)}`;
+      const parts: string[] = [
+        `From: ${from}`,
+        `To: ${to}`,
+        `Subject: ${encodedSubject}`,
+        'MIME-Version: 1.0',
+        `Content-Type: multipart/mixed; boundary="${boundary}"`,
+        '',
+        `--${boundary}`,
+        'Content-Type: text/plain; charset="UTF-8"',
+        'Content-Transfer-Encoding: base64',
+        '',
+        Buffer.from(body, 'utf8').toString('base64'),
+      ];
+      for (const att of attachments) {
+        const encodedName = `=?UTF-8?B?${Buffer.from(att.filename, 'utf8').toString('base64')}?=`;
+        parts.push(
+          `--${boundary}`,
+          `Content-Type: ${att.mimeType}; name="${encodedName}"`,
+          'Content-Transfer-Encoding: base64',
+          `Content-Disposition: attachment; filename="${encodedName}"`,
+          '',
+          att.content.toString('base64'),
+        );
+      }
+      parts.push(`--${boundary}--`, '');
+      message = parts.join('\r\n');
+    } else {
+      message = [
+        `From: ${from}`,
+        `To: ${to}`,
+        `Subject: ${encodedSubject}`,
+        'MIME-Version: 1.0',
+        'Content-Type: text/plain; charset="UTF-8"',
+        'Content-Transfer-Encoding: base64',
+        '',
+        Buffer.from(body, 'utf8').toString('base64'),
+      ].join('\r\n');
+    }
+
     return Buffer.from(message, 'utf8')
       .toString('base64')
       .replace(/\+/g, '-')

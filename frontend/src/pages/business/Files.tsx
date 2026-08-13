@@ -93,6 +93,25 @@ function joinPath(folder: string, name: string): string {
   return folder ? `${folder}/${name}` : name;
 }
 
+/** The agent's voice guide — a fixed hidden path the agent worker reads. */
+const VOICE_PATH = "_hidden/voice.md";
+const VOICE_TEMPLATE = `# קול הסוכן — סגנון הדיבור של העסק
+
+כאן מגדירים איך הסוכן מדבר עם לקוחות. הסוכן יחקה את הסגנון הזה — ניסוח, אורך
+המשפטים, אימוג'ים, פתיחות וסיומות. אין צורך בעובדות כאן (מחירים/שעות נמצאים
+במסמכים האחרים) — רק הסגנון.
+
+## איך אנחנו נשמעים
+(למשל: ידידותי וישיר, משפטים קצרים, פונים בגוף ראשון, אימוג'י 🙂 מדי פעם,
+בלי שפה רשמית מדי.)
+
+## דוגמאות אמיתיות של הודעות
+הדבק כאן כמה הודעות אמיתיות ששלחת ללקוחות — ככל שיותר אמיתיות, החיקוי טוב יותר.
+-
+-
+-
+`;
+
 interface ExplorerEntry {
   type: "folder" | "file";
   name: string;
@@ -655,6 +674,37 @@ function Explorer({
     onError: (err) => setError(apiErrorMessage(err, t("files.createFileFailed"))),
   });
 
+  // Operator-only: create (or open) the agent's voice guide — the business's
+  // real wording / example messages the chat agent imitates. A fixed path
+  // (`_hidden/voice.md`) the agent worker reads on every run.
+  const createVoiceMut = useMutation({
+    mutationFn: () =>
+      filesApi.createTextFile(businessId, {
+        path: VOICE_PATH,
+        content: VOICE_TEMPLATE,
+        hidden: true,
+      }),
+    onSuccess: (file) => {
+      qc.invalidateQueries({ queryKey: ["files-tree", businessId] });
+      onOpenFile(file.id);
+    },
+    onError: (err) =>
+      setError(apiErrorMessage(err, "יצירת מסמך הקול נכשלה")),
+  });
+
+  function onOpenVoice() {
+    setError(null);
+    // If it already exists, just open it instead of creating a duplicate.
+    const existing = tree?.files.find(
+      (f) => f.relativePath.toLowerCase() === VOICE_PATH,
+    );
+    if (existing) {
+      onOpenFile(existing.id);
+      return;
+    }
+    createVoiceMut.mutate();
+  }
+
   // Operator-only: crawl the business site and write _hidden/website-facts.md.
   const importWebsiteMut = useMutation({
     mutationFn: (url: string) => filesApi.importWebsiteFacts(businessId, url),
@@ -784,6 +834,23 @@ function Explorer({
                 />
                 {t("files.uploadHidden")}
               </label>
+            )}
+            {isStaff && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={onOpenVoice}
+                disabled={createVoiceMut.isPending}
+                title="הגדרת סגנון הדיבור של הסוכן — ניסוח ודוגמאות הודעות אמיתיות שהסוכן יחקה"
+              >
+                {createVoiceMut.isPending ? (
+                  <>
+                    <Spinner /> יוצר...
+                  </>
+                ) : (
+                  "קול הסוכן"
+                )}
+              </Button>
             )}
             {isStaff && (
               <Button

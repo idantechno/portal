@@ -78,6 +78,45 @@ export async function enablePush(
   return "subscribed";
 }
 
+/**
+ * Turn push OFF on this device: drop the browser subscription and tell the
+ * backend to forget it, so no more pushes reach this device. Best-effort — a
+ * missing subscription just resolves. Returns true if it completed cleanly.
+ */
+export async function disablePush(businessId: string): Promise<boolean> {
+  if (!isPushSupported()) return false;
+  const reg = await navigator.serviceWorker.ready;
+  const sub = await reg.pushManager.getSubscription();
+  if (!sub) return true;
+  const { endpoint } = sub;
+  try {
+    await sub.unsubscribe();
+  } catch {
+    // Even if the browser unsubscribe fails, still drop the server record.
+  }
+  await notificationsApi.unsubscribePush(businessId, endpoint).catch(() => {});
+  return true;
+}
+
+/**
+ * Sync the app-icon badge (the red count on the home-screen icon) to the given
+ * unread count while the app is open. Positive → set the number; 0 → clear it.
+ * No-op where the Badging API is unsupported (most desktop browsers, and iOS
+ * unless launched as an installed PWA). Never throws.
+ */
+export function syncAppBadge(count: number): void {
+  if (typeof navigator === "undefined") return;
+  const nav = navigator as Navigator & {
+    setAppBadge?: (n?: number) => Promise<void>;
+    clearAppBadge?: () => Promise<void>;
+  };
+  if (count > 0) {
+    void nav.setAppBadge?.(count).catch(() => {});
+  } else {
+    void nav.clearAppBadge?.().catch(() => {});
+  }
+}
+
 /** Whether this device already has an active push subscription. */
 export async function hasPushSubscription(): Promise<boolean> {
   if (!isPushSupported()) return false;

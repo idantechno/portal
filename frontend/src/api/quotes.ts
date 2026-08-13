@@ -87,6 +87,20 @@ export const quotesApi = {
       )
       .then((r) => r.data),
 
+  /**
+   * Create a quote for a brand-new recipient (name + phone/email). The backend
+   * finds-or-creates the person as a lead and attaches the quote — no existing
+   * customer needed.
+   */
+  createForRecipient: (
+    businessId: string,
+    recipient: { recipientName: string; recipientPhone?: string; recipientEmail?: string },
+    input: QuoteInput,
+  ) =>
+    api
+      .post<Quote>(`/businesses/${businessId}/quotes`, { ...recipient, ...input })
+      .then((r) => r.data),
+
   update: (businessId: string, id: string, patch: QuoteInput) =>
     api
       .patch<Quote>(`/businesses/${businessId}/quotes/${id}`, patch)

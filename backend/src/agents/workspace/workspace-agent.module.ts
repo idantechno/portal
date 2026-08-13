@@ -6,6 +6,7 @@ import { TasksModule } from '../../tasks/tasks.module';
 import { LeadsModule } from '../../leads/leads.module';
 import { BillingModule } from '../../billing/billing.module';
 import { ExpensesModule } from '../../expenses/expenses.module';
+import { AccountantModule } from '../../accountant/accountant.module';
 import { WorkspaceAgentService } from './workspace-agent.service';
 import { WorkspaceAgentController } from './workspace-agent.controller';
 
@@ -18,6 +19,7 @@ import { WorkspaceAgentController } from './workspace-agent.controller';
     LeadsModule,
     BillingModule,
     ExpensesModule,
+    AccountantModule,
   ],
   controllers: [WorkspaceAgentController],
   providers: [WorkspaceAgentService],

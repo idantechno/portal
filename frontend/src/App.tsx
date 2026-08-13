@@ -41,6 +41,18 @@ const AgentWorkspace = lazy(() => import("./pages/business/AgentWorkspace"));
 const Integrations = lazy(() => import("./pages/business/Integrations"));
 const Money = lazy(() => import("./pages/business/Money"));
 const Subscription = lazy(() => import("./pages/business/Subscription"));
+const NotificationSettings = lazy(
+  () => import("./pages/business/NotificationSettings"),
+);
+const PreferencesHub = lazy(
+  () => import("./pages/business/preferences/PreferencesHub"),
+);
+const ContactsSettings = lazy(
+  () => import("./pages/business/preferences/ContactsSettings"),
+);
+const BusinessInfoSettings = lazy(
+  () => import("./pages/business/preferences/BusinessInfoSettings"),
+);
 const Members = lazy(() => import("./pages/business/Members"));
 const Settings = lazy(() => import("./pages/business/Settings"));
 const WhatsappSettings = lazy(() => import("./pages/business/WhatsappSettings"));
@@ -257,6 +269,11 @@ export default function App() {
           <Route path="integrations" element={<Integrations />} />
           <Route path="money" element={<Money />} />
           <Route path="subscription" element={<Subscription />} />
+          <Route path="notifications" element={<NotificationSettings />} />
+          {/* Owner-facing settings hub (distinct from operator config above). */}
+          <Route path="preferences" element={<PreferencesHub />} />
+          <Route path="preferences/contacts" element={<ContactsSettings />} />
+          <Route path="preferences/business" element={<BusinessInfoSettings />} />
           {/* The old money screens are consolidated into כסף (invoices) +
               המנוי שלי (subscription). Redirects keep bookmarks/CTAs alive. */}
           <Route path="billing" element={<Navigate to="../money" replace />} />
@@ -264,9 +281,34 @@ export default function App() {
             path="expenses"
             element={<Navigate to="../money?view=expenses" replace />}
           />
-          <Route path="members" element={<Members />} />
-          <Route path="settings" element={<Settings />} />
-          <Route path="channels/whatsapp" element={<WhatsappSettings />} />
+          {/* Operator-only business config. Guard the ROUTES, not just the
+              sidebar — otherwise a direct URL or a stray link (e.g. the old
+              money→accountant "settings" link) let a non-staff owner reach
+              operator config. RequireStaff redirects clients to /app. */}
+          <Route
+            path="members"
+            element={
+              <RequireStaff>
+                <Members />
+              </RequireStaff>
+            }
+          />
+          <Route
+            path="settings"
+            element={
+              <RequireStaff>
+                <Settings />
+              </RequireStaff>
+            }
+          />
+          <Route
+            path="channels/whatsapp"
+            element={
+              <RequireStaff>
+                <WhatsappSettings />
+              </RequireStaff>
+            }
+          />
         </Route>
         <Route path="*" element={<Navigate to="/app" replace />} />
       </Routes>

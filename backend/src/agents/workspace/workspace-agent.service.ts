@@ -9,6 +9,7 @@ import { TasksService } from '../../tasks/tasks.service';
 import { LeadsService } from '../../leads/leads.service';
 import { BillingService } from '../../billing/billing.service';
 import { ExpensesService } from '../../expenses/expenses.service';
+import { AccountantService } from '../../accountant/accountant.service';
 import { WorkspaceAgentKey } from './workspace-agent.constants';
 import {
   WORKSPACE_AGENT_CONFIGS,
@@ -48,6 +49,7 @@ export class WorkspaceAgentService {
     private readonly leads: LeadsService,
     private readonly billing: BillingService,
     private readonly expenses: ExpensesService,
+    private readonly accountant: AccountantService,
   ) {}
 
   async chat(
@@ -71,6 +73,7 @@ export class WorkspaceAgentService {
       leads: this.leads,
       billing: this.billing,
       expenses: this.expenses,
+      accountant: this.accountant,
       entitled: await this.agents.entitledForBusiness(business.id),
       suggestions: [],
     };

@@ -10,6 +10,7 @@ import {
 import { apiErrorMessage } from "../../../api/client";
 import { Button, Card, EmptyState, FormError, Spinner } from "../../../components/ui";
 import { Icon } from "../../../components/icons";
+import BusinessHoursSettings from "./BusinessHoursSettings";
 
 function fmt(iso: string): string {
   return new Date(iso).toLocaleString("he-IL", {
@@ -60,6 +61,7 @@ export default function AppointmentsSection({
 }) {
   const qc = useQueryClient();
   const [showAdd, setShowAdd] = useState(false);
+  const [showHours, setShowHours] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const appointments = useQuery({
@@ -120,9 +122,18 @@ export default function AppointmentsSection({
         <p className="text-sm text-navy-500">
           כל התורים הקרובים ורשימת ההמתנה. תור שמתבטל מוצע אוטומטית לבא בתור.
         </p>
-        <Button icon="plus" onClick={() => setShowAdd(true)}>
-          תור חדש
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            variant="ghost"
+            icon="clock"
+            onClick={() => setShowHours(true)}
+          >
+            שעות פעילות
+          </Button>
+          <Button icon="plus" onClick={() => setShowAdd(true)}>
+            תור חדש
+          </Button>
+        </div>
       </div>
 
       {error && (
@@ -268,6 +279,13 @@ export default function AppointmentsSection({
             setShowAdd(false);
             refresh();
           }}
+        />
+      )}
+
+      {showHours && (
+        <BusinessHoursSettings
+          businessId={businessId}
+          onClose={() => setShowHours(false)}
         />
       )}
     </div>

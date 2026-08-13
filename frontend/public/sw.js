@@ -58,6 +58,16 @@ self.addEventListener("push", (event) => {
     data = { title: "Portal Studio", body: event.data ? event.data.text() : "" };
   }
   const title = data.title || "Portal Studio";
+  // Paint the red count on the home-screen app icon (App Badging API). Works
+  // even while the app is closed, since the SW runs in the background. `badge`
+  // is the unread count the backend puts in the push payload.
+  if (typeof data.badge === "number" && self.navigator.setAppBadge) {
+    if (data.badge > 0) {
+      self.navigator.setAppBadge(data.badge).catch(() => {});
+    } else if (self.navigator.clearAppBadge) {
+      self.navigator.clearAppBadge().catch(() => {});
+    }
+  }
   event.waitUntil(
     self.registration.showNotification(title, {
       body: data.body || "",

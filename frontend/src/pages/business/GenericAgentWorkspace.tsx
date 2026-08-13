@@ -10,6 +10,8 @@ import {
 import { WORKSPACE_AGENT_UI } from "../../lib/workspaceAgents";
 import { agentRoute } from "../../lib/agentRoutes";
 import { Button, EmptyState, FormError, Spinner } from "../../components/ui";
+import { handleComposerKeyDown } from "../../lib/chatInput";
+import { agentChatApi } from "../../api/agentChat";
 import { Icon, ServerIcon, hasIcon } from "../../components/icons";
 import type { IconName } from "../../components/icons";
 
@@ -40,7 +42,7 @@ export default function GenericAgentWorkspace({
   const chat = useMutation({
     mutationFn: (history: ChatTurn[]) =>
       workspaceAgentsApi.chat(businessId, agentKey, history),
-    onSuccess: (result) => {
+    onSuccess: (result, history) => {
       setMessages((prev) => [
         ...prev,
         { role: "assistant", content: result.reply, createdAt: Date.now() },
@@ -52,9 +54,37 @@ export default function GenericAgentWorkspace({
         void qc.invalidateQueries({ queryKey: ["leads", businessId] });
         void qc.invalidateQueries({ queryKey: ["billing", "invoices", businessId] });
       }
+      void agentChatApi.append(businessId, agentKey, [
+        { role: "user", content: history[history.length - 1]?.content ?? "" },
+        { role: "assistant", content: result.reply },
+      ]);
     },
     onError: (err) => setError(apiErrorMessage(err, "אירעה שגיאה. נסה שוב.")),
   });
+
+  // Load the saved conversation for this agent when it opens / changes. Set
+  // unconditionally (empty rows clear a previous agent's thread) inside the
+  // async callback, never synchronously in the effect body.
+  useEffect(() => {
+    let alive = true;
+    void agentChatApi
+      .history(businessId, agentKey)
+      .then((rows) => {
+        if (!alive) return;
+        setMessages(
+          rows.map((r) => ({
+            role: r.role,
+            content: r.content,
+            createdAt: new Date(r.createdAt).getTime(),
+          })),
+        );
+        setSuggestions([]);
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [businessId, agentKey]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -80,6 +110,7 @@ export default function GenericAgentWorkspace({
     setMessages([]);
     setSuggestions([]);
     setError(null);
+    void agentChatApi.clear(businessId, agentKey);
   }
 
   if (!cfg) {
@@ -165,16 +196,11 @@ export default function GenericAgentWorkspace({
             <textarea
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  send(draft);
-                }
-              }}
+              onKeyDown={(e) => handleComposerKeyDown(e, () => send(draft))}
               disabled={chat.isPending}
               rows={2}
               placeholder={cfg.placeholder}
-              className="flex-1 min-w-0 block rounded-lg border border-navy-200 bg-cream-50 px-3 py-2 text-sm focus:bg-white focus:border-brand-400 focus:ring-2 focus:ring-brand-100 focus:outline-none resize-none"
+              className="flex-1 min-w-0 block rounded-lg border border-navy-200 bg-cream-50 px-3 py-2 text-base sm:text-sm focus:bg-white focus:border-brand-400 focus:ring-2 focus:ring-brand-100 focus:outline-none resize-none"
             />
             <Button
               type="submit"

@@ -21,6 +21,7 @@ import { CustomerContactsService } from '../conversations/customer-contacts.serv
 import { CustomersService } from '../customers/customers.service';
 import { TemplatesService } from '../templates/templates.service';
 import { ScheduleService } from '../schedule/schedule.service';
+import { CrmService } from '../crm/crm.service';
 import { ContactStatus } from '../common/enums/contact-status.enum';
 import { computeRemindAt } from '../common/time/reminder-window';
 
@@ -82,6 +83,7 @@ export class AppointmentsService {
     private readonly customers: CustomersService,
     private readonly templates: TemplatesService,
     private readonly schedule: ScheduleService,
+    private readonly crm: CrmService,
   ) {}
 
   /**
@@ -103,6 +105,35 @@ export class AppointmentsService {
   }
 
   /**
+   * Is the slot inside the business's declared open hours? Delegates to the
+   * schedule brain. The agent uses this to avoid offering/booking outside
+   * working hours; the owner's manual bookings are never restricted by it.
+   */
+  isWithinAvailability(businessId: string, startAt: Date, endAt: Date) {
+    return this.schedule.isWithinAvailability(businessId, startAt, endAt);
+  }
+
+  /**
+   * Concrete open slots the agent can offer the customer. Delegates to the
+   * schedule brain, which honours opening hours, buffer, and the busy timeline.
+   */
+  freeSlots(
+    businessId: string,
+    from: Date,
+    to: Date,
+    durationMinutes: number,
+    limit?: number,
+  ) {
+    return this.schedule.freeSlots(
+      businessId,
+      from,
+      to,
+      durationMinutes,
+      limit,
+    );
+  }
+
+  /**
    * Books an appointment: persists the row, mirrors it into Google Calendar
    * (best-effort — a missing/failing calendar never blocks the booking), and
    * rings the owner (in-app now; WhatsApp once a template is wired).
@@ -115,6 +146,18 @@ export class AppointmentsService {
       (await this.hasConflict(input.businessId, input.startAt, input.endAt))
     ) {
       throw new BadRequestException('SLOT_TAKEN');
+    }
+
+    // Agent-driven bookings must land inside the business's open hours. The
+    // owner's own manual bookings bypass this (source 'manual') — they book
+    // whenever they like. Backstop to the agent tool's own friendlier check.
+    if (input.source !== 'manual') {
+      const avail = await this.schedule.isWithinAvailability(
+        input.businessId,
+        input.startAt,
+        input.endAt,
+      );
+      if (!avail.ok) throw new BadRequestException('OUTSIDE_HOURS');
     }
 
     const appointment = this.appointments.create({
@@ -150,6 +193,9 @@ export class AppointmentsService {
 
     const saved = await this.appointments.save(appointment);
     await this.notifyOwner(saved);
+    // Push to the business's external CRM/destination, if configured.
+    // Best-effort (swallows its own errors); not awaited on the hot path.
+    void this.crm.pushAppointment(saved);
     // Booking is the "became a customer" moment: promote the contact lead →
     // customer so the chat agent switches to service mode and they surface on
     // the Customers screen. Idempotent + best-effort — never fails the booking.

@@ -5,6 +5,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { integrationsApi } from "../../api/integrations";
 import type { IntegrationProvider, IntegrationView } from "../../api/integrations";
 import { greenInvoiceApi } from "../../api/greenInvoice";
+import { crmApi } from "../../api/crm";
+import type { CrmConnectionView } from "../../api/crm";
 import { billingApi } from "../../api/billing";
 import { apiErrorMessage } from "../../api/client";
 import { useAuthStore } from "../../store/auth";
@@ -17,11 +19,11 @@ import {
   FormError,
   Input,
   PageHeader,
-  Select,
   Spinner,
   Textarea,
 } from "../../components/ui";
 import { Icon, ServerIcon } from "../../components/icons";
+import GreenInvoiceHelpModal from "./GreenInvoiceHelpModal";
 
 export default function Integrations() {
   const { businessId = "" } = useParams<{ businessId: string }>();
@@ -115,6 +117,13 @@ export default function Integrations() {
           חשבוניות — חשבונית ירוקה
         </h2>
         <GreenInvoiceCard businessId={businessId} />
+      </div>
+
+      <div className="mt-8">
+        <h2 className="text-sm font-semibold text-brand-600 mb-3">
+          חיבור ל-CRM חיצוני
+        </h2>
+        <CrmCard businessId={businessId} />
       </div>
 
       {items.some((i) => !i.available) && (
@@ -253,14 +262,22 @@ function GreenInvoiceCard({ businessId }: { businessId: string }) {
   });
   const [apiKeyId, setApiKeyId] = useState("");
   const [apiSecret, setApiSecret] = useState("");
-  const [environment, setEnvironment] = useState<"sandbox" | "production">(
-    "sandbox",
-  );
+  // Real accounts always issue against production; sandbox is a developer-only
+  // concept a business owner never needs. We fix it here rather than exposing a
+  // picker that could silently break real invoicing if set wrong.
+  const environment = "production" as const;
+  const [taxStatus, setTaxStatus] = useState<"exempt" | "licensed">("exempt");
   const [error, setError] = useState<string | null>(null);
+  const [showHelp, setShowHelp] = useState(false);
 
   const connectMut = useMutation({
     mutationFn: () =>
-      greenInvoiceApi.connect(businessId, { apiKeyId, apiSecret, environment }),
+      greenInvoiceApi.connect(businessId, {
+        apiKeyId,
+        apiSecret,
+        environment,
+        taxStatus,
+      }),
     onSuccess: () => {
       setApiKeyId("");
       setApiSecret("");
@@ -306,7 +323,9 @@ function GreenInvoiceCard({ businessId }: { businessId: string }) {
             חשבונית ירוקה מחוברת
           </div>
           <div className="text-xs text-navy-400">
-            סביבה: {s.environment === "production" ? "פרודקשן" : "בדיקה (sandbox)"}
+            {s.taxStatus === "licensed"
+              ? "עוסק מורשה · מפיק חשבונית מס/קבלה"
+              : "עוסק פטור · מפיק קבלה"}
           </div>
         </div>
         <Button variant="ghost" size="sm" onClick={() => disconnectMut.mutate()}>
@@ -318,10 +337,22 @@ function GreenInvoiceCard({ businessId }: { businessId: string }) {
 
   return (
     <Card className="p-5">
-      <p className="text-sm text-navy-500 mb-3">
-        חבר את חשבון חשבונית ירוקה שלך (מפתח API) כדי להנפיק חשבוניות אמיתיות
-        מהמערכת.
-      </p>
+      {showHelp && <GreenInvoiceHelpModal onClose={() => setShowHelp(false)} />}
+      <div className="mb-3 flex items-start gap-2">
+        <p className="text-sm text-navy-500 flex-1">
+          חבר את חשבון חשבונית ירוקה שלך (מפתח API) כדי להנפיק חשבוניות אמיתיות
+          מהמערכת.
+        </p>
+        <button
+          type="button"
+          onClick={() => setShowHelp(true)}
+          className="shrink-0 rounded-lg p-1 text-navy-300 hover:bg-navy-50 hover:text-brand-600"
+          aria-label="איך משיגים מפתח API?"
+          title="איך משיגים מפתח API?"
+        >
+          <Icon name="help" size={20} />
+        </button>
+      </div>
       <form
         onSubmit={(e: FormEvent) => {
           e.preventDefault();
@@ -343,19 +374,230 @@ function GreenInvoiceCard({ businessId }: { businessId: string }) {
           placeholder="API Secret"
           dir="ltr"
         />
-        <Select
-          value={environment}
-          onChange={(e) =>
-            setEnvironment(e.target.value as "sandbox" | "production")
-          }
-        >
-          <option value="sandbox">בדיקה (sandbox)</option>
-          <option value="production">פרודקשן</option>
-        </Select>
+        <div>
+          <div className="text-sm font-medium text-navy-800 mb-1.5">
+            סוג העסק שלך במע"מ
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {(
+              [
+                { v: "exempt", label: "עוסק פטור", sub: "מפיק קבלה" },
+                { v: "licensed", label: "עוסק מורשה", sub: "מפיק חשבונית מס" },
+              ] as const
+            ).map((opt) => (
+              <button
+                key={opt.v}
+                type="button"
+                onClick={() => setTaxStatus(opt.v)}
+                className={`rounded-xl border px-3 py-2.5 text-start transition ${
+                  taxStatus === opt.v
+                    ? "border-brand-400 bg-brand-50 ring-1 ring-brand-300"
+                    : "border-navy-100 hover:border-navy-200"
+                }`}
+              >
+                <div className="text-sm font-semibold text-navy-900">
+                  {opt.label}
+                </div>
+                <div className="text-xs text-navy-400">{opt.sub}</div>
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-navy-400 mt-1.5">
+            קובע איזה מסמך חוקי יופק — לפי הרישום שלך במע"מ.
+          </p>
+        </div>
         <FormError message={error} />
         <Button type="submit" disabled={connectMut.isPending}>
           {connectMut.isPending ? <Spinner /> : "חבר חשבונית ירוקה"}
         </Button>
+      </form>
+    </Card>
+  );
+}
+
+function CrmCard({ businessId }: { businessId: string }) {
+  const view = useQuery({
+    queryKey: ["crm", businessId],
+    queryFn: () => crmApi.view(businessId),
+    enabled: Boolean(businessId),
+  });
+
+  if (view.isLoading) {
+    return (
+      <Card className="p-6 grid place-items-center">
+        <Spinner />
+      </Card>
+    );
+  }
+  if (view.isError) {
+    return (
+      <Card className="p-6 text-sm text-navy-400">
+        לא הצלחנו לבדוק את מצב החיבור כרגע. רענן את הדף.
+      </Card>
+    );
+  }
+  // Remount the form when the stored connection changes so its fields reset.
+  return (
+    <CrmForm
+      key={view.data?.updatedAt ?? "new"}
+      businessId={businessId}
+      initial={view.data ?? null}
+    />
+  );
+}
+
+function CrmForm({
+  businessId,
+  initial,
+}: {
+  businessId: string;
+  initial: CrmConnectionView | null;
+}) {
+  const qc = useQueryClient();
+  const [url, setUrl] = useState(initial?.url ?? "");
+  const [secret, setSecret] = useState("");
+  const [pushLeads, setPushLeads] = useState(initial?.pushLeads ?? true);
+  const [pushAppointments, setPushAppointments] = useState(
+    initial?.pushAppointments ?? true,
+  );
+  const [error, setError] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<"ok" | "fail" | null>(null);
+  const connected = Boolean(initial);
+
+  const invalidate = () =>
+    qc.invalidateQueries({ queryKey: ["crm", businessId] });
+
+  const saveMut = useMutation({
+    mutationFn: () =>
+      crmApi.upsert(businessId, {
+        url,
+        pushLeads,
+        pushAppointments,
+        enabled: true,
+        // Omit the secret to keep the stored one; only send a freshly typed one.
+        ...(secret ? { secret } : {}),
+      }),
+    onSuccess: () => {
+      setSecret("");
+      invalidate();
+    },
+    onError: (err) =>
+      setError(
+        apiErrorMessage(
+          err,
+          "השמירה נכשלה — ודא שהכתובת מתחילה ב-https://",
+        ),
+      ),
+  });
+  const testMut = useMutation({
+    mutationFn: () => crmApi.test(businessId),
+    onSuccess: () => setTestResult("ok"),
+    onError: () => setTestResult("fail"),
+  });
+  const removeMut = useMutation({
+    mutationFn: () => crmApi.remove(businessId),
+    onSuccess: invalidate,
+  });
+
+  return (
+    <Card className="p-5">
+      <p className="text-sm text-navy-500 mb-4 leading-relaxed">
+        כל ליד ותור חדשים יישלחו אוטומטית לכתובת ה-webhook שתגדיר — היעד יכול
+        להיות ה-CRM של העסק ישירות, או Zapier/Make שמעביר את המידע לכל מערכת.
+      </p>
+      <form
+        onSubmit={(e: FormEvent) => {
+          e.preventDefault();
+          setError(null);
+          setTestResult(null);
+          if (url) saveMut.mutate();
+        }}
+        className="space-y-3"
+      >
+        <label className="block text-sm text-navy-600">
+          כתובת Webhook
+          <Input
+            type="url"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://hooks.zapier.com/..."
+            dir="ltr"
+            className="mt-1"
+          />
+        </label>
+        <label className="block text-sm text-navy-600">
+          סוד לחתימה (רשות)
+          <Input
+            type="password"
+            value={secret}
+            onChange={(e) => setSecret(e.target.value)}
+            placeholder={
+              initial?.hasSecret ? "•••••• (שמור — השאר ריק כדי לא לשנות)" : "רשות"
+            }
+            dir="ltr"
+            className="mt-1"
+          />
+        </label>
+        <div className="flex flex-col gap-2 pt-1">
+          <label className="flex items-center gap-2 text-sm text-navy-600">
+            <input
+              type="checkbox"
+              checked={pushLeads}
+              onChange={(e) => setPushLeads(e.target.checked)}
+              className="h-4 w-4 rounded border-navy-300"
+            />
+            שלח לידים חדשים
+          </label>
+          <label className="flex items-center gap-2 text-sm text-navy-600">
+            <input
+              type="checkbox"
+              checked={pushAppointments}
+              onChange={(e) => setPushAppointments(e.target.checked)}
+              className="h-4 w-4 rounded border-navy-300"
+            />
+            שלח תורים/פגישות חדשים
+          </label>
+        </div>
+        <FormError message={error} />
+        {testResult === "ok" && (
+          <Banner tone="success" onDismiss={() => setTestResult(null)}>
+            נשלחה הודעת בדיקה ליעד בהצלחה
+          </Banner>
+        )}
+        {testResult === "fail" && (
+          <Banner tone="danger" onDismiss={() => setTestResult(null)}>
+            הבדיקה נכשלה — היעד לא קיבל את ההודעה. בדוק את הכתובת.
+          </Banner>
+        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="submit" disabled={saveMut.isPending || !url}>
+            {saveMut.isPending ? <Spinner /> : connected ? "עדכן" : "חבר"}
+          </Button>
+          {connected && (
+            <>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                disabled={testMut.isPending}
+                onClick={() => {
+                  setTestResult(null);
+                  testMut.mutate();
+                }}
+              >
+                {testMut.isPending ? <Spinner /> : "שלח בדיקה"}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => removeMut.mutate()}
+              >
+                נתק
+              </Button>
+            </>
+          )}
+        </div>
       </form>
     </Card>
   );

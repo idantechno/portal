@@ -29,7 +29,10 @@ export default function QuoteAgent({ businessId }: { businessId: string }) {
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [mode, setMode] = useState<"existing" | "new">("existing");
   const [customerId, setCustomerId] = useState("");
+  const [recipientName, setRecipientName] = useState("");
+  const [recipientPhone, setRecipientPhone] = useState("");
   const [title, setTitle] = useState("");
 
   const agents = useQuery({
@@ -58,16 +61,32 @@ export default function QuoteAgent({ businessId }: { businessId: string }) {
   });
 
   const create = useMutation({
-    mutationFn: () =>
-      quotesApi.create(businessId, customerId, {
-        title: title.trim() || "הצעת מחיר",
-      }),
+    mutationFn: () => {
+      const input = { title: title.trim() || "הצעת מחיר" };
+      if (mode === "new") {
+        return quotesApi.createForRecipient(
+          businessId,
+          {
+            recipientName: recipientName.trim(),
+            recipientPhone: recipientPhone.trim() || undefined,
+          },
+          input,
+        );
+      }
+      return quotesApi.create(businessId, customerId, input);
+    },
     onSuccess: (quote) => {
       qc.invalidateQueries({ queryKey: ["quotes", businessId] });
+      // A new recipient becomes a lead-stage person — refresh the people list.
+      qc.invalidateQueries({ queryKey: ["customers", businessId] });
       navigate(`/app/businesses/${businessId}/quotes/${quote.id}`);
     },
     onError: (e) => setError(apiErrorMessage(e, "יצירת הצעת המחיר נכשלה")),
   });
+
+  // Whether the form can be submitted in the current mode.
+  const canSubmit =
+    mode === "new" ? recipientName.trim().length > 0 : Boolean(customerId);
 
   const customerName = useMemo(() => {
     const map = new Map<string, string>();
@@ -112,9 +131,11 @@ export default function QuoteAgent({ businessId }: { businessId: string }) {
           icon="plus"
           onClick={() => {
             setError(null);
+            // Default to the "new recipient" mode when there are no customers
+            // yet, so the very first quote can be issued to a phone number.
+            setMode(customerList.length === 0 ? "new" : "existing");
             setCreating(true);
           }}
-          disabled={customerList.length === 0}
         >
           הצעה חדשה
         </Button>
@@ -131,22 +152,70 @@ export default function QuoteAgent({ businessId }: { businessId: string }) {
           <div className="mb-3 text-sm font-medium text-navy-900">
             הצעת מחיר חדשה
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <Label>לקוח</Label>
-              <select
-                value={customerId}
-                onChange={(e) => setCustomerId(e.target.value)}
-                className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm"
+
+          {/* Recipient: an existing customer/lead, or a brand-new phone number
+              that gets captured as a lead. */}
+          <div className="mb-3 inline-flex rounded-xl bg-navy-50 p-1 text-sm">
+            {(
+              [
+                { key: "existing", label: "לקוח / ליד קיים" },
+                { key: "new", label: "נמען חדש (טלפון)" },
+              ] as const
+            ).map((m) => (
+              <button
+                key={m.key}
+                type="button"
+                onClick={() => setMode(m.key)}
+                disabled={m.key === "existing" && customerList.length === 0}
+                className={`rounded-lg px-3.5 py-1.5 font-medium transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                  mode === m.key
+                    ? "bg-white text-navy-900 shadow-e1"
+                    : "text-navy-500 hover:text-navy-800"
+                }`}
               >
-                <option value="">בחר לקוח…</option>
-                {customerList.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.businessName?.trim() || c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+                {m.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {mode === "existing" ? (
+              <div>
+                <Label>לקוח / ליד</Label>
+                <select
+                  value={customerId}
+                  onChange={(e) => setCustomerId(e.target.value)}
+                  className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm"
+                >
+                  <option value="">בחר…</option>
+                  {customerList.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.businessName?.trim() || c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <Label>שם הנמען</Label>
+                  <Input
+                    value={recipientName}
+                    onChange={(e) => setRecipientName(e.target.value)}
+                    placeholder="שם פרטי / שם העסק"
+                  />
+                </div>
+                <div>
+                  <Label>טלפון (אופציונלי)</Label>
+                  <Input
+                    value={recipientPhone}
+                    onChange={(e) => setRecipientPhone(e.target.value)}
+                    placeholder="050-0000000"
+                    inputMode="tel"
+                  />
+                </div>
+              </>
+            )}
             <div>
               <Label>כותרת</Label>
               <Input
@@ -156,12 +225,20 @@ export default function QuoteAgent({ businessId }: { businessId: string }) {
               />
             </div>
           </div>
+
+          {mode === "new" && (
+            <p className="mt-2 text-xs text-navy-400">
+              הנמען יישמר אוטומטית כליד חדש. אם המספר כבר קיים במערכת — ההצעה
+              תיקשר אליו בלי כפילות.
+            </p>
+          )}
+
           <div className="mt-3 flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setCreating(false)}>
               ביטול
             </Button>
             <Button
-              disabled={!customerId || create.isPending}
+              disabled={!canSubmit || create.isPending}
               onClick={() => create.mutate()}
             >
               {create.isPending ? "יוצר…" : "צור והמשך למילוי"}
@@ -170,19 +247,12 @@ export default function QuoteAgent({ businessId }: { businessId: string }) {
         </Card>
       )}
 
-      {customerList.length === 0 && (
-        <Card className="mb-6 p-4 text-sm text-navy-500">
-          כדי לבנות הצעת מחיר צריך קודם לקוח. אפשר להוסיף לקוח בסוכן השיווק (טאב
-          לקוחות).
-        </Card>
-      )}
-
       {quoteList.length === 0 ? (
         <Card className="p-10">
           <EmptyState
             icon="receipt"
             title="אין עדיין הצעות מחיר"
-            text="צור הצעת מחיר חדשה ובחר לקוח."
+            text="צור הצעת מחיר חדשה — ללקוח קיים או ישירות למספר טלפון."
           />
         </Card>
       ) : (

@@ -19,7 +19,15 @@ interface GoogleEvent {
   summary?: string;
   start?: { dateTime?: string; date?: string };
   end?: { dateTime?: string; date?: string };
+  /** Google marks a deleted/cancelled instance with status 'cancelled'. */
+  status?: string;
 }
+
+/** Result of looking up one event by id — distinguishes gone from unreachable. */
+export type CalendarEventLookup =
+  | { status: 'ok'; event: CalendarEvent }
+  | { status: 'deleted' }
+  | { status: 'error' };
 
 interface GoogleCalendarListEntry {
   id: string;
@@ -227,6 +235,42 @@ export class CalendarService {
     if (!res.ok) {
       throw new BadRequestException(`CALENDAR_UPDATE_FAILED_${res.status}`);
     }
+  }
+
+  /**
+   * Look up a single event by id — used by the reconcile sweep to detect a
+   * Google-side delete or move. A 404/410 (or status 'cancelled') means the
+   * event is gone; any other non-OK response is an error the caller should treat
+   * as "unknown, leave it alone" rather than assume deletion.
+   */
+  async getEvent(
+    businessId: string,
+    eventId: string,
+  ): Promise<CalendarEventLookup> {
+    let res: Response;
+    try {
+      res = await this.call(
+        businessId,
+        `${CAL_BASE}/${encodeURIComponent(eventId)}`,
+      );
+    } catch {
+      return { status: 'error' };
+    }
+    if (res.status === 404 || res.status === 410) return { status: 'deleted' };
+    if (!res.ok) return { status: 'error' };
+    const e = (await res.json().catch(() => null)) as GoogleEvent | null;
+    if (!e) return { status: 'error' };
+    if (e.status === 'cancelled') return { status: 'deleted' };
+    return {
+      status: 'ok',
+      event: {
+        id: e.id,
+        title: e.summary ?? '(ללא כותרת)',
+        start: e.start?.dateTime ?? e.start?.date ?? '',
+        end: e.end?.dateTime ?? e.end?.date ?? null,
+        allDay: !e.start?.dateTime,
+      },
+    };
   }
 
   /** Delete an event. A 404/410 (already gone) is treated as success. */

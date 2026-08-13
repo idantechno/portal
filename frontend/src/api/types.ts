@@ -67,6 +67,28 @@ export interface WhatsappAgentConfig {
   busyLabel?: string | null;
 }
 
+export interface AvailabilityWindow {
+  /** 0 = Sunday … 6 = Saturday. */
+  days: number[];
+  /** 'HH:MM' */
+  start: string;
+  /** 'HH:MM' — if end <= start the window wraps past midnight. */
+  end: string;
+}
+
+export interface BusinessAvailability {
+  /** When false, bookings are accepted any time (legacy / always open). */
+  enabled: boolean;
+  /** IANA timezone the windows/days-off are in. Default Asia/Jerusalem. */
+  timezone?: string;
+  /** Open windows for bookings. */
+  windows: AvailabilityWindow[];
+  /** Minimum gap enforced before & after each appointment, minutes. */
+  bufferMinutes?: number;
+  /** Specific closed dates, 'YYYY-MM-DD'. */
+  daysOff?: string[];
+}
+
 export interface Business {
   id: string;
   name: string;
@@ -82,6 +104,11 @@ export interface Business {
   whatsappAgent?: WhatsappAgentConfig | null;
   /** Owner's private phone (E.164) for WhatsApp alerts like new bookings. */
   ownerPhone?: string | null;
+  /** Accountant recipient — the locked destination for financial doc sends. */
+  accountantEmail?: string | null;
+  accountantPhone?: string | null;
+  /** Booking availability — open hours, buffer, holidays. Null = always open. */
+  availability?: BusinessAvailability | null;
   createdAt: string;
   updatedAt: string;
   /** Set when the tenant is scheduled for deletion (soft-deleted). */

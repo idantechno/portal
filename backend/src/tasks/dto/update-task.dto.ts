@@ -1,10 +1,13 @@
 import {
   IsBoolean,
   IsIn,
+  IsInt,
   IsISO8601,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
+  Min,
   MinLength,
 } from 'class-validator';
 import type { TaskPriority, TaskStatus } from '../task.entity';
@@ -33,6 +36,13 @@ export class UpdateTaskDto {
   @IsISO8601()
   dueAt?: string | null;
 
+  /** How long a dated task takes, in minutes. */
+  @IsOptional()
+  @IsInt()
+  @Min(5)
+  @Max(600)
+  durationMinutes?: number | null;
+
   /** Opt this task into (or out of) the reminders sweep — the 🔔 toggle. */
   @IsOptional()
   @IsBoolean()
@@ -42,4 +52,17 @@ export class UpdateTaskDto {
   @IsOptional()
   @IsISO8601()
   remindAt?: string | null;
+
+  /** Optional customer WhatsApp number, so the reminder also reaches them.
+   *  Empty string clears it (stop reminding the customer). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  remindCustomerPhone?: string | null;
+
+  /** Customer's display name, to personalize their reminder. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  remindCustomerName?: string | null;
 }

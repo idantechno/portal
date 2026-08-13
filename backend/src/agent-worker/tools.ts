@@ -311,6 +311,28 @@ export function scheduleAppointmentTool(ctx: ToolContext) {
       const duration = args.durationMinutes ?? 60;
       const endAt = new Date(startAt.getTime() + duration * 60 * 1000);
 
+      // Respect the business's opening hours: never book (or offer) a time the
+      // business isn't open. The owner's manual bookings bypass this, but the
+      // agent must not put a customer down for a closed slot.
+      const avail = await ctx.appointments.isWithinAvailability(
+        ctx.businessId,
+        startAt,
+        endAt,
+      );
+      if (!avail.ok) {
+        const hours = avail.openHoursText
+          ? `Open hours that day are ${avail.openHoursText}.`
+          : 'The business is closed that day.';
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `That time (${formatIsraelTime(startAt)}) is outside the business's working hours. ${hours} Apologise and offer the customer a time within opening hours instead — do not book this one.`,
+            },
+          ],
+        };
+      }
+
       // Don't double-book: if the slot is taken, tell the agent to offer another
       // time, or to put the customer on the waitlist for this one.
       if (await ctx.appointments.hasConflict(ctx.businessId, startAt, endAt)) {
@@ -342,6 +364,73 @@ export function scheduleAppointmentTool(ctx: ToolContext) {
           {
             type: 'text',
             text: `Appointment booked (id=${appointment.id}) for ${formatIsraelTime(startAt)}. Confirm it warmly to the customer in their language, restating the day and time so there's no confusion.`,
+          },
+        ],
+      };
+    },
+  );
+}
+
+export function findFreeSlotsTool(ctx: ToolContext) {
+  return tool(
+    'find_free_slots',
+    "Offer the customer concrete open appointment times. Call this when the customer is flexible, unsure, or asks when you're available — instead of guessing a time. It returns real open slots that fit the business's opening hours, buffer, and existing bookings. Then offer 2–3 of them to the customer in their language and book the one they pick with schedule_appointment.",
+    {
+      durationMinutes: z
+        .number()
+        .int()
+        .positive()
+        .optional()
+        .describe('Length of the appointment in minutes. Defaults to 60.'),
+      daysAhead: z
+        .number()
+        .int()
+        .positive()
+        .max(60)
+        .optional()
+        .describe('How many days ahead to search. Defaults to 14.'),
+    },
+    async (args) => {
+      const duration = args.durationMinutes ?? 60;
+      const from = new Date();
+      const to = new Date(
+        from.getTime() + (args.daysAhead ?? 14) * 24 * 60 * 60 * 1000,
+      );
+      const { slots, hoursConfigured } = await ctx.appointments.freeSlots(
+        ctx.businessId,
+        from,
+        to,
+        duration,
+        6,
+      );
+      if (!hoursConfigured) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: "The business hasn't set opening hours, so I can't list specific open slots. Ask the customer which day and time suits them, then book that with schedule_appointment (it's still checked for conflicts).",
+            },
+          ],
+        };
+      }
+      if (slots.length === 0) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: 'No open slots in that window. Let the customer know nothing is free soon and offer to add them to the waitlist (join_waitlist), or ask them to suggest another period.',
+            },
+          ],
+        };
+      }
+      const list = slots
+        .map((s) => `• ${formatIsraelTime(new Date(s.start))}`)
+        .join('\n');
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Open slots (offer the customer 2–3 of these in their language, then book their choice with schedule_appointment):\n${list}`,
           },
         ],
       };
@@ -443,14 +532,18 @@ export function rescheduleAppointmentTool(ctx: ToolContext) {
           ],
         };
       } catch (err) {
-        const taken = (err as Error).message?.includes('SLOT_TAKEN');
+        const message = (err as Error).message ?? '';
+        const taken = message.includes('SLOT_TAKEN');
+        const closed = message.includes('OUTSIDE_HOURS');
         return {
           content: [
             {
               type: 'text',
               text: taken
                 ? `The new time (${formatIsraelTime(newStart)}) is already taken. Offer the customer a different time.`
-                : "Couldn't move that appointment. Ask the customer to confirm which appointment and time, or offer a human.",
+                : closed
+                  ? `The new time (${formatIsraelTime(newStart)}) is outside the business's working hours. Offer the customer a time within opening hours instead.`
+                  : "Couldn't move that appointment. Ask the customer to confirm which appointment and time, or offer a human.",
             },
           ],
         };

@@ -18,6 +18,7 @@ import { QuotesService } from './quotes.service';
 import { QuoteDrafterService } from './quote-drafter.service';
 import { QuotePdfService } from './quote-pdf.service';
 import { CreateQuoteDto } from './dto/create-quote.dto';
+import { CreateQuoteForRecipientDto } from './dto/create-quote-for-recipient.dto';
 import { UpdateQuoteDto } from './dto/update-quote.dto';
 import { DraftQuoteDto } from './dto/draft-quote.dto';
 import { renderQuote } from './quote-renderer';
@@ -44,6 +45,19 @@ export class QuotesController {
     @Body() dto: CreateQuoteDto,
   ) {
     return this.quotes.create({ businessId, customerId, ...dto });
+  }
+
+  /**
+   * Create a quote straight from a recipient's name + phone/email — no existing
+   * customer required. The person is found-or-created as a lead, so quoting any
+   * number captures it in the CRM.
+   */
+  @Post('quotes')
+  createForRecipient(
+    @Param('businessId', ParseUUIDPipe) businessId: string,
+    @Body() dto: CreateQuoteForRecipientDto,
+  ) {
+    return this.quotes.createForRecipient({ businessId, ...dto });
   }
 
   @Get('quotes')

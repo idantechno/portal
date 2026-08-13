@@ -2,7 +2,28 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CalendarService } from '../integrations/calendar.service';
-import { Task, TaskKind, TaskSource, TaskStatus } from './task.entity';
+import {
+  DEFAULT_TASK_DURATION_MINUTES,
+  Task,
+  TaskKind,
+  TaskSource,
+  TaskStatus,
+} from './task.entity';
+
+/**
+ * Normalize an owner-typed phone into the digits-only WhatsApp form. Handles the
+ * common Israeli inputs — "050-123 4567", "+972 50…", "97250…" — and leaves an
+ * already-normalized number untouched. Returns null for empty/garbage so a blank
+ * field clears the customer recipient rather than storing "".
+ */
+function toWaPhone(raw: string | null | undefined): string | null {
+  if (raw == null) return null;
+  const digits = raw.replace(/\D/g, '');
+  if (!digits) return null;
+  if (digits.startsWith('972')) return digits;
+  if (digits.startsWith('0')) return `972${digits.slice(1)}`;
+  return digits;
+}
 
 export interface CreateTaskInput {
   businessId: string;
@@ -10,6 +31,8 @@ export interface CreateTaskInput {
   description?: string | null;
   priority?: Task['priority'];
   dueAt?: string | Date | null;
+  /** How long a dated task takes, in minutes. Null → default block length. */
+  durationMinutes?: number | null;
   source?: TaskSource;
   /** To-do vs pure nudge. Defaults to 'task'. */
   kind?: TaskKind;
@@ -49,13 +72,21 @@ export class TasksService {
       if (shouldMirror) {
         if (!(await this.calendar.isConnected(task.businessId))) return;
         const start = task.dueAt!.toISOString();
-        const end = new Date(task.dueAt!.getTime() + 30 * 60_000).toISOString();
+        const durationMin =
+          task.durationMinutes ?? DEFAULT_TASK_DURATION_MINUTES;
+        const end = new Date(
+          task.dueAt!.getTime() + durationMin * 60_000,
+        ).toISOString();
         if (task.calendarEventId) {
-          await this.calendar.updateEvent(task.businessId, task.calendarEventId, {
-            title: task.title,
-            start,
-            end,
-          });
+          await this.calendar.updateEvent(
+            task.businessId,
+            task.calendarEventId,
+            {
+              title: task.title,
+              start,
+              end,
+            },
+          );
         } else {
           const ev = await this.calendar.createEvent(task.businessId, {
             title: task.title,
@@ -114,13 +145,14 @@ export class TasksService {
       source: input.source ?? 'manual',
       kind: input.kind ?? 'task',
       dueAt: input.dueAt ? new Date(input.dueAt) : null,
+      durationMinutes: input.durationMinutes ?? null,
       createdByUserId: input.createdByUserId ?? null,
       relatedType: input.relatedType ?? null,
       relatedId: input.relatedId ?? null,
       remindEnabled: input.remindEnabled ?? false,
       remindAt: input.remindAt ? new Date(input.remindAt) : null,
-      remindCustomerPhone: input.remindCustomerPhone ?? null,
-      remindCustomerName: input.remindCustomerName ?? null,
+      remindCustomerPhone: toWaPhone(input.remindCustomerPhone),
+      remindCustomerName: input.remindCustomerName?.trim() || null,
       status: 'open',
     });
     const saved = await this.tasks.save(task);
@@ -135,9 +167,11 @@ export class TasksService {
       Pick<Task, 'title' | 'description' | 'status' | 'priority'>
     > & {
       dueAt?: string | Date | null;
+      durationMinutes?: number | null;
       remindEnabled?: boolean;
       remindAt?: string | Date | null;
       remindCustomerPhone?: string | null;
+      remindCustomerName?: string | null;
     },
   ): Promise<Task> {
     const task = await this.tasks.findOne({ where: { id, businessId } });
@@ -151,6 +185,9 @@ export class TasksService {
       // Rescheduling revives the reminder — let it fire again at the new time.
       task.notifiedAt = null;
     }
+    if (patch.durationMinutes !== undefined) {
+      task.durationMinutes = patch.durationMinutes ?? null;
+    }
     if (patch.remindEnabled !== undefined) {
       task.remindEnabled = patch.remindEnabled;
       // Turning reminders back on revives delivery for this task.
@@ -162,7 +199,10 @@ export class TasksService {
       task.notifiedAt = null;
     }
     if (patch.remindCustomerPhone !== undefined) {
-      task.remindCustomerPhone = patch.remindCustomerPhone ?? null;
+      task.remindCustomerPhone = toWaPhone(patch.remindCustomerPhone);
+    }
+    if (patch.remindCustomerName !== undefined) {
+      task.remindCustomerName = patch.remindCustomerName?.trim() || null;
     }
     if (patch.status !== undefined) {
       task.status = patch.status;

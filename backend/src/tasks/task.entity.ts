@@ -23,6 +23,14 @@ export type TaskSource = 'manual' | 'automation' | 'agent';
  */
 export type TaskKind = 'task' | 'reminder';
 
+/** Busy-block length for a dated task that has no explicit duration set. */
+export const DEFAULT_TASK_DURATION_MINUTES = 30;
+/**
+ * Longest task duration accepted — also the width the schedule brain looks back
+ * when checking conflicts, so a long task starting before a slot is still seen.
+ */
+export const MAX_TASK_DURATION_MINUTES = 600;
+
 /**
  * A unit of work in the business cockpit. Tasks can be created by a person, by
  * an automation rule, or by an agent (e.g. "follow up with this lead"). Scoped
@@ -60,6 +68,15 @@ export class Task {
 
   @Column({ type: 'timestamptz', name: 'due_at', nullable: true })
   dueAt!: Date | null;
+
+  /**
+   * How long a dated task occupies the owner's timeline, in minutes. Null falls
+   * back to {@link DEFAULT_TASK_DURATION_MINUTES}. Only meaningful with a
+   * `dueAt` — it sets the busy-block length (and the Google mirror event's end),
+   * so a 2-hour task no longer looks like a flat 30-minute slot.
+   */
+  @Column({ type: 'int', name: 'duration_minutes', nullable: true })
+  durationMinutes!: number | null;
 
   /**
    * Master switch for the reminders agent. The reminders sweep only fires a

@@ -1,10 +1,12 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { billingApi } from "../../api/billing";
 import { billingKeys } from "../../lib/queryKeys";
 import { expensesApi } from "../../api/expenses";
-import { PageHeader, StatCard } from "../../components/ui";
+import { accountantApi } from "../../api/accountant";
+import { Banner, Button, Card, PageHeader, Select, Spinner, StatCard } from "../../components/ui";
 import { Icon, type IconName } from "../../components/icons";
 import IncomeSection from "./money/IncomeSection";
 import ExpensesSection from "./money/ExpensesSection";
@@ -109,8 +111,8 @@ export default function Money() {
         />
       </div>
 
-      {/* Tabs */}
-      <div className="mb-6 flex gap-1 overflow-x-auto border-b border-navy-100">
+      {/* Tabs — touch-action:pan-x keeps a mobile swipe horizontal. */}
+      <div className="mb-6 flex gap-1 overflow-x-auto overscroll-x-contain border-b border-navy-100 [touch-action:pan-x]">
         {TABS.map((t) => (
           <button
             key={t.key}
@@ -131,8 +133,128 @@ export default function Money() {
       {view === "income" ? (
         <IncomeSection businessId={businessId} />
       ) : (
-        <ExpensesSection businessId={businessId} />
+        <>
+          <AccountantSendCard businessId={businessId} />
+          <ExpensesSection businessId={businessId} />
+        </>
       )}
     </div>
+  );
+}
+
+/** Build the last N month options as {value:"YYYY-M", label:"חודש שנה"}. */
+function recentMonths(n: number): { value: string; label: string }[] {
+  const now = new Date();
+  const out: { value: string; label: string }[] = [];
+  for (let i = 0; i < n; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    out.push({
+      value: `${d.getFullYear()}-${d.getMonth() + 1}`,
+      label: d.toLocaleDateString("he-IL", { month: "long", year: "numeric" }),
+    });
+  }
+  return out;
+}
+
+function AccountantSendCard({ businessId }: { businessId: string }) {
+  const months = useMemo(() => recentMonths(6), []);
+  const [period, setPeriod] = useState(months[0].value);
+
+  const status = useQuery({
+    queryKey: ["accountant", "status", businessId],
+    queryFn: () => accountantApi.status(businessId),
+    enabled: Boolean(businessId),
+  });
+
+  const sendMut = useMutation({
+    mutationFn: () => {
+      const [year, month] = period.split("-").map(Number);
+      return accountantApi.send(businessId, { year, month });
+    },
+  });
+
+  const hasRecipient = status.data?.hasEmail || status.data?.hasPhone;
+
+  return (
+    <Card className="mb-5 p-4">
+      <div className="flex items-center gap-2 mb-2">
+        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-50 text-brand-500">
+          <Icon name="receipt" size={17} />
+        </span>
+        <span className="font-semibold text-navy-900">שליחת מסמכים לרו״ח</span>
+      </div>
+
+      {status.isLoading ? (
+        <div className="py-2">
+          <Spinner />
+        </div>
+      ) : !hasRecipient ? (
+        <p className="text-sm text-navy-500">
+          כדי לשלוח מסמכים, הגדר קודם נמען רו״ח (מייל/טלפון) ב
+          <Link
+            to={`/app/businesses/${businessId}/preferences/contacts`}
+            className="text-brand-600 underline"
+          >
+            הגדרות ← אנשי קשר
+          </Link>
+          .
+        </p>
+      ) : (
+        <>
+          <p className="text-sm text-navy-500 mb-3">
+            שולח את כל ההוצאות והקבצים של החודש שנבחר + קובץ סיכום, לנמען הרו״ח
+            הקבוע בלבד.
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Select
+              value={period}
+              onChange={(e) => setPeriod(e.target.value)}
+              className="w-auto"
+            >
+              {months.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </Select>
+            <Button
+              icon="send"
+              disabled={sendMut.isPending}
+              onClick={() => sendMut.mutate()}
+            >
+              {sendMut.isPending ? <Spinner /> : "שלח לרו״ח"}
+            </Button>
+          </div>
+
+          {sendMut.isError && (
+            <Banner tone="danger" className="mt-3">
+              השליחה נכשלה. נסה שוב.
+            </Banner>
+          )}
+          {sendMut.isSuccess && (
+            <Banner
+              tone={
+                sendMut.data.emailError && !sendMut.data.emailedTo
+                  ? "warning"
+                  : "success"
+              }
+              className="mt-3"
+            >
+              {sendMut.data.expenseCount} הוצאות · {sendMut.data.filesAttached}{" "}
+              קבצים
+              {sendMut.data.emailedTo
+                ? ` · נשלח למייל ${sendMut.data.emailedTo}`
+                : sendMut.data.emailError
+                  ? " · המייל לא נשלח (בדוק חיבור Gmail)"
+                  : ""}
+              {sendMut.data.whatsappedTo ? ` · נשלח גם בוואטסאפ` : ""}
+              {sendMut.data.missingFiles > 0
+                ? ` · ${sendMut.data.missingFiles} ללא קובץ (מופיעים בסיכום)`
+                : ""}
+            </Banner>
+          )}
+        </>
+      )}
+    </Card>
   );
 }

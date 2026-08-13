@@ -133,6 +133,26 @@ body {
   );
 }
 
+/* --- Mobile safe area -----------------------------------------------------
+   index.html sets viewport-fit=cover, so the app draws edge-to-edge UNDER the
+   notch, the rounded corners and the home indicator. That means every element
+   near a screen edge owes itself the inset, or it hugs / bleeds past the edge
+   (worst on iPhone). This is the single place that knowledge lives — reach for
+   these utilities on any full-bleed bar, header, or edge control.
+
+   Physical env() insets are 0 in portrait, so max() also enforces a comfortable
+   minimum gutter: nothing sits flush against the glass even on a flat edge. */
+.safe-x {
+  padding-inline-start: max(1.25rem, env(safe-area-inset-left));
+  padding-inline-end: max(1.25rem, env(safe-area-inset-right));
+}
+.safe-t {
+  padding-top: env(safe-area-inset-top);
+}
+.safe-b {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
 /* Headings speak in the display face by default. Sizes stay with the caller —
    this only fixes the family so no screen quietly falls back to Rubik.
    Markdown output is excluded: agent-authored prose reads better all-sans. */

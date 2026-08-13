@@ -4,6 +4,15 @@ import { FilesystemService } from './filesystem.service';
 
 const TEXT_EXT = /\.(md|markdown|txt|csv|json|ya?ml)$/i;
 
+/**
+ * The operator-authored voice guide, read separately and injected as a dedicated
+ * "write like this" directive (see the agent worker). Excluded from the generic
+ * context so it isn't duplicated. `.md` first, `.txt` as a fallback.
+ */
+const VOICE_FILES = ['_hidden/voice.md', '_hidden/voice.txt'];
+const isVoiceFile = (relativePath: string): boolean =>
+  VOICE_FILES.includes(relativePath.toLowerCase());
+
 // Hard caps so a run's context can't balloon: agents that need the fine detail
 // still read individual files on demand (Read/Glob/Grep against cwd).
 const MAX_PER_FILE = 6_000;
@@ -53,6 +62,8 @@ export class BusinessContextService {
 
       for (const file of all) {
         const isText = TEXT_EXT.test(file.relativePath);
+        // The voice guide is injected on its own dedicated track — skip it here.
+        if (isVoiceFile(file.relativePath)) continue;
         if (file.hiddenForBusiness) {
           if (!isText) continue; // operator attachments aren't inlined
           if (operator.length >= MAX_OPERATOR) continue;
@@ -88,6 +99,20 @@ export class BusinessContextService {
   async promptBlock(businessId: string): Promise<string | null> {
     const ctx = await this.compose(businessId);
     return renderContextBlock(ctx);
+  }
+
+  /**
+   * The operator-authored voice guide for this business (`_hidden/voice.md`, or
+   * `.txt`) — its real wording / example messages the chat agent imitates.
+   * Returns the trimmed text, or null when no voice file exists. Capped like any
+   * other single context file so it can't balloon the prompt.
+   */
+  async readVoice(businessId: string): Promise<string | null> {
+    for (const path of VOICE_FILES) {
+      const body = await this.readText(businessId, path);
+      if (body) return body.slice(0, MAX_PER_FILE);
+    }
+    return null;
   }
 
   private section(path: string, body: string): string {

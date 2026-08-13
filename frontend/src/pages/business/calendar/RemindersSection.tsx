@@ -45,12 +45,14 @@ function bucketize(reminders: Task[]): Bucket[] {
   endOfToday.setHours(23, 59, 59, 999);
   const weekAhead = new Date(now.getTime() + 7 * 86_400_000);
 
+  // Upcoming first (soonest at the top), then reminders with no time, and the
+  // ones whose time already passed sink to the bottom — you act on what's ahead.
   const buckets: Bucket[] = [
-    { key: "overdue", label: "עבר המועד", items: [] },
     { key: "today", label: "היום", items: [] },
     { key: "week", label: "השבוע", items: [] },
     { key: "later", label: "בהמשך", items: [] },
     { key: "undated", label: "ללא מועד", items: [] },
+    { key: "overdue", label: "עבר המועד", items: [] },
   ];
   const by = Object.fromEntries(buckets.map((b) => [b.key, b])) as Record<
     string,
@@ -82,6 +84,9 @@ export default function RemindersSection({
   const qc = useQueryClient();
   const [title, setTitle] = useState("");
   const [whenLocal, setWhenLocal] = useState("");
+  // Optional customer to also nudge over WhatsApp (any number, need not be saved).
+  const [custName, setCustName] = useState("");
+  const [custPhone, setCustPhone] = useState("");
 
   const reminders = useQuery({
     queryKey: ["tasks", businessId, "reminders"],
@@ -101,10 +106,14 @@ export default function RemindersSection({
         kind: "reminder",
         remindEnabled: true,
         dueAt: whenLocal ? new Date(whenLocal).toISOString() : undefined,
+        remindCustomerPhone: custPhone.trim() || undefined,
+        remindCustomerName: custName.trim() || undefined,
       }),
     onSuccess: () => {
       setTitle("");
       setWhenLocal("");
+      setCustName("");
+      setCustPhone("");
       invalidate();
     },
   });
@@ -150,17 +159,37 @@ export default function RemindersSection({
             onChange={(e) => setTitle(e.target.value)}
             placeholder="תזכיר לי ל..."
           />
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <label className="flex flex-1 items-center gap-2 text-sm text-navy-500">
-              <span className="shrink-0">מתי:</span>
-              <Input
-                type="datetime-local"
-                value={whenLocal}
-                onChange={(e) => setWhenLocal(e.target.value)}
-                dir="ltr"
-                className="flex-1"
-              />
-            </label>
+          <label className="flex items-center gap-2 text-sm text-navy-500">
+            <span className="shrink-0">מתי:</span>
+            <Input
+              type="datetime-local"
+              value={whenLocal}
+              onChange={(e) => setWhenLocal(e.target.value)}
+              dir="ltr"
+              className="flex-1"
+            />
+          </label>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Input
+              value={custName}
+              onChange={(e) => setCustName(e.target.value)}
+              placeholder="שם הלקוח לתזכורת (רשות)"
+              className="flex-1"
+            />
+            <Input
+              type="tel"
+              value={custPhone}
+              onChange={(e) => setCustPhone(e.target.value)}
+              placeholder="טלפון הלקוח (רשות)"
+              dir="ltr"
+              className="flex-1"
+            />
+          </div>
+          <p className="text-xs text-navy-400">
+            אם תמלא טלפון לקוח — התזכורת תישלח גם אליו בוואטסאפ (כל מספר, לא חייב
+            להיות שמור). התוכן שתכתוב למעלה הוא מה שיישלח.
+          </p>
+          <div className="flex">
             <Button
               type="submit"
               icon="bell"
@@ -258,6 +287,13 @@ function ReminderRow({
           {origin && (
             <span className="rounded-full bg-navy-50 px-2 py-0.5 text-navy-400">
               {origin}
+            </span>
+          )}
+          {reminder.remindCustomerPhone && (
+            <span className="inline-flex items-center gap-1 text-teal-600">
+              <Icon name="user" size={12} />
+              {reminder.remindCustomerName?.trim() ||
+                reminder.remindCustomerPhone}
             </span>
           )}
         </div>

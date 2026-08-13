@@ -44,13 +44,13 @@ export function listRemindersTool(ctx: ToolContext) {
 export function createReminderTool(ctx: ToolContext) {
   return tool(
     'create_reminder',
-    'Creates a reminder the owner will be nudged about (in-app + WhatsApp). CRITICAL: separate WHEN THE EVENT HAPPENS (event_date) from WHEN TO REMIND (remind_at / remind_before_hours). If the owner only gives an event time, leave remind_at and remind_before_hours empty and the default fires ~12h before within the business quiet hours. Use when the owner wants to be reminded of a task, follow-up, call or errand.',
+    'Creates a reminder the owner will be nudged about (in-app + WhatsApp). CRITICAL: separate WHEN THE EVENT HAPPENS (event_date) from WHEN TO REMIND (remind_at / remind_before_hours). If the owner only gives an event time, leave remind_at and remind_before_hours empty and the default fires ~12h before within the business quiet hours. Use when the owner wants to be reminded of a task, follow-up, call or errand. To ALSO send the reminder over WhatsApp to another person — a customer, a lead, or anyone at all (the person need NOT be saved in the system) — pass remind_customer_phone with their number and remind_customer_name with their name. That person receives the reminder title as the message, so phrase the title as it should read to them (e.g. "לאסוף את ההזמנה מהחנות").',
     {
       title: z
         .string()
         .min(1)
         .describe(
-          'What to remind about, phrased naturally in Hebrew (e.g. "לאסוף ציוד להשכרה", "להתקשר לדנה").',
+          'What to remind about, phrased naturally in Hebrew (e.g. "לאסוף ציוד להשכרה", "להתקשר לדנה"). This exact text is what an extra recipient (remind_customer_phone) receives.',
         ),
       event_date: z
         .string()
@@ -78,6 +78,16 @@ export function createReminderTool(ctx: ToolContext) {
         .string()
         .optional()
         .describe('Optional linked object id (uuid).'),
+      remind_customer_phone: z
+        .string()
+        .optional()
+        .describe(
+          'Optional extra recipient\'s WhatsApp number (any format, e.g. "050-1234567"). When set, the reminder is ALSO sent to them over WhatsApp — they need not be a saved contact.',
+        ),
+      remind_customer_name: z
+        .string()
+        .optional()
+        .describe("The extra recipient's name, to greet them personally."),
     },
     async (args) => {
       // ISO strings without an offset are Israel wall-clock time, not UTC.
@@ -103,16 +113,21 @@ export function createReminderTool(ctx: ToolContext) {
         createdByUserId: ctx.userId ?? null,
         relatedType: args.related_type ?? null,
         relatedId: args.related_id ?? null,
+        remindCustomerPhone: args.remind_customer_phone ?? null,
+        remindCustomerName: args.remind_customer_name ?? null,
       });
       ctx.changed = true;
       const fires = remindAt
         ? ` It will remind at ${remindAt.toISOString()}.`
         : '';
+      const alsoTo = args.remind_customer_phone
+        ? ` It will ALSO be sent over WhatsApp to ${args.remind_customer_name ?? args.remind_customer_phone}.`
+        : '';
       return {
         content: [
           {
             type: 'text',
-            text: `Reminder created (id=${task.id}).${fires} Confirm briefly in Hebrew, stating when you'll remind them.`,
+            text: `Reminder created (id=${task.id}).${fires}${alsoTo} Confirm briefly in Hebrew, stating when you'll remind them${args.remind_customer_phone ? ' and that it will also reach that person on WhatsApp' : ''}.`,
           },
         ],
       };

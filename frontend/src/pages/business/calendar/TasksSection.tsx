@@ -39,6 +39,22 @@ const SORT_LABEL: Record<SortKey, string> = {
   priority: "דחיפות",
 };
 
+/** Duration choices for a dated task (minutes → Hebrew label). */
+const DURATION_OPTIONS: { value: number; label: string }[] = [
+  { value: 15, label: "15 דק׳" },
+  { value: 30, label: "30 דק׳" },
+  { value: 45, label: "45 דק׳" },
+  { value: 60, label: "שעה" },
+  { value: 90, label: "שעה וחצי" },
+  { value: 120, label: "שעתיים" },
+  { value: 180, label: "3 שעות" },
+  { value: 240, label: "4 שעות" },
+];
+
+function durationLabel(min: number): string {
+  return DURATION_OPTIONS.find((o) => o.value === min)?.label ?? `${min} דק׳`;
+}
+
 /** dd/mm HH:mm in Israel-locale wall-clock for a due/reminder time. */
 function formatDue(iso: string): string {
   return new Date(iso).toLocaleString("he-IL", {
@@ -84,7 +100,13 @@ export default function TasksSection({ businessId }: { businessId: string }) {
   const [title, setTitle] = useState("");
   const [priority, setPriority] = useState<TaskPriority>("medium");
   const [dueLocal, setDueLocal] = useState("");
+  const [duration, setDuration] = useState(30);
   const [remind, setRemind] = useState(false);
+  // Optional distinct reminder time (empty → fire at the due date).
+  const [remindLocal, setRemindLocal] = useState("");
+  // Optional customer to also remind over WhatsApp.
+  const [custName, setCustName] = useState("");
+  const [custPhone, setCustPhone] = useState("");
   const [sort, setSort] = useState<SortKey>("added");
   const titleRef = useRef<HTMLInputElement>(null);
 
@@ -100,20 +122,38 @@ export default function TasksSection({ businessId }: { businessId: string }) {
   const invalidate = () =>
     qc.invalidateQueries({ queryKey: ["tasks", businessId] });
 
+  // A reminder needs a fire time: an explicit reminder time, or the due date.
+  const remindFireTime = remindLocal || dueLocal;
   const createMut = useMutation({
     mutationFn: () =>
       tasksApi.create(businessId, {
         title,
         priority,
         dueAt: dueLocal ? new Date(dueLocal).toISOString() : undefined,
-        // A reminder needs a time to fire — only arm it when a due date is set.
-        remindEnabled: remind && Boolean(dueLocal),
+        // Duration only means something for a dated task (it sets the busy
+        // block); skip it for an undated to-do.
+        durationMinutes: dueLocal ? duration : undefined,
+        remindEnabled: remind && Boolean(remindFireTime),
+        // Only send a distinct reminder time when the owner set one; otherwise
+        // the backend fires at the due date.
+        remindAt:
+          remind && remindLocal
+            ? new Date(remindLocal).toISOString()
+            : undefined,
+        remindCustomerPhone:
+          remind && custPhone.trim() ? custPhone.trim() : undefined,
+        remindCustomerName:
+          remind && custName.trim() ? custName.trim() : undefined,
       }),
     onSuccess: () => {
       setTitle("");
       setPriority("medium");
       setDueLocal("");
+      setDuration(30);
       setRemind(false);
+      setRemindLocal("");
+      setCustName("");
+      setCustPhone("");
       invalidate();
     },
   });
@@ -128,12 +168,25 @@ export default function TasksSection({ businessId }: { businessId: string }) {
     mutationFn: (id: string) => tasksApi.remove(businessId, id),
     onSuccess: invalidate,
   });
+  // Rename an existing task's title.
+  const renameMut = useMutation({
+    mutationFn: (v: { id: string; title: string }) =>
+      tasksApi.update(businessId, v.id, { title: v.title }),
+    onSuccess: invalidate,
+  });
   // Set/update a reminder on an existing task (any time, even after creation).
   const setReminderMut = useMutation({
-    mutationFn: (v: { id: string; remindAt: string }) =>
+    mutationFn: (v: {
+      id: string;
+      remindAt: string;
+      customerName: string;
+      customerPhone: string;
+    }) =>
       tasksApi.update(businessId, v.id, {
         remindEnabled: true,
         remindAt: v.remindAt,
+        remindCustomerName: v.customerName.trim() || null,
+        remindCustomerPhone: v.customerPhone.trim() || null,
       }),
     onSuccess: invalidate,
   });
@@ -191,25 +244,81 @@ export default function TasksSection({ businessId }: { businessId: string }) {
                 className="flex-1"
               />
             </label>
-            <label
-              className={`flex items-center gap-1.5 text-sm ${
-                dueLocal ? "text-navy-700" : "text-navy-300"
-              }`}
-              title={dueLocal ? "" : "כדי להפעיל תזכורת קבע קודם מועד"}
-            >
+            {dueLocal && (
+              <label className="flex items-center gap-2 text-sm text-navy-500">
+                <span className="shrink-0">משך:</span>
+                <Select
+                  value={String(duration)}
+                  onChange={(e) => setDuration(Number(e.target.value))}
+                  className="w-auto"
+                >
+                  {DURATION_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+            )}
+            <label className="flex items-center gap-1.5 text-sm text-navy-700">
               <input
                 type="checkbox"
-                checked={remind && Boolean(dueLocal)}
-                disabled={!dueLocal}
+                checked={remind}
                 onChange={(e) => setRemind(e.target.checked)}
                 className="h-4 w-4 rounded border-navy-300"
               />
               <Icon name="bell" size={15} />
               הפעל תזכורת
             </label>
+          </div>
+
+          {remind && (
+            <div className="space-y-3 rounded-lg border border-navy-100 bg-cream-50/60 p-3">
+              <label className="flex flex-col gap-1.5 text-sm text-navy-500 sm:flex-row sm:items-center sm:gap-2">
+                <span className="shrink-0">תזכיר לי ב:</span>
+                <Input
+                  type="datetime-local"
+                  value={remindLocal}
+                  onChange={(e) => setRemindLocal(e.target.value)}
+                  dir="ltr"
+                  className="flex-1"
+                />
+                <span className="text-xs text-navy-400">
+                  {remindLocal
+                    ? ""
+                    : dueLocal
+                      ? "ריק = במועד המשימה"
+                      : "קבע זמן תזכורת או מועד למשימה"}
+                </span>
+              </label>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Input
+                  value={custName}
+                  onChange={(e) => setCustName(e.target.value)}
+                  placeholder="שם הלקוח לתזכורת (רשות)"
+                  className="flex-1"
+                />
+                <Input
+                  type="tel"
+                  value={custPhone}
+                  onChange={(e) => setCustPhone(e.target.value)}
+                  placeholder="טלפון הלקוח (רשות)"
+                  dir="ltr"
+                  className="flex-1"
+                />
+              </div>
+              <p className="text-xs text-navy-400">
+                אם תמלא טלפון לקוח — התזכורת תישלח גם אליו בוואטסאפ, לא רק אליך.
+              </p>
+            </div>
+          )}
+
+          {/* Submit stays the bottom-most control so it never sits above the
+              reminder fields it would skip past. */}
+          <div className="flex">
             <Button
               type="submit"
-              disabled={createMut.isPending}
+              disabled={createMut.isPending || (remind && !remindFireTime)}
               className="sm:ms-auto"
             >
               {createMut.isPending ? <Spinner /> : "הוסף"}
@@ -260,8 +369,9 @@ export default function TasksSection({ businessId }: { businessId: string }) {
                 key={task.id}
                 task={task}
                 onToggle={() => toggleMut.mutate(task)}
-                onSaveReminder={(remindAt) =>
-                  setReminderMut.mutate({ id: task.id, remindAt })
+                onRename={(title) => renameMut.mutate({ id: task.id, title })}
+                onSaveReminder={(v) =>
+                  setReminderMut.mutate({ id: task.id, ...v })
                 }
                 onClearReminder={() => clearReminderMut.mutate(task.id)}
                 onRemove={() => removeMut.mutate(task.id)}
@@ -285,8 +395,9 @@ export default function TasksSection({ businessId }: { businessId: string }) {
                 key={task.id}
                 task={task}
                 onToggle={() => toggleMut.mutate(task)}
-                onSaveReminder={(remindAt) =>
-                  setReminderMut.mutate({ id: task.id, remindAt })
+                onRename={(title) => renameMut.mutate({ id: task.id, title })}
+                onSaveReminder={(v) =>
+                  setReminderMut.mutate({ id: task.id, ...v })
                 }
                 onClearReminder={() => clearReminderMut.mutate(task.id)}
                 onRemove={() => removeMut.mutate(task.id)}
@@ -302,18 +413,34 @@ export default function TasksSection({ businessId }: { businessId: string }) {
 function TaskRow({
   task,
   onToggle,
+  onRename,
   onSaveReminder,
   onClearReminder,
   onRemove,
 }: {
   task: Task;
   onToggle: () => void;
-  onSaveReminder: (remindAtISO: string) => void;
+  onRename: (title: string) => void;
+  onSaveReminder: (v: {
+    remindAt: string;
+    customerName: string;
+    customerPhone: string;
+  }) => void;
   onClearReminder: () => void;
   onRemove: () => void;
 }) {
   const done = task.status === "done";
   const [editing, setEditing] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(task.title);
+  const [rCustName, setRCustName] = useState(task.remindCustomerName ?? "");
+  const [rCustPhone, setRCustPhone] = useState(task.remindCustomerPhone ?? "");
+
+  function saveTitle() {
+    const next = titleDraft.trim();
+    if (next && next !== task.title) onRename(next);
+    setRenaming(false);
+  }
   const [when, setWhen] = useState(() =>
     task.remindAt
       ? toLocalInput(task.remindAt)
@@ -337,11 +464,28 @@ function TaskRow({
           {done && <Icon name="check" size={13} />}
         </button>
         <div className="flex-1 min-w-0">
-          <div
-            className={`text-sm font-medium text-navy-900 ${done ? "line-through" : ""}`}
-          >
-            {task.title}
-          </div>
+          {renaming ? (
+            <Input
+              autoFocus
+              value={titleDraft}
+              onChange={(e) => setTitleDraft(e.target.value)}
+              onBlur={saveTitle}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") saveTitle();
+                if (e.key === "Escape") {
+                  setTitleDraft(task.title);
+                  setRenaming(false);
+                }
+              }}
+              className="text-sm"
+            />
+          ) : (
+            <div
+              className={`text-sm font-medium text-navy-900 ${done ? "line-through" : ""}`}
+            >
+              {task.title}
+            </div>
+          )}
           {task.description && (
             <div className="text-xs text-navy-400 mt-0.5">
               {task.description}
@@ -353,6 +497,11 @@ function TaskRow({
                 <span className="inline-flex items-center gap-1 text-navy-400">
                   <Icon name="clock" size={12} />
                   {formatDue(task.dueAt)}
+                  {task.durationMinutes ? (
+                    <span className="text-navy-300">
+                      · {durationLabel(task.durationMinutes)}
+                    </span>
+                  ) : null}
                 </span>
               )}
               {task.remindEnabled && (
@@ -365,6 +514,12 @@ function TaskRow({
                       : "תזכורת"}
                 </span>
               )}
+              {task.remindEnabled && task.remindCustomerPhone && (
+                <span className="inline-flex items-center gap-1 text-teal-600">
+                  <Icon name="user" size={12} />
+                  {task.remindCustomerName?.trim() || task.remindCustomerPhone}
+                </span>
+              )}
             </div>
           )}
         </div>
@@ -375,6 +530,19 @@ function TaskRow({
           <Badge tone="neutral" className="shrink-0 hidden sm:inline-flex">
             {SOURCE_LABEL[task.source]}
           </Badge>
+        )}
+        {!done && !renaming && (
+          <button
+            onClick={() => {
+              setTitleDraft(task.title);
+              setRenaming(true);
+            }}
+            aria-label="ערוך שם"
+            title="ערוך שם"
+            className="shrink-0 rounded-lg p-1.5 text-navy-300 transition-colors hover:bg-navy-50 hover:text-navy-600"
+          >
+            <Icon name="pencil" size={16} />
+          </button>
         )}
         {!done && (
           <button
@@ -400,8 +568,8 @@ function TaskRow({
       </div>
 
       {editing && !done && (
-        <div className="mt-3 flex flex-col gap-2 border-t border-navy-100 pt-3 sm:flex-row sm:items-center">
-          <label className="flex flex-1 items-center gap-2 text-sm text-navy-500">
+        <div className="mt-3 space-y-2.5 border-t border-navy-100 pt-3">
+          <label className="flex flex-col gap-1.5 text-sm text-navy-500 sm:flex-row sm:items-center sm:gap-2">
             <span className="shrink-0">תזכיר לי ב:</span>
             <Input
               type="datetime-local"
@@ -411,29 +579,54 @@ function TaskRow({
               className="flex-1"
             />
           </label>
-          <Button
-            size="sm"
-            disabled={!when}
-            onClick={() => {
-              if (!when) return;
-              onSaveReminder(new Date(when).toISOString());
-              setEditing(false);
-            }}
-          >
-            {task.remindEnabled ? "עדכן תזכורת" : "הפעל תזכורת"}
-          </Button>
-          {task.remindEnabled && (
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Input
+              value={rCustName}
+              onChange={(e) => setRCustName(e.target.value)}
+              placeholder="שם הלקוח (רשות)"
+              className="flex-1"
+            />
+            <Input
+              type="tel"
+              value={rCustPhone}
+              onChange={(e) => setRCustPhone(e.target.value)}
+              placeholder="טלפון הלקוח (רשות)"
+              dir="ltr"
+              className="flex-1"
+            />
+          </div>
+          <p className="text-xs text-navy-400">
+            טלפון לקוח → התזכורת תישלח גם אליו בוואטסאפ.
+          </p>
+          <div className="flex items-center gap-2">
             <Button
               size="sm"
-              variant="ghost"
+              disabled={!when}
               onClick={() => {
-                onClearReminder();
+                if (!when) return;
+                onSaveReminder({
+                  remindAt: new Date(when).toISOString(),
+                  customerName: rCustName,
+                  customerPhone: rCustPhone,
+                });
                 setEditing(false);
               }}
             >
-              כבה
+              {task.remindEnabled ? "עדכן תזכורת" : "הפעל תזכורת"}
             </Button>
-          )}
+            {task.remindEnabled && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  onClearReminder();
+                  setEditing(false);
+                }}
+              >
+                כבה
+              </Button>
+            )}
+          </div>
         </div>
       )}
     </Card>

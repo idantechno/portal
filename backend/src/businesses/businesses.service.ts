@@ -8,7 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 import { customAlphabet } from 'nanoid';
-import { Business } from './business.entity';
+import { Business, BusinessNotificationPreferences } from './business.entity';
 import { BusinessMember } from './business-member.entity';
 import { BusinessRole } from '../common/enums/business-role.enum';
 import { UserRole } from '../common/enums/user-role.enum';
@@ -119,6 +119,33 @@ export class BusinessesService {
     if (dto.ownerPhone !== undefined) {
       business.ownerPhone = dto.ownerPhone.trim() || null;
     }
+    if (dto.accountantEmail !== undefined) {
+      business.accountantEmail = dto.accountantEmail.trim() || null;
+    }
+    if (dto.accountantPhone !== undefined) {
+      business.accountantPhone = dto.accountantPhone.trim() || null;
+    }
+    if (dto.availability !== undefined) {
+      // Replace wholesale — the hours editor always sends the full config.
+      business.availability = dto.availability;
+    }
+    return this.businesses.save(business);
+  }
+
+  /**
+   * Persist the owner's notification-channel preferences. Kept off the main
+   * update() path because it's owner-facing (set from the notifications screen)
+   * while update() is operator-gated. Replaces the whole object.
+   */
+  async setNotificationPreferences(
+    businessId: string,
+    prefs: BusinessNotificationPreferences,
+  ): Promise<Business> {
+    const business = await this.businesses.findOne({
+      where: { id: businessId },
+    });
+    if (!business) throw new NotFoundException('Business not found');
+    business.notificationPreferences = prefs;
     return this.businesses.save(business);
   }
 

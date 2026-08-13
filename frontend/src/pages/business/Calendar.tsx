@@ -7,17 +7,25 @@ import TasksSection from "./calendar/TasksSection";
 import RemindersSection from "./calendar/RemindersSection";
 import DayAgendaSection from "./calendar/DayAgendaSection";
 
-type View = "today" | "month" | "appointments" | "tasks" | "reminders";
+type View = "today" | "week" | "month" | "appointments" | "tasks" | "reminders";
 
-const TABS: { key: View; label: string; icon: IconName }[] = [
-  { key: "today", label: "היום", icon: "compass" },
-  { key: "month", label: "חודש", icon: "calendar" },
+/** The calendar timeframe — one clean "תצוגה" switch instead of a tab + a
+ *  hidden toggle. */
+const VIEWS: { key: "today" | "week" | "month"; label: string }[] = [
+  { key: "today", label: "יום" },
+  { key: "week", label: "שבוע" },
+  { key: "month", label: "חודש" },
+];
+
+/** The item lists — a separate axis from the calendar timeframe. */
+const LISTS: { key: "appointments" | "tasks" | "reminders"; label: string; icon: IconName }[] = [
   { key: "appointments", label: "פגישות ותורים", icon: "clock" },
   { key: "tasks", label: "משימות", icon: "tasks" },
   { key: "reminders", label: "תזכורות", icon: "bell" },
 ];
 
 function readView(param: string | null): View {
+  if (param === "week") return "week";
   if (param === "month") return "month";
   if (param === "appointments") return "appointments";
   if (param === "tasks") return "tasks";
@@ -26,11 +34,11 @@ function readView(param: string | null): View {
 }
 
 /**
- * Unified "יומן" screen — one place for the whole schedule. Three views:
- * חודש (month grid), פגישות ותורים (appointments + waitlist), and תזכורות
- * (task checklist). Each view is its own section component keeping its original
- * queries/mutations; the old /appointments and /tasks routes redirect here with
- * a ?view= param so deep links and notifications keep working.
+ * Unified "יומן" screen — one place for the whole schedule. A "תצוגה" segmented
+ * control switches the calendar timeframe (יום / שבוע / חודש); a second row of
+ * tabs opens the item lists (פגישות ותורים, משימות, תזכורות). Each section keeps
+ * its own queries/mutations; the old /appointments and /tasks routes redirect
+ * here with a ?view= param so deep links and notifications keep working.
  */
 export default function Calendar() {
   const { businessId = "" } = useParams<{ businessId: string }>();
@@ -51,12 +59,34 @@ export default function Calendar() {
     <div className="px-4 sm:px-6 py-6 sm:py-8 max-w-4xl mx-auto">
       <PageHeader
         title="יומן"
-        subtitle="כל מה שמתוכנן במקום אחד — חודש, פגישות ותורים, משימות ותזכורות."
+        subtitle="כל מה שמתוכנן במקום אחד — יום, שבוע, חודש, פגישות, משימות ותזכורות."
       />
 
-      {/* Tabs — matches the internal-tab pattern used across the agents. */}
-      <div className="mb-6 flex gap-1 overflow-x-auto border-b border-navy-100">
-        {TABS.map((t) => (
+      {/* תצוגה — the calendar timeframe as one clear segmented control. */}
+      <div className="mb-5">
+        <div className="mb-1.5 text-xs font-medium text-navy-400">תצוגה</div>
+        <div className="inline-flex rounded-xl bg-navy-50 p-1 text-sm">
+          {VIEWS.map((v) => (
+            <button
+              key={v.key}
+              type="button"
+              onClick={() => select(v.key)}
+              className={`rounded-lg px-5 py-1.5 font-medium transition ${
+                view === v.key
+                  ? "bg-white text-navy-900 shadow-e1"
+                  : "text-navy-500 hover:text-navy-800"
+              }`}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Lists — a second axis. touch-action:pan-x keeps a swipe on the strip
+          horizontal so it can't drag the page up/down on mobile. */}
+      <div className="mb-6 flex gap-1 overflow-x-auto overscroll-x-contain border-b border-navy-100 [touch-action:pan-x]">
+        {LISTS.map((t) => (
           <button
             key={t.key}
             type="button"
@@ -73,7 +103,12 @@ export default function Calendar() {
         ))}
       </div>
 
-      {view === "today" && <DayAgendaSection businessId={businessId} />}
+      {view === "today" && (
+        <DayAgendaSection businessId={businessId} range="today" />
+      )}
+      {view === "week" && (
+        <DayAgendaSection businessId={businessId} range="week" />
+      )}
       {view === "month" && <MonthSection businessId={businessId} />}
       {view === "appointments" && (
         <AppointmentsSection businessId={businessId} />

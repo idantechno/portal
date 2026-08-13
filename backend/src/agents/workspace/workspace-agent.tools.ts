@@ -4,6 +4,7 @@ import { TasksService } from '../../tasks/tasks.service';
 import { LeadsService } from '../../leads/leads.service';
 import { BillingService } from '../../billing/billing.service';
 import { ExpensesService } from '../../expenses/expenses.service';
+import { AccountantService } from '../../accountant/accountant.service';
 import { AgentDefinition, getAgentDefinition } from '../agent-catalog';
 import { parseIsraelDate } from '../../common/time/israel-time';
 
@@ -27,6 +28,7 @@ export interface WorkspaceToolContext {
   leads: LeadsService;
   billing: BillingService;
   expenses: ExpensesService;
+  accountant: AccountantService;
   entitled: AgentDefinition[];
   suggestions: AgentSuggestion[];
 }
@@ -319,6 +321,63 @@ export function businessSnapshotTool(ctx: WorkspaceToolContext) {
           },
         ],
       };
+    },
+  );
+}
+
+export function sendToAccountantTool(ctx: WorkspaceToolContext) {
+  return tool(
+    'send_to_accountant',
+    'Sends the business financial documents for a month — every expense receipt/invoice file plus a complete summary CSV — to the business ACCOUNTANT. The recipient is LOCKED to the accountant on file (email + WhatsApp); you cannot choose or change it. Use when the owner asks to send documents/expenses/reports to the accountant (רו"ח). Defaults to the current month.',
+    {
+      year: z.number().int().min(2020).max(2100).optional(),
+      month: z
+        .number()
+        .int()
+        .min(1)
+        .max(12)
+        .optional()
+        .describe('1-12; omit for the current month.'),
+    },
+    async (args) => {
+      try {
+        const r = await ctx.accountant.sendToAccountant(ctx.businessId, {
+          year: args.year,
+          month: args.month,
+        });
+        ctx.changed = true;
+        return {
+          content: [
+            {
+              type: 'text',
+              text:
+                JSON.stringify(
+                  {
+                    period: r.periodLabel,
+                    expenses: r.expenseCount,
+                    files_attached: r.filesAttached,
+                    missing_files: r.missingFiles,
+                    total_ils: r.totalIls,
+                    emailed_to: r.emailedTo,
+                    email_error: r.emailError,
+                    whatsapped_to: r.whatsappedTo,
+                    whatsapp_error: r.whatsappError,
+                  },
+                  null,
+                  2,
+                ) +
+                '\nTell the owner in Hebrew exactly what was sent and to whom. Be honest about any error or missing files — never claim success for a channel that returned an error.',
+            },
+          ],
+        };
+      } catch (err) {
+        const msg = (err as Error).message;
+        const text =
+          msg === 'ACCOUNTANT_RECIPIENT_NOT_SET'
+            ? 'No accountant recipient is set. Tell the owner (in Hebrew) to add the accountant email/phone in the settings first — you cannot send without it.'
+            : `Sending failed: ${msg}. Tell the owner briefly and honestly in Hebrew.`;
+        return { content: [{ type: 'text', text }] };
+      }
     },
   );
 }

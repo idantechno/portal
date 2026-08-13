@@ -26,12 +26,14 @@ import {
   buildStepInBlock,
   buildSystemPrompt,
   buildUserPrompt,
+  buildVoiceBlock,
 } from './prompt';
 import {
   cancelAppointmentTool,
   captureLeadTool,
   createReminderTool,
   escalateToHumanTool,
+  findFreeSlotsTool,
   joinWaitlistTool,
   recordEngagementTool,
   rescheduleAppointmentTool,
@@ -157,6 +159,7 @@ export class AgentWorkerService {
         ...(canSchedule
           ? [
               scheduleAppointmentTool(toolCtx),
+              findFreeSlotsTool(toolCtx),
               joinWaitlistTool(toolCtx),
               cancelAppointmentTool(toolCtx),
               rescheduleAppointmentTool(toolCtx),
@@ -170,6 +173,11 @@ export class AgentWorkerService {
     // emphasise/avoid) — already editable by the operator, now finally reaching
     // the customer-facing agent so it speaks in this business's own character.
     const personaBlock = renderOnboardingProfile(business);
+    // The operator-authored voice guide (`_hidden/voice.md`) — the business's
+    // real wording / example messages the agent imitates so it sounds like a
+    // specific human, not a generic assistant. Absent → generic warm voice.
+    const voiceText = await this.businessContext.readVoice(business.id);
+    const voiceBlock = voiceText ? buildVoiceBlock(voiceText) : null;
 
     // Personalisation: who is on the other end (paying customer vs lead) and
     // whether we've spoken before, so the agent addresses them by name and
@@ -287,6 +295,7 @@ export class AgentWorkerService {
       systemPrompt: buildSystemPrompt(
         business,
         personaBlock,
+        voiceBlock,
         contextBlock,
         contactBlock,
         appointmentsBlock,

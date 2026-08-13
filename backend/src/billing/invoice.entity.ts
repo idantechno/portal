@@ -66,6 +66,25 @@ export class Invoice {
   @Column({ type: 'varchar', length: 512, name: 'pdf_url', nullable: true })
   pdfUrl!: string | null;
 
+  // The real legal document issued in Green Invoice (morning) when this invoice
+  // was marked paid. Null until then (or if the business has no GI connection).
+  @Column({
+    type: 'varchar',
+    length: 64,
+    name: 'external_doc_id',
+    nullable: true,
+  })
+  externalDocId!: string | null;
+
+  /** Green Invoice's own running document number (distinct from our `number`). */
+  @Column({
+    type: 'varchar',
+    length: 64,
+    name: 'external_doc_number',
+    nullable: true,
+  })
+  externalDocNumber!: string | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 }

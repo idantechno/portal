@@ -6,12 +6,7 @@ import { EmptyState } from "./ui";
 import type { AppNotification, NotificationType } from "../api/notifications";
 import { Icon } from "./icons";
 import type { IconName } from "./icons";
-import {
-  enablePush,
-  hasPushSubscription,
-  isPushSupported,
-  pushPermission,
-} from "../pwa/push";
+import { syncAppBadge } from "../pwa/push";
 
 /** Each notification type gets the same glyph the matching screen uses in the
  *  sidebar, so a notification visually points at where it lands. */
@@ -67,45 +62,12 @@ export function NotificationBell({ businessId }: { businessId: string }) {
   const count = unread.data ?? 0;
   const items = list.data ?? [];
 
-  // Push opt-in state: "on" already subscribed, "off" can enable, "denied"
-  // blocked in browser settings, "unsupported"/null hide the row entirely.
-  const [pushState, setPushState] = useState<
-    "on" | "off" | "denied" | "unsupported" | null
-  >(null);
-  const [pushBusy, setPushBusy] = useState(false);
-
+  // Keep the home-screen app-icon badge in sync while the app is open. The SW
+  // handles it while closed (from the push payload); this covers reads and the
+  // 30s poll, so the red circle clears the moment you catch up.
   useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-    void (async () => {
-      // Awaited up front so state updates never land synchronously in-effect.
-      await Promise.resolve();
-      if (cancelled) return;
-      if (!isPushSupported()) return setPushState("unsupported");
-      if (pushPermission() === "denied") return setPushState("denied");
-      const has = await hasPushSubscription();
-      if (!cancelled) setPushState(has ? "on" : "off");
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [open]);
-
-  const onEnablePush = async () => {
-    setPushBusy(true);
-    try {
-      const result = await enablePush(businessId);
-      setPushState(
-        result === "subscribed"
-          ? "on"
-          : result === "denied"
-            ? "denied"
-            : "unsupported",
-      );
-    } finally {
-      setPushBusy(false);
-    }
-  };
+    if (unread.isSuccess) syncAppBadge(count);
+  }, [count, unread.isSuccess]);
 
   useEffect(() => {
     if (!open) return;
@@ -120,14 +82,17 @@ export function NotificationBell({ businessId }: { businessId: string }) {
     <div className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="relative flex h-9 w-9 items-center justify-center rounded-xl text-navy-600 transition-colors hover:bg-cream-50 hover:text-navy-800"
+        className="relative flex h-12 w-12 items-center justify-center rounded-xl text-navy-600 transition-colors hover:bg-cream-50 hover:text-navy-800"
         aria-label="התראות"
         aria-haspopup="dialog"
         aria-expanded={open}
       >
-        <Icon name="bell" size={19} />
+        <Icon name="bell" size={25} />
         {count > 0 && (
-          <span className="absolute -top-0.5 -end-0.5 min-w-4 h-4 px-1 rounded-full bg-coral-500 text-white text-[10px] font-bold flex items-center justify-center">
+          // Sits INSIDE the 44px button (top/end, not outset) so it can never
+          // bleed past the header's safe-area gutter. White ring lifts it off
+          // the icon the way a native badge does.
+          <span className="absolute top-1.5 end-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-coral-500 text-white text-[11px] font-bold leading-none flex items-center justify-center ring-2 ring-white">
             {count > 9 ? "9+" : count}
           </span>
         )}
@@ -141,10 +106,12 @@ export function NotificationBell({ businessId }: { businessId: string }) {
             aria-label="התראות"
             className="absolute end-0 mt-2 w-80 max-w-[calc(100vw-2rem)] max-h-96 overflow-auto z-40 rounded-2xl border border-navy-100 bg-white shadow-[0_24px_48px_-24px_rgba(1,20,39,0.4)]"
           >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-navy-100 sticky top-0 bg-white">
+            <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-navy-100 sticky top-0 bg-white">
               <span className="font-semibold text-navy-900 text-sm">
                 התראות
               </span>
+              {/* Notification channel + push settings now live in the owner
+                  settings hub (הגדרות ← התראות), not here. */}
               {count > 0 && (
                 <button
                   onClick={() => markAll.mutate()}
@@ -192,30 +159,6 @@ export function NotificationBell({ businessId }: { businessId: string }) {
                   </li>
                 ))}
               </ul>
-            )}
-            {pushState && pushState !== "unsupported" && (
-              <div className="sticky bottom-0 border-t border-navy-100 bg-white px-4 py-2.5">
-                {pushState === "on" ? (
-                  <div className="flex items-center gap-2 text-xs text-navy-400">
-                    <Icon name="bell" size={14} />
-                    התראות בטלפון פעילות
-                  </div>
-                ) : pushState === "denied" ? (
-                  <div className="text-xs text-navy-400">
-                    התראות חסומות בהגדרות הדפדפן. אפשר לפתוח אותן שם.
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={onEnablePush}
-                    disabled={pushBusy}
-                    className="flex items-center gap-2 text-xs font-medium text-brand-600 hover:text-brand-700 disabled:opacity-50"
-                  >
-                    <Icon name="bell" size={14} />
-                    {pushBusy ? "מפעיל…" : "הפעל התראות בטלפון"}
-                  </button>
-                )}
-              </div>
             )}
           </div>
         </>

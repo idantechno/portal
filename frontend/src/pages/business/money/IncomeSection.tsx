@@ -6,6 +6,7 @@ import type { Invoice } from "../../../api/billing";
 import { billingKeys } from "../../../lib/queryKeys";
 import {
   Badge,
+  Banner,
   Button,
   Card,
   EmptyState,
@@ -14,6 +15,7 @@ import {
   Spinner,
 } from "../../../components/ui";
 import type { BadgeTone } from "../../../components/ui";
+import { Icon } from "../../../components/icons";
 
 const shekels = (cents: number) =>
   `₪${(cents / 100).toLocaleString("he-IL")}`;
@@ -51,10 +53,17 @@ export default function IncomeSection({ businessId }: { businessId: string }) {
     enabled: Boolean(businessId),
   });
 
+  const [payError, setPayError] = useState<string | null>(null);
   const markPaidMut = useMutation({
     mutationFn: (id: string) => billingApi.markPaid(businessId, id),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: billingKeys.invoices(businessId) }),
+    onSuccess: () => {
+      setPayError(null);
+      qc.invalidateQueries({ queryKey: billingKeys.invoices(businessId) });
+    },
+    onError: () =>
+      setPayError(
+        "לא הצלחנו להפיק את המסמך החוקי בחשבונית ירוקה. החשבונית לא סומנה כשולמה — נסה שוב.",
+      ),
   });
 
   const rows = invoices.data ?? [];
@@ -75,7 +84,8 @@ export default function IncomeSection({ businessId }: { businessId: string }) {
             </h2>
             <p className="text-sm text-navy-500 mt-0.5">
               צור חשבונית חדשה — היא תתווסף לרשימה למטה ותיכנס להכנסות החודש
-              כשתסמן אותה כשולמה.
+              כשתסמן אותה כשולמה. אם חשבונית ירוקה מחוברת, הסימון כ"שולמה" גם מפיק
+              את המסמך החוקי (קבלה או חשבונית מס) אצל הלקוח.
             </p>
             {!showInvoice && (
               <Button
@@ -121,6 +131,12 @@ export default function IncomeSection({ businessId }: { businessId: string }) {
           )}
         </div>
 
+        {payError && (
+          <div className="px-5 pb-4 sm:px-6">
+            <Banner tone="danger">{payError}</Banner>
+          </div>
+        )}
+
         {invoices.isLoading ? (
           <div className="flex justify-center border-t border-navy-100 py-8">
             <Spinner />
@@ -163,10 +179,23 @@ export default function IncomeSection({ businessId }: { businessId: string }) {
                 >
                   {INVOICE_STATUS[inv.status]}
                 </Badge>
+                {inv.pdfUrl && (
+                  <a
+                    href={inv.pdfUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 shrink-0"
+                  >
+                    <Icon name="external" size={13} />
+                    מסמך חוקי
+                    {inv.externalDocNumber ? ` ${inv.externalDocNumber}` : ""}
+                  </a>
+                )}
                 {inv.status !== "paid" && (
                   <button
                     onClick={() => markPaidMut.mutate(inv.id)}
-                    className="text-xs text-brand-600 hover:text-brand-700 shrink-0"
+                    disabled={markPaidMut.isPending}
+                    className="text-xs text-brand-600 hover:text-brand-700 shrink-0 disabled:opacity-50"
                   >
                     סמן כשולמה
                   </button>

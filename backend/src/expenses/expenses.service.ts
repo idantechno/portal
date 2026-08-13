@@ -129,6 +129,34 @@ export class ExpensesService {
     return this.expenses.save(row);
   }
 
+  /**
+   * Create an expense from a file ONLY if it actually reads as one — i.e. a real
+   * amount was extracted. Returns null when the document isn't an expense, so a
+   * caller (e.g. the WhatsApp concierge) can file it elsewhere instead of leaving
+   * a junk 'failed' expense behind. Runs extraction exactly once: the amount is
+   * passed into create(), which then skips its own extraction pass.
+   */
+  async tryCreateFromFile(input: {
+    businessId: string;
+    file: { buffer: Buffer; mimeType: string; fileName: string; size: number };
+    createdByUserId?: string | null;
+  }): Promise<Expense | null> {
+    const parsed = await this.extractor.extract(
+      input.file.mimeType,
+      input.file.buffer,
+    );
+    if (parsed?.amountCents == null) return null;
+    return this.create({
+      businessId: input.businessId,
+      file: input.file,
+      amountCents: parsed.amountCents,
+      title: parsed.vendor ?? undefined,
+      expenseDate: parsed.date ?? undefined,
+      kind: parsed.kind ?? undefined,
+      createdByUserId: input.createdByUserId ?? null,
+    });
+  }
+
   async update(
     businessId: string,
     id: string,

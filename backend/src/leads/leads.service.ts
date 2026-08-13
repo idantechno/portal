@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { MoreThanOrEqual, Repository } from 'typeorm';
 import { AutomationsService } from '../automations/automations.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { CrmService } from '../crm/crm.service';
 import { Lead, LeadSource } from './lead.entity';
 
 export interface CreateLeadInput {
@@ -28,6 +29,7 @@ export class LeadsService {
     private readonly leads: Repository<Lead>,
     private readonly automations: AutomationsService,
     private readonly notifications: NotificationsService,
+    private readonly crm: CrmService,
   ) {}
 
   async create(input: CreateLeadInput): Promise<Lead> {
@@ -67,6 +69,9 @@ export class LeadsService {
         interest: lead.interest,
       })
       .catch(() => undefined);
+    // Push to the business's external CRM/destination, if configured. Fully
+    // best-effort (swallows its own errors) and not awaited on the hot path.
+    void this.crm.pushLead(lead);
 
     return lead;
   }

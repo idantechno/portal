@@ -45,6 +45,9 @@ export interface Invoice {
   issuedAt: string | null;
   dueAt: string | null;
   paidAt: string | null;
+  /** The real legal document issued in Green Invoice, once marked paid. */
+  pdfUrl: string | null;
+  externalDocNumber: string | null;
   createdAt: string;
 }
 

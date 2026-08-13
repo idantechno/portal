@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { AccountStatus } from '../common/enums/account-status.enum';
 import type { WhatsappAgentConfig } from '../common/whatsapp-agent-schedule';
+import type { BusinessAvailability } from '../common/business-availability';
 
 /**
  * Owner-supplied characterization of the business, captured once in an
@@ -83,6 +84,25 @@ export interface BusinessReminderSettings {
   quietEnd?: string;
 }
 
+/**
+ * Which channels the owner wants their OWN notifications delivered over. The
+ * in-app bell is always on; these are the extra reach-out channels, each
+ * independently toggleable (multi-select). Null = system defaults: email on to
+ * the owner's account address, WhatsApp on to `ownerPhone`. Push is deliberately
+ * NOT stored here — it's a property of the device (does it hold a push
+ * subscription), toggled per-device from the settings screen.
+ */
+export interface BusinessNotificationPreferences {
+  /** Also deliver by email. Default true. */
+  email?: boolean;
+  /** Address to email; null/empty → the owner's account email. */
+  emailTo?: string | null;
+  /** Also deliver the owner's own reminders/alerts over WhatsApp. Default true. */
+  whatsapp?: boolean;
+  /** WhatsApp number to reach the owner; null/empty → `ownerPhone`. */
+  whatsappTo?: string | null;
+}
+
 @Entity({ name: 'businesses' })
 export class Business {
   @PrimaryGeneratedColumn('uuid')
@@ -136,9 +156,46 @@ export class Business {
   @Column({ type: 'varchar', length: 32, name: 'owner_phone', nullable: true })
   ownerPhone!: string | null;
 
+  /**
+   * The business's accountant — the ONLY recipient the "send documents to the
+   * accountant" action delivers to. Locked here so the owner (or the agent) can
+   * trigger a send but never redirect financial documents to another address.
+   */
+  @Column({
+    type: 'varchar',
+    length: 255,
+    name: 'accountant_email',
+    nullable: true,
+  })
+  accountantEmail!: string | null;
+
+  @Column({
+    type: 'varchar',
+    length: 32,
+    name: 'accountant_phone',
+    nullable: true,
+  })
+  accountantPhone!: string | null;
+
   /** Reminders-agent default timing + quiet-hours window. Null = system defaults. */
   @Column({ type: 'jsonb', name: 'reminder_settings', nullable: true })
   reminderSettings!: BusinessReminderSettings | null;
+
+  /** Which channels the owner receives their own notifications on. Null = defaults. */
+  @Column({
+    type: 'jsonb',
+    name: 'notification_preferences',
+    nullable: true,
+  })
+  notificationPreferences!: BusinessNotificationPreferences | null;
+
+  /**
+   * Booking availability — open hours, inter-appointment buffer, and holidays.
+   * Null (or `enabled: false`) = always open for bookings (legacy). The schedule
+   * brain offers/books only within it; the owner's manual bookings ignore it.
+   */
+  @Column({ type: 'jsonb', name: 'availability', nullable: true })
+  availability!: BusinessAvailability | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;

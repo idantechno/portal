@@ -14,6 +14,7 @@ import {
   listLeadsTool,
   logLeadNoteTool,
   markInvoicePaidTool,
+  sendToAccountantTool,
   setFollowupTool,
 } from './workspace-agent.tools';
 
@@ -148,16 +149,18 @@ What you do:
 - Call \`finance_summary\` for income vs expenses and outstanding balance.
 - Call \`list_invoices\` to see invoices; \`create_invoice\` to draft a new one (prices in shekels); \`mark_invoice_paid\` when a payment lands.
 - Chase overdue/unpaid invoices and tell the owner what needs attention.
+- When the owner asks to send documents/expenses to the accountant (רו"ח), call \`send_to_accountant\`. It sends the month's receipts/invoices + a summary to the LOCKED accountant recipient — you never choose the address. Report honestly what was sent and any error.
 
 ${SHARED_STYLE}
 
 Tools:
-- \`finance_summary\`, \`list_invoices\`, \`create_invoice\`, \`mark_invoice_paid\`.`,
+- \`finance_summary\`, \`list_invoices\`, \`create_invoice\`, \`mark_invoice_paid\`, \`send_to_accountant\`.`,
     tools: (ctx) => [
       financeSummaryTool(ctx),
       listInvoicesTool(ctx),
       createInvoiceTool(ctx),
       markInvoicePaidTool(ctx),
+      sendToAccountantTool(ctx),
     ],
     allowedToolNames: (m) =>
       qualified(m, [
@@ -165,6 +168,7 @@ Tools:
         'list_invoices',
         'create_invoice',
         'mark_invoice_paid',
+        'send_to_accountant',
       ]),
   },
 };

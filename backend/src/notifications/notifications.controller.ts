@@ -13,6 +13,8 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { NotificationsService } from './notifications.service';
 import { SubscribePushDto, UnsubscribePushDto } from './dto/subscribe-push.dto';
+import { UpdateNotificationPreferencesDto } from './dto/notification-preferences.dto';
+import { Put } from '@nestjs/common';
 
 @UseGuards(BusinessScopeGuard)
 @Controller('businesses/:businessId/notifications')
@@ -42,6 +44,21 @@ export class NotificationsController {
   @Post('push/unsubscribe')
   async unsubscribePush(@Body() dto: UnsubscribePushDto) {
     await this.notifications.unsubscribePush(dto.endpoint);
+    return { ok: true };
+  }
+
+  /** The owner's notification-channel preferences (with default targets). */
+  @Get('preferences')
+  getPreferences(@Param('businessId', ParseUUIDPipe) businessId: string) {
+    return this.notifications.getPreferences(businessId);
+  }
+
+  @Put('preferences')
+  async updatePreferences(
+    @Param('businessId', ParseUUIDPipe) businessId: string,
+    @Body() dto: UpdateNotificationPreferencesDto,
+  ) {
+    await this.notifications.updatePreferences(businessId, dto);
     return { ok: true };
   }
 

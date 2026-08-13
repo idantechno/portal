@@ -160,6 +160,52 @@ export class WhatsappAgentDto {
   busyLabel?: string;
 }
 
+export class AvailabilityWindowDto {
+  @IsArray()
+  @ArrayMaxSize(7)
+  @IsInt({ each: true })
+  @Min(0, { each: true })
+  @Max(6, { each: true })
+  days!: number[];
+
+  @IsString()
+  @Matches(/^\d{2}:\d{2}$/)
+  start!: string;
+
+  @IsString()
+  @Matches(/^\d{2}:\d{2}$/)
+  end!: string;
+}
+
+export class AvailabilityDto {
+  @IsBoolean()
+  enabled!: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  timezone?: string;
+
+  @IsArray()
+  @ArrayMaxSize(30)
+  @ValidateNested({ each: true })
+  @Type(() => AvailabilityWindowDto)
+  windows!: AvailabilityWindowDto[];
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(240)
+  bufferMinutes?: number;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(200)
+  @IsString({ each: true })
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { each: true })
+  daysOff?: string[];
+}
+
 export class UpdateBusinessDto {
   @IsOptional()
   @IsString()
@@ -208,4 +254,20 @@ export class UpdateBusinessDto {
   @IsString()
   @MaxLength(32)
   ownerPhone?: string;
+
+  /** Accountant recipient — the locked destination for financial doc sends. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  accountantEmail?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  accountantPhone?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => AvailabilityDto)
+  availability?: AvailabilityDto;
 }

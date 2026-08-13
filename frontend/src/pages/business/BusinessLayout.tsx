@@ -228,6 +228,14 @@ export default function BusinessLayout() {
       </div>
       <div className="px-4 pb-4 pt-4 border-t border-white/10 text-sm">
         <NavLink
+          to="preferences"
+          onClick={() => setNavOpen(false)}
+          className="mb-1 flex items-center gap-3 rounded-xl px-3 py-2 text-white/60 transition-colors hover:bg-white/[0.08] hover:text-white"
+        >
+          <Icon name="settings" size={17} className="ms-1.5 opacity-90" />
+          הגדרות
+        </NavLink>
+        <NavLink
           to="subscription"
           end
           onClick={() => setNavOpen(false)}
@@ -304,15 +312,15 @@ export default function BusinessLayout() {
       )}
 
       <main className="overflow-hidden min-h-0 flex flex-col">
-        <div className="h-14 px-4 sm:px-6 flex items-center gap-3 border-b border-navy-100 bg-white/70 backdrop-blur sticky top-0 z-20">
-          {/* Hamburger — mobile only. */}
+        <div className="h-16 safe-x flex items-center gap-1.5 sm:gap-2 border-b border-navy-100 bg-white/70 backdrop-blur sticky top-0 z-20">
+          {/* Hamburger — mobile only. 48px touch target, clear of the edge. */}
           <button
             type="button"
             onClick={() => setNavOpen(true)}
             aria-label="פתח תפריט"
-            className="lg:hidden -ms-1 rounded-lg p-2 text-navy-600 hover:bg-navy-100 transition-colors"
+            className="lg:hidden flex h-12 w-12 items-center justify-center rounded-xl text-navy-600 hover:bg-navy-100 transition-colors"
           >
-            <Icon name="menu" size={22} />
+            <Icon name="menu" size={27} />
           </button>
           {/* Back — mobile only, hidden on the home screen. Gives every inner
               page a way back without opening the drawer. */}
@@ -321,14 +329,14 @@ export default function BusinessLayout() {
               type="button"
               onClick={goBack}
               aria-label="חזור"
-              className="lg:hidden rounded-lg p-2 text-navy-600 hover:bg-navy-100 transition-colors"
+              className="lg:hidden flex h-12 w-12 items-center justify-center rounded-xl text-navy-600 hover:bg-navy-100 transition-colors"
             >
-              <Icon name="arrow-start" size={22} />
+              <Icon name="arrow-start" size={27} />
             </button>
           )}
           <Link
             to={homePath}
-            className="lg:hidden font-display text-navy-800 truncate"
+            className="lg:hidden font-display text-lg text-navy-800 truncate"
           >
             {biz.data?.name ?? "Portal Studio"}
           </Link>
@@ -337,7 +345,7 @@ export default function BusinessLayout() {
           </div>
         </div>
         {viaStaff && (
-          <div className="bg-coral-400 text-white text-xs sm:text-sm px-4 py-2.5 flex items-center justify-between gap-2">
+          <div className="bg-coral-400 text-white text-xs sm:text-sm safe-x py-2.5 flex items-center justify-between gap-2">
             <span className="flex min-w-0 items-center gap-2">
               <Icon name="warning" size={17} className="shrink-0" />
               <span className="min-w-0">

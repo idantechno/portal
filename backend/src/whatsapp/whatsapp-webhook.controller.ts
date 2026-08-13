@@ -16,6 +16,8 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SkipThrottle } from '@nestjs/throttler';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { Request, Response } from 'express';
 import { Public } from '../auth/decorators/public.decorator';
@@ -26,6 +28,12 @@ import { ConversationsService } from '../conversations/conversations.service';
 import { CustomerContactsService } from '../conversations/customer-contacts.service';
 import { WhatsappConnectionsService } from './whatsapp-connections.service';
 import { WhatsappWebhookEventsService } from './whatsapp-webhook-events.service';
+import { BusinessesService } from '../businesses/businesses.service';
+import {
+  OWNER_COMMANDS_QUEUE,
+  OwnerCommandJob,
+} from '../owner-concierge/owner-commands.constants';
+import { samePhone } from '../common/phone';
 
 interface MetaWebhookChange {
   value?: {
@@ -37,6 +45,13 @@ interface MetaWebhookChange {
       timestamp?: string;
       type?: string;
       text?: { body?: string };
+      image?: { id?: string; mime_type?: string; caption?: string };
+      document?: {
+        id?: string;
+        mime_type?: string;
+        filename?: string;
+        caption?: string;
+      };
     }>;
     // Coexistence: messages the owner sent from the WhatsApp Business app,
     // mirrored to us so we can pause the agent and keep the thread in sync.
@@ -102,6 +117,9 @@ export class WhatsappWebhookController {
     private readonly contacts: CustomerContactsService,
     private readonly conversations: ConversationsService,
     private readonly events: WhatsappWebhookEventsService,
+    private readonly businesses: BusinessesService,
+    @InjectQueue(OWNER_COMMANDS_QUEUE)
+    private readonly ownerQueue: Queue<OwnerCommandJob>,
   ) {}
 
   @Public()
@@ -252,17 +270,37 @@ export class WhatsappWebhookController {
         // Inbound customer messages.
         const displayName = value.contacts?.[0]?.profile?.name ?? null;
         for (const msg of value.messages ?? []) {
-          if (msg.type !== 'text' || !msg.text?.body || !msg.from || !msg.id) {
-            continue;
-          }
+          if (!msg.from || !msg.id) continue;
           try {
-            await this.ingestTextMessage({
-              businessId,
-              wamid: msg.id,
-              fromPhone: msg.from,
-              displayName,
-              text: msg.text.body,
-            });
+            if (msg.type === 'text' && msg.text?.body) {
+              await this.ingestTextMessage({
+                businessId,
+                wamid: msg.id,
+                fromPhone: msg.from,
+                displayName,
+                text: msg.text.body,
+              });
+            } else if (msg.type === 'image' && msg.image?.id) {
+              await this.ingestMediaMessage({
+                businessId,
+                wamid: msg.id,
+                fromPhone: msg.from,
+                mediaId: msg.image.id,
+                mimeType: msg.image.mime_type ?? null,
+                fileName: null,
+                caption: msg.image.caption ?? null,
+              });
+            } else if (msg.type === 'document' && msg.document?.id) {
+              await this.ingestMediaMessage({
+                businessId,
+                wamid: msg.id,
+                fromPhone: msg.from,
+                mediaId: msg.document.id,
+                mimeType: msg.document.mime_type ?? null,
+                fileName: msg.document.filename ?? null,
+                caption: msg.document.caption ?? null,
+              });
+            }
           } catch (err) {
             this.log.error(
               `Failed to ingest message ${msg.id} for business ${businessId}: ${(err as Error).message}`,
@@ -300,6 +338,24 @@ export class WhatsappWebhookController {
     displayName: string | null;
     text: string;
   }): Promise<void> {
+    // Owner-over-WhatsApp: a message from the owner's OWN number is a command to
+    // their concierge, not a customer conversation. Enqueue it (the worker runs
+    // the agent + sends the reply) and return — never touches the Inbox.
+    const business = await this.businesses.findById(input.businessId);
+    if (
+      business?.ownerPhone &&
+      samePhone(input.fromPhone, business.ownerPhone)
+    ) {
+      await this.enqueueOwner({
+        type: 'text',
+        businessId: input.businessId,
+        fromPhone: input.fromPhone,
+        wamid: input.wamid,
+        body: input.text,
+      });
+      return;
+    }
+
     const contact = await this.contacts.upsert({
       businessId: input.businessId,
       channel: Channel.WhatsApp,
@@ -333,6 +389,49 @@ export class WhatsappWebhookController {
       role: MessageRole.Customer,
       content: input.text,
       externalMessageId: input.wamid,
+    });
+  }
+
+  /**
+   * A media message (image/document). Owner-only for now: if it's from the
+   * owner's number, enqueue it for the concierge (download + file/expense in the
+   * worker). Customer media isn't supported yet, so it's ignored — exactly the
+   * previous behaviour for any non-text message.
+   */
+  private async ingestMediaMessage(input: {
+    businessId: string;
+    wamid: string;
+    fromPhone: string;
+    mediaId: string;
+    mimeType: string | null;
+    fileName: string | null;
+    caption: string | null;
+  }): Promise<void> {
+    const business = await this.businesses.findById(input.businessId);
+    if (
+      !business?.ownerPhone ||
+      !samePhone(input.fromPhone, business.ownerPhone)
+    ) {
+      return;
+    }
+    await this.enqueueOwner({
+      type: 'media',
+      businessId: input.businessId,
+      fromPhone: input.fromPhone,
+      wamid: input.wamid,
+      mediaId: input.mediaId,
+      mimeType: input.mimeType,
+      fileName: input.fileName,
+      caption: input.caption,
+    });
+  }
+
+  /** Enqueue an owner command; jobId = wamid so a retried webhook can't double-add. */
+  private async enqueueOwner(job: OwnerCommandJob): Promise<void> {
+    await this.ownerQueue.add('command', job, {
+      jobId: job.wamid,
+      removeOnComplete: true,
+      removeOnFail: 100,
     });
   }
 

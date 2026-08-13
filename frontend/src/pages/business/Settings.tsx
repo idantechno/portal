@@ -66,6 +66,13 @@ function SettingsForm({ businessId, business }: SettingsFormProps) {
   const [allowedOriginsText, setAllowedOriginsText] = useState(
     (business.widgetAllowedOrigins ?? []).join("\n"),
   );
+  const [ownerPhone, setOwnerPhone] = useState(business.ownerPhone ?? "");
+  const [accountantEmail, setAccountantEmail] = useState(
+    business.accountantEmail ?? "",
+  );
+  const [accountantPhone, setAccountantPhone] = useState(
+    business.accountantPhone ?? "",
+  );
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [showSaved, setShowSaved] = useState(false);
@@ -79,6 +86,9 @@ function SettingsForm({ businessId, business }: SettingsFormProps) {
           .split("\n")
           .map((s) => s.trim())
           .filter(Boolean),
+        ownerPhone,
+        accountantEmail,
+        accountantPhone,
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["business", businessId] });
@@ -128,6 +138,50 @@ function SettingsForm({ businessId, business }: SettingsFormProps) {
               required
               dir="ltr"
             />
+          </div>
+          <div className="border-t border-navy-100 pt-4">
+            <Label htmlFor="owner-phone">
+              טלפון פרטי של בעל העסק (וואטסאפ)
+            </Label>
+            <Input
+              id="owner-phone"
+              type="tel"
+              value={ownerPhone}
+              onChange={(e) => setOwnerPhone(e.target.value)}
+              placeholder="050-0000000"
+              dir="ltr"
+            />
+            <p className="mt-2 text-xs text-navy-400">
+              המספר הפרטי שממנו בעל העסק יכול לתת הוראות לסוכן דרך מספר הוואטסאפ
+              של העסק (למשל "תזכיר לי מחר…", שליחת קבלה לרישום כהוצאה). הודעות
+              מהמספר הזה מטופלות כפקודות בעלים — לא כפניית לקוח.
+            </p>
+          </div>
+          <div className="border-t border-navy-100 pt-4">
+            <Label htmlFor="acc-email">רו״ח — מייל</Label>
+            <Input
+              id="acc-email"
+              type="email"
+              value={accountantEmail}
+              onChange={(e) => setAccountantEmail(e.target.value)}
+              placeholder="accountant@example.com"
+              dir="ltr"
+            />
+            <Label htmlFor="acc-phone" className="mt-3">
+              רו״ח — טלפון (וואטסאפ)
+            </Label>
+            <Input
+              id="acc-phone"
+              type="tel"
+              value={accountantPhone}
+              onChange={(e) => setAccountantPhone(e.target.value)}
+              placeholder="050-0000000"
+              dir="ltr"
+            />
+            <p className="mt-2 text-xs text-navy-400">
+              הנמען הקבוע לשליחת מסמכים כספיים. שליחה "לרו״ח" (כפתור/סוכן/חודשי)
+              תמיד הולכת רק לכאן.
+            </p>
           </div>
           <FormError message={error} />
           <div className="flex items-center gap-3">

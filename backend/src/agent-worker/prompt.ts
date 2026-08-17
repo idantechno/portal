@@ -178,7 +178,7 @@ export function buildContactBlock(input: ContactPromptInput): string | null {
       );
     }
     lines.push(
-      "- If this conversation makes clear (or changes) what this customer is actually getting — the agreed job, project, or plan — and it isn't already captured above, call `record_engagement` with a short, accurate summary based ONLY on what was really agreed here, so the business can confirm it. Never invent an engagement that wasn't discussed.",
+      "- Only if this customer EXPLICITLY agrees IN THIS conversation to a concrete new deal (they confirm a specific job/project/plan and scope) — and it isn't already captured above — call `record_engagement` with a short, accurate summary of what was actually agreed. A question, a request, or interest in something new (e.g. 'can you also make me a clip?') is NOT an agreement — do NOT record it; if they want to move forward, guide them or use `capture_lead`. Never invent or pre-empt an engagement that wasn't actually closed.",
     );
   }
 

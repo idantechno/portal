@@ -17,6 +17,7 @@ import { renderOnboardingProfile } from '../agents/onboarding-context';
 import { BillingService } from '../billing/billing.service';
 import { CalendarService } from '../integrations/calendar.service';
 import { ConversationStatus } from '../common/enums/conversation-status.enum';
+import { ContactStatus } from '../common/enums/contact-status.enum';
 import { MessageRole } from '../common/enums/message-role.enum';
 import { AgentRunJobData } from './agent-worker.constants';
 import {
@@ -210,15 +211,22 @@ export class AgentWorkerService {
         );
       }
     }
-    // Now that we know whether this is a registered customer, let the
-    // record_engagement tool target the right CRM row (leads leave it null).
-    toolCtx.customerId = crmCustomer?.id ?? null;
+    // "Registered customer" means a CRM person whose stage is actually
+    // `customer` — NOT merely any row found by phone. A lead captured earlier
+    // also has a customers-table row (stage `lead`); treating that as a paying
+    // customer wrongly flips the agent to service-mode AND lets it record an
+    // "engagement" for someone who only made an inquiry. Gate on the stage so a
+    // lead stays a lead (sales mode, no engagement) until they truly convert.
+    const isConfirmedCustomer = crmCustomer?.stage === ContactStatus.Customer;
+    // Only a confirmed customer gets an engagement target; leads leave it null,
+    // so `record_engagement` refuses (nothing to attach an engagement to).
+    toolCtx.customerId = isConfirmedCustomer ? (crmCustomer?.id ?? null) : null;
 
     const contactBlock = buildContactBlock({
       contact,
       messageCount: stats.messageCount,
       firstMessageAt: stats.firstMessageAt,
-      isRegisteredCustomer: !!crmCustomer,
+      isRegisteredCustomer: isConfirmedCustomer,
       registeredName: crmCustomer?.name ?? null,
       customer: crmCustomer
         ? {
@@ -326,6 +334,14 @@ export class AgentWorkerService {
       this.log.warn(
         `Agent produced no text for conversation ${conversation.id}; skipping reply.`,
       );
+      // The customer messaged and got nothing back — never leave that silent.
+      // Alert the owner so they can step in instead of the lead going cold.
+      await this.alertOwnerNoReply(
+        business,
+        conversation.id,
+        contact?.displayName ?? crmCustomer?.name ?? contact?.phone ?? null,
+        'הסוכן לא הפיק תשובה',
+      );
       return;
     }
 
@@ -367,6 +383,44 @@ export class AgentWorkerService {
       await this.conversations.markDelivery(reply, 'failed');
       this.log.error(
         `Channel dispatch FAILED for ${refreshed.channel} on conversation ${conversation.id}: ${(err as Error).message}`,
+      );
+      // The reply was written but WhatsApp/web refused it (e.g. the customer's
+      // 24h service window has lapsed, so a free-form send is rejected). The
+      // customer sees nothing — alert the owner to reach out directly.
+      await this.alertOwnerNoReply(
+        business,
+        conversation.id,
+        contact?.displayName ?? crmCustomer?.name ?? contact?.phone ?? null,
+        'התשובה נכתבה אך וואטסאפ דחה את השליחה',
+      );
+    }
+  }
+
+  /**
+   * Tells the business owner the agent failed to answer a customer, so a lead
+   * never goes cold in silence. In-app bell + push; best-effort — an alert
+   * failure must never surface as a failed agent run.
+   */
+  private async alertOwnerNoReply(
+    business: { id: string },
+    conversationId: string,
+    who: string | null,
+    reason: string,
+  ): Promise<void> {
+    const target = who?.trim() || 'לקוח';
+    try {
+      await this.notifications.notify({
+        businessId: business.id,
+        type: 'system',
+        title: `הסוכן לא ענה ל${target}`,
+        body: `${reason}. כדאי להיכנס לשיחה ולענות ידנית.`,
+        link: `/app/businesses/${business.id}/inbox?conversation=${conversationId}`,
+        channels: ['push'],
+      });
+    } catch (err) {
+      this.log.warn(
+        `[agent] owner no-reply alert not sent for conversation ` +
+          `${conversationId}: ${(err as Error).message}`,
       );
     }
   }

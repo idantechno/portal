@@ -201,7 +201,7 @@ export function createReminderTool(ctx: ToolContext) {
 export function recordEngagementTool(ctx: ToolContext) {
   return tool(
     'record_engagement',
-    "Record or update what THIS customer is actually getting from the business — the agreed engagement: a one-off job (e.g. a video clip), a specific project, or a plan/subscription and where they are with it. Derive it ONLY from what was actually agreed or offered in THIS conversation — never guess or invent. What you write is saved as a DRAFT that the business owner reviews and confirms, so keep it short, factual and specific: what they're getting, and whether it's a one-off or ongoing. Call this the moment the agreement becomes clear, or when it changes. This is an internal note — never mention it to the customer.",
+    "Record what THIS customer HAS ALREADY AGREED to buy/receive — a concrete deal that is actually closed: a one-off job (e.g. a video clip), a specific project, or a plan/subscription. ONLY call this once the customer has EXPLICITLY agreed to a specific scope (they said yes, or confirmed the job/terms) IN THIS conversation. NEVER call it for a mere inquiry, question, interest, request, or something they're 'thinking about' — asking 'can you make me a clip?' or describing a need is NOT an agreement. If they only want follow-up/a quote and haven't committed, do nothing here (use capture_lead instead). When in doubt, DON'T record — an unconfirmed guess creates a false 'agreed' note the owner has to clean up. What you write is saved as a DRAFT for the owner to confirm: keep it short, factual, specific. Internal only — never mention it to the customer.",
     {
       summary: z
         .string()

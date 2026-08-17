@@ -10,6 +10,9 @@ import { CustomersService } from '../customers/customers.service';
 import { LeadsService } from '../leads/leads.service';
 import { ExpensesService } from '../expenses/expenses.service';
 import { FilingService } from '../filing/filing.service';
+import { AppointmentsService } from '../appointments/appointments.service';
+import { ScheduleService } from '../schedule/schedule.service';
+import { ScheduledMessagesService } from './scheduled-messages.service';
 import { buildOwnerMcpServer } from './owner-tools';
 
 interface OwnerMessage {
@@ -56,6 +59,9 @@ export class OwnerConciergeService {
     private readonly leads: LeadsService,
     private readonly expenses: ExpensesService,
     private readonly filing: FilingService,
+    private readonly appointments: AppointmentsService,
+    private readonly schedule: ScheduleService,
+    private readonly scheduledMessages: ScheduledMessagesService,
   ) {}
 
   /**
@@ -191,6 +197,10 @@ export class OwnerConciergeService {
       tasks: this.tasks,
       customers: this.customers,
       leads: this.leads,
+      expenses: this.expenses,
+      appointments: this.appointments,
+      schedule: this.schedule,
+      scheduledMessages: this.scheduledMessages,
     });
 
     const result = await this.runner.run({
@@ -220,13 +230,28 @@ export class OwnerConciergeService {
       'המשתמש שכותב לך הוא **בעל העסק עצמו** — לא לקוח. הוא מנהל את העסק דרכך.',
       'תפקידך: לבצע את מה שהוא מבקש באמצעות הכלים, ולהשיב אישור קצר וברור בעברית.',
       '',
+      'הכלים שברשותך:',
+      '- send_message — לשלוח הודעת וואטסאפ **בשם העסק לאדם אחר** (לקוח/ליד/כל איש קשר), עכשיו או בזמן עתידי.',
+      '- book_appointment — לקבוע פגישה ביומן (תופסת זמן, נבדקת מול היומן).',
+      '- create_task — משימה לביצוע (תופסת זמן, נכנסת ליומן אם יש שעה).',
+      '- create_reminder — נדנוד **לך עצמך** בזמן שנקבע (לא שולח לאף אחד אחר).',
+      '- log_expense — לרשום הוצאה מטקסט.',
+      '- get_agenda — לבדוק מה יש ביומן בטווח זמן ("מה יש לי מחר?").',
+      '- find_contact — למצוא טלפון/פרטים של איש קשר לפי שם.',
+      '- create_customer / create_lead — להוסיף לקוח או ליד ל-CRM.',
+      '',
       'כללים:',
-      '- זהה מהבקשה מה הפעולה הנכונה: משימה, תזכורת, הוספת לקוח, או הוספת ליד — והפעל את הכלי המתאים.',
-      '- זמנים: המר ביטויים יחסיים ("מחר בעשר", "בעוד שעתיים") לזמן מוחלט בפורמט ISO של שעון ישראל בלי אזור-זמן (למשל "2026-08-13T10:00"). ' +
+      '- ★ ההבחנה החשובה ביותר: אם הבקשה היא **לשלוח / לכתוב הודעה למישהו אחר** ' +
+        '("תשלח ללינור", "כתוב ללקוח ש...", "תשלח מחר בערב ל...") — זה **תמיד send_message**, ' +
+        'לעולם לא create_reminder. תזכורת רק מנדנדת לבעל העסק ולא מגיעה לאדם השני.',
+      '- ב-send_message: זהה את הנמען לפי השם (הכלי מחפש אותו ב-CRM) או לפי מספר שנמסר. ' +
+        'אם ניתנה שעה עתידית — העבר אותה ב-send_at; אם צריך לשלוח מיד — השאר ריק.',
+      '- זמנים: המר ביטויים יחסיים ("מחר בעשר", "בעוד שעתיים", "מחר ב-20:30") לזמן מוחלט בפורמט ISO של שעון ישראל בלי אזור-זמן (למשל "2026-08-13T10:00"). ' +
         `השעה עכשיו בישראל: ${now}.`,
       '- ההבדל: "משימה" תופסת זמן ונכנסת ליומן; "תזכורת" היא רק נדנוד בזמן שנקבע.',
       '- הבחנה: "לקוח" = מי שכבר עובד איתו; "ליד" = מתעניין/הזדמנות מכירה.',
-      '- אם הבקשה לא ברורה או חסר מידע (למשל אין שם/זמן) — שאל שאלה קצרה במקום לנחש.',
+      '- אם באמת חסר מידע קריטי (למשל אין למי לשלוח כלל) — שאל שאלה קצרה אחת במקום לנחש. ' +
+        'אבל אל תחזיר שאלה כשהכוונה ברורה — עדיף לפעול.',
       '- אם הבקשה לא מתאימה לאף כלי — פשוט השב בקצרה ובאדיבות; אל תמציא פעולות.',
       '- כתוב תשובות קצרות. נסח אישורים בצורה עניינית (למשל "בוצע ✓ נקבעה תזכורת למחר ב-10:00") ' +
         'והימנע מפעלים בגוף שני שמניחים מגדר.',

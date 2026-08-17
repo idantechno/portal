@@ -64,6 +64,15 @@ interface MetaWebhookChange {
       type?: string;
       text?: { body?: string };
     }>;
+    // Delivery receipts for OUR outbound messages: sent → delivered → read, or
+    // failed. `id` is the wamid we stored when we sent, so we can correlate.
+    statuses?: Array<{
+      id?: string;
+      status?: string;
+      recipient_id?: string;
+      timestamp?: string;
+      errors?: Array<{ code?: number; title?: string; message?: string }>;
+    }>;
   };
   field?: string;
 }
@@ -324,6 +333,25 @@ export class WhatsappWebhookController {
           } catch (err) {
             this.log.error(
               `Failed to ingest owner echo ${echo.id} for business ${businessId}: ${(err as Error).message}`,
+            );
+          }
+        }
+
+        // Delivery receipts for our outbound replies — advance each message's
+        // status (sent → delivered → read, or failed) so the inbox shows whether
+        // the customer actually received it.
+        for (const st of value.statuses ?? []) {
+          if (!st.id || !st.status) continue;
+          try {
+            await this.conversations.applyDeliveryReceipt(
+              businessId,
+              st.id,
+              st.status,
+              st.errors?.[0]?.title ?? st.errors?.[0]?.message ?? null,
+            );
+          } catch (err) {
+            this.log.warn(
+              `Failed to apply delivery receipt ${st.id} for business ${businessId}: ${(err as Error).message}`,
             );
           }
         }

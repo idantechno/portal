@@ -134,6 +134,28 @@ function timeShort(iso: string | null, lang: string): string {
   });
 }
 
+/**
+ * Delivery-receipt label for an outbound message, mirroring WhatsApp's
+ * sent/delivered/read/failed. Returns null when there's nothing to show
+ * (inbound messages, or an outbound one with no status yet).
+ */
+function deliveryMeta(
+  status: string | null,
+): { label: string; cls: string } | null {
+  switch (status) {
+    case "sent":
+      return { label: "נשלח", cls: "opacity-90" };
+    case "delivered":
+      return { label: "נמסר", cls: "opacity-90" };
+    case "read":
+      return { label: "נקרא", cls: "text-sky-200 font-medium" };
+    case "failed":
+      return { label: "לא נמסר", cls: "text-red-200 font-semibold" };
+    default:
+      return null;
+  }
+}
+
 function roleClass(role: MessageRole): string {
   switch (role) {
     case "customer":
@@ -219,7 +241,12 @@ export default function Inbox() {
         ["messages", businessId, msg.conversationId],
         (prev) => {
           if (!prev) return prev;
-          if (prev.some((m) => m.id === msg.id)) return prev;
+          // Re-emitted for the same id = a delivery-status update (sent →
+          // delivered → read / failed): merge it in place instead of ignoring
+          // it, so the receipt shows live. A genuinely new message appends.
+          if (prev.some((m) => m.id === msg.id)) {
+            return prev.map((m) => (m.id === msg.id ? { ...m, ...msg } : m));
+          }
           return [...prev, msg];
         },
       );
@@ -470,8 +497,17 @@ export default function Inbox() {
                         )}`}
                       >
                         {m.content}
-                        <div className="text-[10px] opacity-70 mt-1">
-                          {timeShort(m.createdAt, i18n.language)}
+                        <div className="text-[10px] mt-1 flex items-center gap-1 justify-end">
+                          <span className="opacity-70">
+                            {timeShort(m.createdAt, i18n.language)}
+                          </span>
+                          {(m.role === "bot" || m.role === "agent") &&
+                            (() => {
+                              const dm = deliveryMeta(m.deliveryStatus);
+                              return dm ? (
+                                <span className={dm.cls}>· {dm.label}</span>
+                              ) : null;
+                            })()}
                         </div>
                       </div>
                     </div>

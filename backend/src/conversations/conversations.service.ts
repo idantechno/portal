@@ -397,6 +397,59 @@ export class ConversationsService {
   }
 
   /**
+   * Applies a WhatsApp delivery receipt to the outbound message it refers to
+   * (matched by the wamid we stored when sending). Advances the status
+   * monotonically — sent → delivered → read — so a receipt arriving out of
+   * order never downgrades a later one; `failed` overrides any not-yet-read
+   * state and records the provider error. No-op when the wamid isn't ours.
+   */
+  async applyDeliveryReceipt(
+    businessId: string,
+    externalMessageId: string,
+    status: string,
+    errorText?: string | null,
+  ): Promise<void> {
+    const normalized = status.toLowerCase();
+    if (!['sent', 'delivered', 'read', 'failed'].includes(normalized)) return;
+
+    const message = await this.messages.findOne({
+      where: { businessId, externalMessageId },
+    });
+    // A status for a message we didn't originate/track — nothing to update.
+    if (!message) return;
+
+    if (normalized === 'failed') {
+      // A read message can't retroactively fail; ignore a stray late failure.
+      if (message.deliveryStatus === 'read') return;
+      message.deliveryStatus = 'failed';
+      if (errorText) {
+        message.contentJson = {
+          ...(message.contentJson ?? {}),
+          deliveryError: errorText,
+        };
+      }
+    } else {
+      // Monotonic upgrade only. A 'failed' current state ranks below all, so a
+      // later success receipt can still recover it.
+      const rank: Record<string, number> = {
+        pending: 0,
+        sent: 1,
+        delivered: 2,
+        read: 3,
+      };
+      const current =
+        message.deliveryStatus === 'failed'
+          ? -1
+          : (rank[message.deliveryStatus ?? 'pending'] ?? 0);
+      if ((rank[normalized] ?? 0) <= current) return;
+      message.deliveryStatus = normalized;
+    }
+
+    await this.messages.save(message);
+    this.inbox.messageCreated(message);
+  }
+
+  /**
    * For channel-level dedup (e.g. Meta retries the same wamid). Scoped by
    * business so a wamid collision across tenants — unlikely but possible —
    * never crosses the line.

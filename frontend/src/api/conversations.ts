@@ -60,6 +60,11 @@ export interface Message {
   contentJson: Record<string, unknown> | null;
   agentUserId: string | null;
   externalMessageId: string | null;
+  /**
+   * Delivery state for outbound (bot/agent) messages: 'sent' | 'delivered' |
+   * 'read' | 'failed'. Null for inbound customer messages.
+   */
+  deliveryStatus: string | null;
   createdAt: string;
 }
 

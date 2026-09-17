@@ -4,6 +4,11 @@
   // dist/main.js. Without this, a stray .ts anywhere under backend/ (e.g.
   // scripts/*.ts) raises tsc's inferred rootDir to backend/ and shifts output
   // to dist/src/main.js — which the container's `node dist/main.js` can't find.
-  "compilerOptions": { "rootDir": "./src" },
+  // tsBuildInfoFile lives inside outDir so nest-cli's deleteOutDir wipes the
+  // incremental cache together with dist. Otherwise a build that runs after
+  // dist was removed but the root-level cache file survived (e.g. a stale
+  // Docker layer/volume) reports success while emitting nothing, shipping a
+  // container with no dist/main.js.
+  "compilerOptions": { "rootDir": "./src", "tsBuildInfoFile": "./dist/tsconfig.build.tsbuildinfo" },
   "exclude": ["node_modules", "test", "dist", "scripts", "**/*spec.ts"]
 }

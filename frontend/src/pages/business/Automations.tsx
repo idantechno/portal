@@ -11,6 +11,7 @@ import { agentsApi } from "../../api/agents";
 import { useAuthStore } from "../../store/auth";
 import { isPlatformStaff } from "../../lib/roles";
 import { Button, Card, Input, Spinner, Textarea } from "../../components/ui";
+import { Icon } from "../../components/icons";
 
 const RUN_AGENT_KEYS = [
   "marketing",
@@ -120,11 +121,11 @@ export default function Automations() {
                 <div className="font-semibold text-navy-900 text-sm">
                   {rule.name}
                 </div>
-                <div className="text-xs text-navy-500 mt-0.5">
+                <div className="text-xs text-navy-500 mt-0.5 inline-flex items-center gap-1 flex-wrap">
                   כש<span className="font-medium">
                     {TRIGGER_LABEL[rule.trigger] ?? rule.trigger}
-                  </span>{" "}
-                  ←{" "}
+                  </span>
+                  <Icon name="arrow-end" size={12} className="shrink-0" />
                   {rule.actions
                     .map((a) => ACTION_LABEL[a.type] ?? a.type)
                     .join(", ")}

@@ -1,6 +1,6 @@
 import * as dns from 'node:dns/promises';
 import { Injectable, Logger } from '@nestjs/common';
-import { type Browser, type Page, launch } from 'puppeteer';
+import type { Browser, Page } from 'puppeteer';
 import { ClaudeJsonService } from './claude-json.service';
 import { UNKNOWN } from './brief-facts';
 
@@ -282,6 +282,9 @@ export class WebsiteExtractorService {
   private async launchBrowser(): Promise<Browser> {
     // System Chromium in prod (PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium),
     // bundled binary locally. --no-sandbox: the container is the boundary.
+    // Imported lazily (not as a static top-level import) so Jest specs that
+    // never call this method don't have to parse puppeteer's ESM-only build.
+    const { launch } = await import('puppeteer');
     return launch({
       headless: true,
       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,

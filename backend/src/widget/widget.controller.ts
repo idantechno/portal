@@ -17,8 +17,8 @@ import { SendWidgetMessageDto } from './dto/send-widget-message.dto';
  * Security is gated by `publicKey` (per-business) and `sessionToken` (per-
  * customer session). See WidgetService docs for the model.
  *
- * TODO(prod): Honor Business.widgetAllowedOrigins for CORS / Origin header
- *             enforcement before opening this beyond first-party hosting.
+ * `Business.widgetAllowedOrigins` is enforced in `WidgetService.assertOriginAllowed`
+ * (checked against the `Origin`/`Referer` headers), not at the CORS layer.
  */
 @Public()
 @Controller('widget')

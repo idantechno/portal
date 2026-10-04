@@ -1,3 +1,7 @@
+// Puppeteer ships ESM-only, which Jest's CommonJS runtime can't parse. The
+// renderer never launches a browser, so a stub keeps this suite loadable.
+jest.mock('puppeteer', () => ({ launch: jest.fn() }));
+
 import { EMPTY_DRAFT } from './brief-drafter.service';
 import { RawAnswers, UNKNOWN, buildFacts } from './brief-facts';
 import { renderBrief } from './brief-renderer';

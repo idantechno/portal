@@ -34,3 +34,4 @@ pnpm-debug.log*
 
 # Local business storage (dev bind mount)
 .data/
+dump.rdb

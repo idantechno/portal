@@ -117,7 +117,7 @@ The visual language is centralised — don't hand-roll UI chrome.
 
 ## Gotchas
 
-- **`DB_SYNCHRONIZE=true` is dev-only.** Production must switch to TypeORM migrations before any real customer data lands.
+- **`DB_SYNCHRONIZE=true` is dev-only.** Production runs with it off, and then `migrationsRun` applies `backend/src/migrations/*` automatically on boot (see `app.module.ts`). Any entity change needs a migration (`pnpm migration:generate`) — prod will not pick up schema changes otherwise.
 - **Routes vs. controller paths.** Controllers use plain paths (`@Controller('webhooks/whatsapp')`), but `setGlobalPrefix('api')` means the actual URL is `/api/webhooks/whatsapp`. Important for anyone configuring webhooks externally (Meta, Stripe, etc.).
 - **`DB_LOGGING=true` in dev compose** — it's loud. Override with `DB_LOGGING=false` in `.env` if it gets in the way.
 - **Redis auth in prod.** `REDIS_USERNAME` + `REDIS_PASSWORD` are required for the managed Redis on Railway; locally Redis is open. The BullMQ connection config reads both (see `app.module.ts`).

@@ -4,6 +4,11 @@ import { renderBrief } from './brief-renderer';
 import { detectContradictions } from './contradictions';
 import { EMPTY_EXTRACTION } from './website-extractor.service';
 
+// website-extractor.service imports puppeteer, which ships ESM-only and can't be
+// parsed by ts-jest. This spec only needs the EMPTY_EXTRACTION constant, so stub
+// the module out (jest.mock is hoisted above the imports).
+jest.mock('puppeteer', () => ({}));
+
 const answers: RawAnswers = {
   businessName: 'סטודיו נועה',
   businessType: 'service',

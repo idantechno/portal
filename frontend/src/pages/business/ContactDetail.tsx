@@ -1,10 +1,17 @@
-import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { useNavigate, useParams, type NavigateFunction } from "react-router-dom";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query";
 import {
   contactsApi,
   conversationsApi,
+  type Conversation,
   type ContactStatus,
+  type CustomerContact,
   type Message,
   type MessageRole,
 } from "../../api/conversations";
@@ -45,6 +52,148 @@ function roleClass(role: MessageRole): string {
   }
 }
 
+function ContactEditCard({
+  businessId,
+  contactId,
+  contact,
+  messageCount,
+  primaryConversation,
+  navigate,
+  qc,
+  error,
+  setError,
+}: {
+  businessId: string;
+  contactId: string;
+  contact: CustomerContact;
+  messageCount: number;
+  primaryConversation: Conversation | null;
+  navigate: NavigateFunction;
+  qc: QueryClient;
+  error: string | null;
+  setError: (e: string | null) => void;
+}) {
+  const [name, setName] = useState(contact.displayName ?? "");
+  const [notes, setNotes] = useState(contact.notes ?? "");
+  const [st, setSt] = useState<ContactStatus>(contact.status);
+  const [saved, setSaved] = useState(false);
+  const phone = contact.phone || contact.externalId;
+
+  const save = useMutation({
+    mutationFn: () =>
+      contactsApi.update(businessId, contactId, {
+        status: st,
+        displayName: name.trim() || null,
+        notes: notes.trim() || null,
+      }),
+    onSuccess: () => {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 1500);
+      qc.invalidateQueries({ queryKey: ["contact", businessId, contactId] });
+      qc.invalidateQueries({ queryKey: ["contacts", businessId] });
+      qc.invalidateQueries({ queryKey: ["conversations", businessId] });
+    },
+    onError: (e) => setError(apiErrorMessage(e, "השמירה נכשלה")),
+  });
+
+  return (
+    <Card className="p-5 mb-6">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="rounded-xl bg-brand-50 text-brand-700 p-2.5">
+          <Icon name="user" size={22} />
+        </div>
+        <div className="min-w-0">
+          <div className="font-display text-lg leading-tight truncate">
+            {name || phone}
+          </div>
+          <div className="text-xs text-neutral-500" dir="ltr">
+            {phone}
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <div>
+          <label className="block text-xs font-medium text-neutral-600 mb-2">
+            סטטוס
+          </label>
+          <div className="flex gap-2">
+            {(["lead", "customer"] as ContactStatus[]).map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setSt(v)}
+                className={`flex-1 rounded-xl border px-3 py-2 text-sm font-medium transition ${
+                  st === v
+                    ? "border-brand-500 bg-brand-50 text-brand-700"
+                    : "border-neutral-200 text-neutral-600 hover:bg-neutral-50"
+                }`}
+              >
+                {v === "customer" ? "לקוח" : "ליד"}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-neutral-600 mb-2">
+            שם
+          </label>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="שם הלקוח"
+            className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-neutral-600 mb-2">
+            הערות פרטיות
+          </label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="מה שחשוב לזכור על הלקוח (העדפות, רגישויות, הקשר)…"
+            rows={3}
+            className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm resize-none"
+          />
+          <p className="text-[11px] text-neutral-400 mt-1">
+            הסוכן משתמש בזה כדי להכיר את הלקוח — לא נשלח ללקוח.
+          </p>
+        </div>
+
+        {error && <div className="text-xs text-red-700">{error}</div>}
+
+        <div className="flex items-center justify-between">
+          <div className="text-xs text-neutral-400">{messageCount} הודעות</div>
+          <div className="flex gap-2">
+            {primaryConversation && (
+              <Button
+                variant="secondary"
+                onClick={() => navigate(`/app/businesses/${businessId}/inbox`)}
+              >
+                פתח בשיחות
+              </Button>
+            )}
+            <Button onClick={() => save.mutate()} disabled={save.isPending}>
+              {save.isPending ? (
+                <>
+                  <Spinner /> שומר…
+                </>
+              ) : saved ? (
+                "נשמר"
+              ) : (
+                "שמירה"
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 export default function ContactDetail() {
   const {
     businessId = "",
@@ -76,38 +225,8 @@ export default function ContactDetail() {
     (l) => l.customerContactId === contactId,
   );
 
-  const [name, setName] = useState("");
-  const [notes, setNotes] = useState("");
-  const [st, setSt] = useState<ContactStatus>("lead");
-  const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
   const [confirmErase, setConfirmErase] = useState(false);
-
-  // Seed the editable fields once the card loads.
-  useEffect(() => {
-    if (card.data) {
-      setName(card.data.contact.displayName ?? "");
-      setNotes(card.data.contact.notes ?? "");
-      setSt(card.data.contact.status);
-    }
-  }, [card.data]);
-
-  const save = useMutation({
-    mutationFn: () =>
-      contactsApi.update(businessId, contactId, {
-        status: st,
-        displayName: name.trim() || null,
-        notes: notes.trim() || null,
-      }),
-    onSuccess: () => {
-      setSaved(true);
-      setTimeout(() => setSaved(false), 1500);
-      qc.invalidateQueries({ queryKey: ["contact", businessId, contactId] });
-      qc.invalidateQueries({ queryKey: ["contacts", businessId] });
-      qc.invalidateQueries({ queryKey: ["conversations", businessId] });
-    },
-    onError: (e) => setError(apiErrorMessage(e, "השמירה נכשלה")),
-  });
+  const [error, setError] = useState<string | null>(null);
 
   const erase = useMutation({
     mutationFn: () => privacyApi.eraseContact(businessId, contactId),
@@ -128,9 +247,6 @@ export default function ContactDetail() {
     );
   }
 
-  const contact = card.data.contact;
-  const phone = contact.phone || contact.externalId;
-
   return (
     <div className="px-4 sm:px-6 py-6 sm:py-8 max-w-3xl mx-auto">
       <button
@@ -144,108 +260,18 @@ export default function ContactDetail() {
         חזרה
       </button>
 
-      {/* Card: identity + status + notes */}
-      <Card className="p-5 mb-6">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="rounded-xl bg-brand-50 text-brand-700 p-2.5">
-            <Icon name="user" size={22} />
-          </div>
-          <div className="min-w-0">
-            <div className="font-display text-lg leading-tight truncate">
-              {name || phone}
-            </div>
-            <div className="text-xs text-neutral-500" dir="ltr">
-              {phone}
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-2">
-              סטטוס
-            </label>
-            <div className="flex gap-2">
-              {(["lead", "customer"] as ContactStatus[]).map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => setSt(v)}
-                  className={`flex-1 rounded-xl border px-3 py-2 text-sm font-medium transition ${
-                    st === v
-                      ? "border-brand-500 bg-brand-50 text-brand-700"
-                      : "border-neutral-200 text-neutral-600 hover:bg-neutral-50"
-                  }`}
-                >
-                  {v === "customer" ? "לקוח" : "ליד"}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-2">
-              שם
-            </label>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="שם הלקוח"
-              className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-2">
-              הערות פרטיות
-            </label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="מה שחשוב לזכור על הלקוח (העדפות, רגישויות, הקשר)…"
-              rows={3}
-              className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm resize-none"
-            />
-            <p className="text-[11px] text-neutral-400 mt-1">
-              הסוכן משתמש בזה כדי להכיר את הלקוח — לא נשלח ללקוח.
-            </p>
-          </div>
-
-          {error && <div className="text-xs text-red-700">{error}</div>}
-
-          <div className="flex items-center justify-between">
-            <div className="text-xs text-neutral-400">
-              {card.data.stats.messageCount} הודעות
-            </div>
-            <div className="flex gap-2">
-              {primaryConversation && (
-                <Button
-                  variant="secondary"
-                  onClick={() =>
-                    navigate(`/app/businesses/${businessId}/inbox`)
-                  }
-                >
-                  פתח בשיחות
-                </Button>
-              )}
-              <Button
-                onClick={() => save.mutate()}
-                disabled={save.isPending}
-              >
-                {save.isPending ? (
-                  <>
-                    <Spinner /> שומר…
-                  </>
-                ) : saved ? (
-                  "נשמר"
-                ) : (
-                  "שמירה"
-                )}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </Card>
+      <ContactEditCard
+        key={contactId}
+        businessId={businessId}
+        contactId={contactId}
+        contact={card.data.contact}
+        messageCount={card.data.stats.messageCount}
+        primaryConversation={primaryConversation}
+        navigate={navigate}
+        qc={qc}
+        error={error}
+        setError={setError}
+      />
 
       {/* Captured lead detail, if any */}
       {contactLeads.length > 0 && (

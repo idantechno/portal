@@ -15,10 +15,9 @@ import { SendWidgetMessageDto } from './dto/send-widget-message.dto';
 /**
  * Unauthenticated endpoints called by the embeddable web widget.
  * Security is gated by `publicKey` (per-business) and `sessionToken` (per-
- * customer session). See WidgetService docs for the model.
- *
- * TODO(prod): Honor Business.widgetAllowedOrigins for CORS / Origin header
- *             enforcement before opening this beyond first-party hosting.
+ * customer session). Origin/Referer enforcement against
+ * `Business.widgetAllowedOrigins` happens in WidgetService, not at the CORS
+ * layer — see its docs for the open/locked-mode model.
  */
 @Public()
 @Controller('widget')

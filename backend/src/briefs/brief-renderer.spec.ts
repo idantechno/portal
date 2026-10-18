@@ -2,7 +2,25 @@ import { EMPTY_DRAFT } from './brief-drafter.service';
 import { RawAnswers, UNKNOWN, buildFacts } from './brief-facts';
 import { renderBrief } from './brief-renderer';
 import { detectContradictions } from './contradictions';
-import { EMPTY_EXTRACTION } from './website-extractor.service';
+
+// Not imported from './website-extractor.service': that module pulls in
+// puppeteer (ESM-only), which ts-jest can't transform. Mirrors EMPTY_EXTRACTION.
+const EMPTY_EXTRACTION = {
+  pages: [],
+  services: [],
+  pricing: UNKNOWN,
+  tone: UNKNOWN,
+  toneWords: [],
+  testimonials: [],
+  proofAssets: [],
+  digitalPresence: [],
+  story: UNKNOWN,
+  processSteps: [],
+  faq: [],
+  customerLanguage: [],
+  geography: UNKNOWN,
+  notes: '',
+};
 
 const answers: RawAnswers = {
   businessName: 'סטודיו נועה',

@@ -83,9 +83,11 @@ export default function ContactDetail() {
   const [saved, setSaved] = useState(false);
   const [confirmErase, setConfirmErase] = useState(false);
 
-  // Seed the editable fields once the card loads.
+  // Seed the editable fields once the card loads (and re-seed after a save,
+  // which refetches card.data and should discard any unsaved local edits).
   useEffect(() => {
     if (card.data) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional resync from server data, not derived state
       setName(card.data.contact.displayName ?? "");
       setNotes(card.data.contact.notes ?? "");
       setSt(card.data.contact.status);

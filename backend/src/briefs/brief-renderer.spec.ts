@@ -1,3 +1,8 @@
+// website-extractor.service imports puppeteer, whose entry is ESM-only and
+// can't be parsed by ts-jest. The renderer never launches a browser, so a stub
+// is enough to load EMPTY_EXTRACTION.
+jest.mock('puppeteer', () => ({ launch: jest.fn() }));
+
 import { EMPTY_DRAFT } from './brief-drafter.service';
 import { RawAnswers, UNKNOWN, buildFacts } from './brief-facts';
 import { renderBrief } from './brief-renderer';

@@ -51,8 +51,9 @@ export function SignaturePad({
             <span className="absolute bottom-1.5 left-2 rounded-full bg-cream/80 px-2 py-0.5 text-[11px] text-wood-700 opacity-0 transition-opacity group-hover:opacity-100">
               לחץ לעריכה
             </span>
-            <span className="absolute right-2 top-2 rounded-full bg-basil-600/90 px-2 py-0.5 text-[11px] font-medium text-white">
-              ✓ נחתם
+            <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-basil-600/90 px-2 py-0.5 text-[11px] font-medium text-white">
+              <Icon name="check" size={12} />
+              נחתם
             </span>
           </>
         ) : (

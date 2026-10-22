@@ -12,8 +12,9 @@ export class AccountantMonthlyProcessor extends WorkerHost {
     super();
   }
 
-  async process(): Promise<void> {
-    const sent = await this.service.run();
-    if (sent > 0) this.log.log(`Monthly accountant send fired for ${sent}.`);
+  process(): Promise<void> {
+    // Monthly auto-send is disabled — drop any job still queued from before.
+    this.log.log('Monthly accountant send skipped — schedule disabled.');
+    return Promise.resolve();
   }
 }

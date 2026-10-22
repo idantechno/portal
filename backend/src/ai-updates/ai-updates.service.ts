@@ -49,25 +49,18 @@ export class AiUpdatesService implements OnModuleInit {
   ) {}
 
   async onModuleInit(): Promise<void> {
-    // BullMQ dedupes repeatable jobs by their repeat options, so re-adding on
-    // every boot doesn't stack duplicates.
+    // Scheduled digests are DISABLED (they burned too many API credits on web
+    // search). Repeatable jobs live in Redis and survive deploys, so actively
+    // remove any previously-registered ones on boot. Manual generation via the
+    // admin endpoint still works.
     try {
-      // Daily business digest. Server runs UTC; Israel is UTC+2 (winter) /
-      // UTC+3 (summer), so '0 5 * * *' lands ~07:00–08:00 Israel across DST.
-      await this.queue.add(
-        'daily',
-        {},
-        { repeat: { pattern: '0 5 * * *' }, removeOnComplete: true },
-      );
-      // Weekly internal digest — Monday 06:00 UTC (~08:00–09:00 Israel).
-      await this.queue.add(
-        'weekly',
-        {},
-        { repeat: { pattern: '0 6 * * 1' }, removeOnComplete: true },
-      );
+      const existing = await this.queue.getRepeatableJobs();
+      for (const job of existing) {
+        await this.queue.removeRepeatableByKey(job.key);
+      }
     } catch (err) {
       this.log.error(
-        `Failed to schedule ai-updates jobs: ${(err as Error).message}`,
+        `Failed to clear ai-updates schedules: ${(err as Error).message}`,
       );
     }
   }

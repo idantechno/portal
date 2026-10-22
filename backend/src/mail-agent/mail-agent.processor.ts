@@ -12,7 +12,8 @@ export class MailAgentProcessor extends WorkerHost {
     super();
   }
 
-  async process(): Promise<void> {
-    await this.service.sweep();
+  process(): Promise<void> {
+    // Scheduled sweep is disabled — drop any job still queued from before.
+    return Promise.resolve();
   }
 }

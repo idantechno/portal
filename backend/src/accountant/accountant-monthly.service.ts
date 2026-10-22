@@ -22,15 +22,17 @@ export class AccountantMonthlyService implements OnModuleInit {
   ) {}
 
   async onModuleInit(): Promise<void> {
+    // Scheduled run is DISABLED (no automatic jobs/notifications). Repeatable
+    // jobs live in Redis and survive deploys, so actively remove any that were
+    // registered before. Manual triggers still work.
     try {
-      await this.queue.add(
-        'run',
-        {},
-        { repeat: { pattern: '0 6 1 * *' }, removeOnComplete: true },
-      );
+      const existing = await this.queue.getRepeatableJobs();
+      for (const job of existing) {
+        await this.queue.removeRepeatableByKey(job.key);
+      }
     } catch (err) {
       this.log.error(
-        `Failed to schedule monthly accountant send: ${(err as Error).message}`,
+        `Failed to clear monthly accountant send schedule: ${(err as Error).message}`,
       );
     }
   }

@@ -12,10 +12,9 @@ export class DocumentRemindersProcessor extends WorkerHost {
     super();
   }
 
-  async process(): Promise<void> {
-    const created = await this.service.sweep();
-    if (created > 0) {
-      this.log.log(`Unsigned-document sweep created ${created} reminder(s).`);
-    }
+  process(): Promise<void> {
+    // Scheduled sweep is disabled — drop any job still queued from before.
+    this.log.log('Unsigned-document sweep skipped — schedule disabled.');
+    return Promise.resolve();
   }
 }

@@ -16,15 +16,10 @@ export class AiUpdatesProcessor extends WorkerHost {
     super();
   }
 
-  async process(job: Job): Promise<void> {
-    if (job.name === 'weekly') {
-      await this.service.generateWeeklyInternalUpdate();
-      return;
-    }
-    if (job.name === 'daily') {
-      await this.service.generateDailyBusinessUpdate();
-      return;
-    }
-    this.log.warn(`Unknown ai-updates job "${job.name}" — ignored.`);
+  process(job: Job): Promise<void> {
+    // Scheduled digests are disabled (API cost). Drop any job still queued
+    // from before the schedule was removed instead of calling the model.
+    this.log.log(`ai-updates job "${job.name}" skipped — schedule disabled.`);
+    return Promise.resolve();
   }
 }

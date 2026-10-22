@@ -29,17 +29,17 @@ export class DocumentRemindersService implements OnModuleInit {
   ) {}
 
   async onModuleInit(): Promise<void> {
-    // Register the hourly sweep. BullMQ dedupes repeatable jobs by their repeat
-    // options, so re-adding on every boot does not stack duplicates.
+    // Scheduled run is DISABLED (no automatic jobs/notifications). Repeatable
+    // jobs live in Redis and survive deploys, so actively remove any that were
+    // registered before. Manual triggers still work.
     try {
-      await this.queue.add(
-        'sweep',
-        {},
-        { repeat: { pattern: '0 * * * *' }, removeOnComplete: true },
-      );
+      const existing = await this.queue.getRepeatableJobs();
+      for (const job of existing) {
+        await this.queue.removeRepeatableByKey(job.key);
+      }
     } catch (err) {
       this.log.error(
-        `Failed to schedule unsigned-document sweep: ${(err as Error).message}`,
+        `Failed to clear unsigned-document sweep schedule: ${(err as Error).message}`,
       );
     }
   }

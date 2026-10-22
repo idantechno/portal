@@ -73,12 +73,10 @@ export class OverviewService {
     const cached = this.cache.get(business.id);
     if (cached && cached.day === day) return cached.data;
 
-    const [tip, news, weather] = await Promise.all([
-      this.buildTip(business),
-      this.fetchNews(business),
-      this.fetchWeather(business),
-    ]);
-    const data: OverviewExtras = { tip, news, weather };
+    // The AI daily tip and AI-picked news are DISABLED — they called the model
+    // automatically on every dashboard load. Weather needs no model.
+    const weather = await this.fetchWeather(business);
+    const data: OverviewExtras = { tip: null, news: null, weather };
     this.cache.set(business.id, { day, data });
     return data;
   }

@@ -8,17 +8,11 @@ import {
 } from 'typeorm';
 
 export type SubscriptionStatus =
-  | 'active'
-  | 'trialing'
-  | 'past_due'
-  | 'canceled';
+  'active' | 'trialing' | 'past_due' | 'canceled';
 
 /** How the subscription is billed/collected. */
 export type BillingProviderName =
-  | 'manual'
-  | 'stripe'
-  | 'greeninvoice'
-  | 'morning';
+  'manual' | 'stripe' | 'greeninvoice' | 'morning';
 
 /** One row per business — its current plan and billing status. */
 @Entity({ name: 'subscriptions' })

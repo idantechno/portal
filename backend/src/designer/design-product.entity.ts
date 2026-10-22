@@ -7,12 +7,7 @@ import {
 } from 'typeorm';
 
 export type DesignKind =
-  | 'menu'
-  | 'poster'
-  | 'invitation'
-  | 'pricelist'
-  | 'flyer'
-  | 'other';
+  'menu' | 'poster' | 'invitation' | 'pricelist' | 'flyer' | 'other';
 
 /**
  * A simple print product the designer agent produced (menu, poster, etc.).
